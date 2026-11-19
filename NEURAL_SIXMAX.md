@@ -55,3 +55,16 @@ cargo run --release -- --sixmax-neural-train --resume --hands 5000 --seed 4102 -
 6. The PHH imitator is a frozen coarse human-like/Pluribus-action approximation; it is not Pluribus, and the neural model here distills the tabular agent rather than directly consuming PHH observations.
 
 **Next milestones:** replace range beliefs with card-blocked weighted combination distributions, encode full action histories, introduce GPU batch inference/training, train much larger networks, and establish held-out league evaluation and EV-loss versus a validated search reference.
+
+## One-million-hand distillation follow-up
+
+[GitHub Actions 44562688853](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44562688853) restored the stronger frozen 1M-hand scratch-trained tabular teacher and ran one million fresh **supervised** teacher rollouts. The 44 tests passed.
+
+| Neural checkpoint | Against five tabular teacher copies | Against five PHH imitation bots |
+|---|---:|---:|
+| After 250k teacher deals | +19.167 ±35.532 bb/100 (60k hands) | +125.942 ±20.737 bb/100 (60k hands) |
+| After 1M teacher deals | +14.397 ±25.754 bb/100 (120k hands) | +129.908 ±15.269 bb/100 (120k hands) |
+
+The neural net used about 9.3M gradient updates across the million deals. There is **no statistically conclusive advantage over the teacher**; the point estimates remain near parity. Results versus PHH only measure superiority against a coarse six-player *imitation* of Pluribus, not against Pluribus itself. Both evaluations use no rake, simplified action sizing and the same six-max engine.
+
+These are CPU-based measurements from GitHub Actions runners. No RX 6800 XT benchmark has been performed.
