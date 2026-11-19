@@ -20,14 +20,15 @@ jobs:
       - name: Fetch verified PHH sample from Pluribus
         run: |
           mkdir -p fixtures/pluribus
-          curl --fail --location --retry 3 https://raw.githubusercontent.com/uoftcprg/phh-dataset/main/data/pluribus/100/0.phh -o fixtures/pluribus/0.phh
-          curl --fail --location --retry 3 https://raw.githubusercontent.com/uoftcprg/phh-dataset/main/data/pluribus/100/11.phh -o fixtures/pluribus/11.phh
-          test -s fixtures/pluribus/0.phh
-          test -s fixtures/pluribus/11.phh
+          for id in $(seq 0 19); do
+            curl --fail --location --retry 3 --silent --show-error "https://raw.githubusercontent.com/uoftcprg/phh-dataset/main/data/pluribus/100/${id}.phh" -o "fixtures/pluribus/${id}.phh"
+            test -s "fixtures/pluribus/${id}.phh"
+          done
       - name: Import and supervised baseline
         run: |
           ./target/release/solverpk --import-phh --source fixtures/pluribus --output observations.bin | tee import.log
           test -s observations.bin
+          test "$(wc -c < observations.bin)" -gt 96
           ./target/release/solverpk --train-phh --source observations.bin --output imitation.bin | tee training.log
           test -s imitation.bin
           wc -c observations.bin imitation.bin
