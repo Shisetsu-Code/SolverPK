@@ -20,7 +20,7 @@ jobs:
       - name: Fetch verified PHH sample from Pluribus
         run: |
           mkdir -p fixtures/pluribus
-          for id in $(seq 0 19); do
+          for id in $(seq 0 70); do
             curl --fail --location --retry 3 --silent --show-error "https://raw.githubusercontent.com/uoftcprg/phh-dataset/main/data/pluribus/100/${id}.phh" -o "fixtures/pluribus/${id}.phh"
             test -s "fixtures/pluribus/${id}.phh"
           done
