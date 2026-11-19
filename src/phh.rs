@@ -11,6 +11,7 @@ const UNKNOWN:u8=255;
 struct Hand {
     variant:String,
     players:usize,
+    player_names:Vec<String>,
     starting:Vec<i64>,
     finishing:Option<Vec<i64>>,
     blinds:Vec<i64>,
@@ -64,7 +65,7 @@ fn parse_hand(input:&str)->Result<Hand,String>{
     fn put(h:&mut Hand,key:&str,value:&str)->Result<(),String>{
         match key{
             "variant"=>h.variant=value.trim().trim_matches(|c|c=='"'||c=='\'').to_string(),
-            "players"=>h.players=quoted_items(value)?.len(),
+            "players"=>{h.player_names=quoted_items(value)?;h.players=h.player_names.len();},
             "starting_stacks"=>h.starting=numeric_items(value)?,
             "finishing_stacks"=>h.finishing=Some(numeric_items(value)?),
             "antes"=>h.antes=numeric_items(value)?,
@@ -160,7 +161,7 @@ impl State{
         self.queue=ordered_after(self.button,self.stacks.len(),|p|!self.folded[p] && self.stacks[p]>0);
         Ok(())
     }
-    fn observe(&self,actor:usize,action:u8,amount:i64,hand_id:u64,index:u16)->[u8;96]{
+    fn observe(&self,actor:usize,action:u8,amount:i64,hand_id:u64,index:u16,is_pluribus:bool)->[u8;96]{
         let mut b=[0u8;RECORD_BYTES];
         b[0..8].copy_from_slice(&hand_id.to_le_bytes());
         b[8..10].copy_from_slice(&index.to_le_bytes());
@@ -170,6 +171,7 @@ impl State{
         b[15]=(if to_call>0{1}else{0}) | 2 |
             (if self.stacks[actor]>to_call && self.stacks.iter().enumerate().any(|(p,&v)|p!=actor && !self.folded[p] && v>0){4}else{0});
         b[16..18].copy_from_slice(&self.hole[actor]);
+        b[88]=u8::from(is_pluribus); // actor identity, not a model feature
         b[18..23].copy_from_slice(&self.board);
         for (offset,value) in [(24,self.pot),(32,to_call),(40,self.stacks[actor]),
             (48,self.min_raise),(56,amount),(64,self.street_paid[actor]),
@@ -288,7 +290,7 @@ fn reconstruct(h:&Hand,id:u64)->Result<Vec<[u8;96]>,String>{
         let kind=match t[1]{"f"=>0,"cc"=>1,"cbr"=>2,_=>return Err(format!("unsupported action {}",t[1]))};
         let amount=if kind==2{parse_money(t.get(2).copied().ok_or("missing bet")?)?}else{0};
         let index=u16::try_from(out.len()).map_err(|_|"more than 65535 decisions")?;
-        let record=s.observe(p-1,kind,amount,id,index);
+        let record=s.observe(p-1,kind,amount,id,index,h.player_names[p-1]=="Pluribus");
         s.action(p-1,kind,amount)?;
         out.push(record);
     }
