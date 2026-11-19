@@ -195,15 +195,14 @@ impl Table {
             winnings[1-loser] = self.pot();
             return (winnings, Some(1-loser), false);
         }
-        // Refund unmatched contributions caused by a short all-in call.
+        // Refund unmatched contributions; keep invested unchanged for net accounting.
         for p in 0..2 {
             if self.invested[p] > self.invested[1-p] {
                 let refund = self.invested[p] - self.invested[1-p];
-                self.invested[p] -= refund;
                 winnings[p] += refund;
             }
         }
-        let pot = self.pot();
+        let pot = 2 * self.invested[0].min(self.invested[1]);
         let scores = [0,1].map(|p|score7(&[
             self.hole[p][0],self.hole[p][1],self.board[0],self.board[1],
             self.board[2],self.board[3],self.board[4]
