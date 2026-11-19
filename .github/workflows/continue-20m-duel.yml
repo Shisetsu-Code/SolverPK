@@ -1,0 +1,65 @@
+name: Continue 10M to 20M and duel
+on:
+  push:
+    paths:
+      - '.github/workflows/continue-20m-duel.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train-and-duel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Tests and optimized build
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Restore audited 10M policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p checkpoint10
+          gh run download 44533415706 --repo Shisetsu-Code/SolverPK --name solverpk-optimized-fresh-10m-rerun --dir checkpoint10
+          test -s checkpoint10/selfplay.bin
+          cp checkpoint10/selfplay.bin selfplay.bin
+          sha256sum checkpoint10/selfplay.bin | tee initial.sha256
+      - name: Continue from 10M to 15M hands
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --self-play --resume --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 16 --seed 2026112101 --checkpoint selfplay.bin | tee training-15m.log
+          cp selfplay.bin checkpoint-15m.bin
+      - name: Continue from 15M to 20M hands
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --self-play --resume --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 16 --seed 2026112102 --checkpoint selfplay.bin | tee training-20m.log
+          sha256sum selfplay.bin checkpoint-15m.bin | tee final.sha256
+      - name: Frozen head-to-head, 200k hands
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --duel --left checkpoint10/selfplay.bin --right selfplay.bin --hands 100000 --samples 16 --seed 93101 | tee duel-seed-1.log
+          ./target/release/solverpk --duel --left checkpoint10/selfplay.bin --right selfplay.bin --hands 100000 --samples 16 --seed 93102 | tee duel-seed-2.log
+      - name: Upload policies, training and duel metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solverpk-10m-vs-20m
+          path: |
+            training-15m.log
+            training-20m.log
+            duel-seed-1.log
+            duel-seed-2.log
+            checkpoint-15m.bin
+            selfplay.bin
+            initial.sha256
+            final.sha256
+          if-no-files-found: warn
+          retention-days: 30
