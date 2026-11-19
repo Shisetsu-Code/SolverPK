@@ -41,40 +41,36 @@ fn key(record:&[u8;ROW])->usize{
     let pos=if record[10]==record[14]{1}else{0};
     (((((street*5+ranks)*2+suited)*4+price)*3+multi)*2)+pos
 }
-fn input(path:&str)->io::Result<Vec<[u8;ROW]>>{
+fn scan<F:FnMut(&[u8;ROW])->io::Result<()>>(path:&str,mut consume:F)->io::Result<()>{
     let mut file=BufReader::new(File::open(path)?);
     let mut magic=[0u8;8];file.read_exact(&mut magic)?;
     if &magic!=MAGIC{return Err(invalid("not SPKOBS02 file"));}
-    let mut records=Vec::new();
     loop{
         let mut row=[0u8;ROW];
-        let mut start=[0u8;1];
-        if file.read(&mut start)?==0{break;}
-        row[0]=start[0];
+        if file.read(&mut row[0..1])?==0{break;}
         file.read_exact(&mut row[1..])?;
         if row[12]>2 || row[11]>3 || row[13]<2{return Err(invalid("invalid action/street/player count"));}
         if row[15]&(1<<row[12])==0{return Err(invalid("recorded action is illegal"));}
-        records.push(row);
+        consume(&row)?;
     }
-    Ok(records)
+    Ok(())
 }
 pub fn run(args:&[String])->io::Result<()>{
     let source=args.windows(2).find(|w|w[0]=="--source").map(|w|w[1].as_str()).ok_or_else(||invalid("missing --source"))?;
     let out=args.windows(2).find(|w|w[0]=="--output").map(|w|w[1].as_str()).unwrap_or("phh-imitation.bin");
-    let records=input(source)?;
     let mut model=Counts::new();let mut train=[0u64;3];let mut test=[0u64;3];
-    // Group split by hand ID: no decisions from a hand cross folds.
-    for r in &records{
+    scan(source,|r|{
         let id=u64::from_le_bytes(r[0..8].try_into().unwrap());
         if id%5!=0{
             model.0[key(r)][r[12] as usize]+=1;
             train[r[12] as usize]+=1;
         }else{test[r[12] as usize]+=1;}
-    }
+        Ok(())
+    })?;
     let mut loss=0.0;let mut null_loss=0.0;let mut correct=0u64;let mut evaluated=0u64;
-    for r in &records{
+    scan(source,|r|{
         let id=u64::from_le_bytes(r[0..8].try_into().unwrap());
-        if id%5!=0{continue;}
+        if id%5!=0{return Ok(());}
         let action=r[12] as usize;
         let probs=model.probability(key(r),r[15]);
         let legal=(0..ACTIONS).filter(|&a|r[15]&(1<<a)!=0).count();
@@ -82,13 +78,14 @@ pub fn run(args:&[String])->io::Result<()>{
         null_loss+=(legal as f64).ln();
         if probs[action]==probs.iter().copied().fold(0.0,f64::max){correct+=1;}
         evaluated+=1;
-    }
+        Ok(())
+    })?;
     let mut file=File::create(out)?;
     file.write_all(b"SPKIMT01")?;
     file.write_all(&(BUCKETS as u32).to_le_bytes())?;
     for b in &model.0 {for x in b{file.write_all(&x.to_le_bytes())?;}}
     println!("IMITATION source={} decisions={} train={} test={} train_actions={:?} test_actions={:?} heldout_log_loss={:.5} uniform_legal_log_loss={:.5} heldout_accuracy={:.4} output={}",
-        source,records.len(),train.iter().sum::<u64>(),test.iter().sum::<u64>(),
+        source,train.iter().sum::<u64>()+test.iter().sum::<u64>(),train.iter().sum::<u64>(),test.iter().sum::<u64>(),
         train,test,if evaluated>0{loss/evaluated as f64}else{f64::NAN},
         if evaluated>0{null_loss/evaluated as f64}else{f64::NAN},
         if evaluated>0{correct as f64/evaluated as f64}else{f64::NAN},out);
