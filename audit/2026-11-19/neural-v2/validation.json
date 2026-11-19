@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-19",
+  "source_commit": "c94321087fb114edfd562be448fb401c0d210a12",
+  "workflow_run_id": 44595765332,
+  "workflow_job_id": 135813478910,
+  "conclusion": "success",
+  "tests": {
+    "unit_passed": 121,
+    "cli_integration_passed": 17,
+    "explicit_release_audits_passed": 2,
+    "total_passed": 140,
+    "failed": 0
+  },
+  "negative_regression_runs": [
+    44592407208,
+    44593734388
+  ],
+  "evaluator_exhaustive_five_card_hands": 2598960,
+  "accounting_stress_hands": 100000,
+  "accounting_stress_actions": 874267,
+  "training_hands_with_updates": 300000,
+  "league_hands": 1344000,
+  "league_result_rows": 112,
+  "legacy_compatibility_hands": 240000,
+  "checkpoint_hashes_unchanged_during_evaluation": true,
+  "reproducible_v2_weights_across_ci_runs": [
+    44594831850,
+    44595765332
+  ],
+  "statistical_repeats_counted_once": true,
+  "independent_static_reviews": {
+    "core": "no blocking findings",
+    "workflow_and_pilot": "no blocking findings"
+  },
+  "archived_recipe_original_git_blob": "c3ac82093860b7640c2db496e4b670e717fe7bad",
+  "minor_followup": "Strictly align documentary rake metadata bounds with CLI bounds for manually constructed checksum-valid checkpoints; game rules still come from validated CLI."
+}

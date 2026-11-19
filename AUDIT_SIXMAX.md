@@ -1,5 +1,8 @@
 # Auditoría de SolverPK: reglas, rake, ganancias y evaluación
 
+> **Seguimiento posterior:** [NEURAL_V2.md](NEURAL_V2.md) documenta la corrección de observaciones, recompensas y gradientes, además de la nueva liga. Este informe conserva los hallazgos y resultados del checkpoint histórico SPKNN001 de 100M; sus limitaciones de representación no describen al nuevo SPKNN002.
+
+
 **Fecha:** 19 de noviembre de 2026. **Estado:** motor 6-max corregido y verificado; modelo neuronal histórico reevaluado sin reentrenarlo.
 
 ## Dictamen

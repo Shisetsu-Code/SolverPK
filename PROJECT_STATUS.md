@@ -1,5 +1,7 @@
 # SolverPK — estado técnico y traspaso (2026-11-19)
 
+> **Estado vigente: Neural V2.** [NEURAL_V2.md](NEURAL_V2.md) documenta el encoder de 128 entradas, aprendizaje monetario sin recortes, actualización congelada por mano, checkpoints reproducibles y liga. SPKNN001 se conserva solo para evaluación.
+
 > **Actualización posterior a los 100M:** [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) contiene las correcciones verificadas de reglas/rake, la reevaluación congelada y las limitaciones estratégicas detectadas. Las tablas de experimentos anteriores de este archivo son históricas y no representan resultados después de rake.
 
 > **Fuente de verdad para continuar el desarrollo.** Leer este archivo antes de modificar la arquitectura, los checkpoints o los benchmarks. El plan priorizado está en [ROADMAP.md](ROADMAP.md).
@@ -12,24 +14,26 @@ SolverPK es un proyecto de investigación de póker Texas Hold'em en **Rust sin 
 |---|---|---|---|
 | Heads-Up original | `src/main.rs`, `src/selfplay.rs`, `src/evaluator.rs` | Actor-critic **tabular**, 640 estados/3 acciones | Funciona; checkpoints y pruebas propios, **no** 6-max |
 | Arena 6-max | `src/sixmax.rs` | Actor-critic **tabular**, 19.440 estados/6 acciones | Funciona en abstracción no-limit; requiere conformance externo |
-| Neuronal 6-max | `src/neural.rs` + `src/sixmax.rs` | MLP **neuronal real** 64→32→6, entrenamiento por backpropagation | **100 millones de manos nuevas de self-play completadas** |
+| Neuronal 6-max | `src/neural.rs` + `src/sixmax.rs` | MLP **128→32→6 V2**, entrenamiento por backpropagation | V2 validada; **100M pertenecen al modelo histórico V1**, conservado |
 | Ingesta PHH | `src/phh.rs`, `src/imitation.rs`, `src/phh_compare.rs`, `src/phh_eval.rs` | Parser, replay histórico y modelo tabular por imitación | 10.000 manos de Pluribus importadas; no es un solver GTO |
 
 La red neuronal **no existía** al comienzo del proyecto: los primeros checkpoints eran tablas. El entrenamiento de 100M pertenece exclusivamente al modelo neuronal 6-max y se hizo con **manos sintéticas generadas por el simulador**, no con 100M de manos humanas descargadas.
 
 **No existe aún:** solver GTO verificado, CFR+ completo, modelo profundo de millones de parámetros, entrenamiento ROCm, rango probabilístico real de 1.326 combinaciones, certificación externa de todas las reglas NLHE ni entrenamiento de los 21,6M registros HandHQ.
 
-## 2. Arquitectura neuronal comprobada
+## 2. Arquitectura neuronal vigente
 
-- `Net`: MLP `f32` de 64 entradas, 32 neuronas ocultas ReLU y 6 salidas de política con softmax enmascarado; **2.278 pesos y sesgos entrenables** (más un promedio de recompensa).
-- Acciones abstractas: fold, check/call y cuatro objetivos raise-to (aprox. 33 %, 75 %, 100 % del bote, all-in). No controla libremente todos los tamaños legales del NLHE.
-- Entrenamiento: REINFORCE de recompensa terminal y baseline escalar móvil; backpropagation implementada manualmente; no hay optimizador Adam ni critic neuronal.
-- La misma red juega **los seis asientos en self-play**; no hay liga neuronal de rivales independientes ni evaluación de explotabilidad.
-- Representación actual: rangos de cartas propias y si son suited (sin identidad de sus palos), conteos de rangos/palos del board visible, stack propio, precio de igualar, bote, indicador de botón, cantidad de jugadores, textura pública, presión resumida y rangos **heurísticos de tres clases** actualizados por acciones públicas. No recibe cartas privadas del rival ni cartas futuras del board.
-- Distilación opcional de la política tabular mediante entropía cruzada. Checkpoint neuronal `SPKNN001`; tabular 6-max `SPK6MAX3`. Formatos **no intercambiables**.
-- Entrenamiento ejecutado en **CPU de GitHub Actions**. No hay GPU ni ROCm habilitados.
+- `Net`: MLP `f32` de **128 entradas, 32 ReLU y 6 salidas**, 4.326 parámetros; acumulación de gradiente en f64.
+- Entrada: dos planos de 52 cartas (propias y board visible) y 24 cantidades públicas. Conserva rango y palo conjuntamente, sin cartas futuras ni ajenas; ignora el orden de las cartas dentro de cada plano.
+- Acciones abstractas: fold, check/call y cuatro objetivos raise-to. Se conserva el motor económico auditado y rake explícito.
+- Recompensa terminal: neto después de rake dividido por 100 BB, sin recorte de retorno o ventaja. Cada mano usa pesos/baseline anteriores y aplica una sola actualización; cada jugador aporta su propio retorno. La proyección de parámetros a [−8,8] permanece.
+- La red comparte parámetros entre los seis asientos durante self-play. No hay critic neuronal, Adam, PPO ni garantía de convergencia a equilibrio.
+- `SPKNN002`: dimensiones/versiones, pesos, baseline, contadores, segmentos de entrenamiento y checksum. Resume continúa índices absolutos de cada seed; guardar es atómico y una corrida nueva no reemplaza archivos existentes.
+- `SPKNN001`: 64 entradas y 2.278 parámetros históricos. Inferencia original preservada; entrenamiento/destilación rechazados. No existe migración silenciosa.
+- Liga congelada: cinco referencias heurísticas y rivales neuronales V1/V2, tabular y PHH opcionales. Detecta solapamiento conocido de repartos; la procedencia histórica desconocida se etiqueta explícitamente.
+- Todo el núcleo continúa en Rust stdlib y CPU. Rangos de rivales de tres clases e historial resumido siguen siendo limitaciones.
 
-La implementación principal está en `src/neural.rs` (inferencia, gradientes, guardado/carga), con codificación de observaciones, partidas de aprendizaje y evaluación congelada en `src/sixmax.rs`.
+Módulos: `neural.rs` (red, aprendizaje y persistencia), `sixmax_observation.rs` (encoders), `sixmax.rs` (rollouts/CLI) y `sixmax_league.rs` (evaluación). Evidencia, comandos y resultados: [NEURAL_V2.md](NEURAL_V2.md).
 
 ## 3. Cronología del aprendizaje
 
@@ -88,7 +92,7 @@ Los márgenes son **intervalos aproximados del 95 %** basados en grupos de seis 
 
 - `neural-100m-full-evidence`: checkpoints intermedios y logs de entrenamiento y evaluación.
 - `neural-100m-checkpoint-10m`, `neural-100m-checkpoint-50m`, `neural-100m-checkpoint-100m`: hitos independientes.
-- Los artefactos de Actions tienen **retención de 30 días** en los workflows actuales: archivarlos en almacenamiento persistente antes de su expiración. Los checkpoints **no forman parte del árbol de Git**.
+- Los artefactos de Actions tienen **retención de 30 días** en los workflows actuales: archivarlos en almacenamiento persistente antes de su expiración. Los checkpoints intermedios históricos no están en Git; el V1 final 100M y los seis pesos del piloto V2 se conservan en [audit/2026-11-19/neural-v2/models](audit/2026-11-19/neural-v2/models).
 
 Comandos principales:
 
@@ -96,10 +100,10 @@ Comandos principales:
 cargo test --all-targets
 cargo build --release
 
-# Entrenamiento neuronal desde cero
+# Entrenamiento neuronal V2 desde cero (ruta nueva)
 cargo run --release -- --sixmax-neural-train --rake-bps 0 --hands 20000 --seed 42 --checkpoint neural.bin
 
-# Continuar sobre pesos existentes
+# Continuar solo pesos SPKNN002; con igual seed se continúa el índice de reparto
 cargo run --release -- --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 810211 --learning-rate 0.00060 --checkpoint neural.bin
 
 # Frente al profesor tabular congelado
@@ -111,23 +115,24 @@ cargo run --release -- --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 9
 
 Nota: los comandos de evaluación requieren descargar los checkpoints de referencia, no incluidos en la instalación de código. Para reproducir **exactamente** el resultado publicado hay que usar el commit y los archivos/hash mencionados arriba, no asumir que la rama `main` futura es idéntica.
 
-Flujo de datos: `PHH -> phh.rs -> SPKOBS02 -> imitation.rs -> SPKIMT01 (oponente)`. En paralelo: `simulador 6-max -> observación pública de 64D -> neural.rs -> acción -> recompensa terminal -> gradientes -> SPKNN001`.
+Flujo de datos: `PHH -> phh.rs -> SPKOBS02 -> imitation.rs -> SPKIMT01 (oponente)`. En paralelo: `simulador 6-max -> observación pública de 128D -> neural.rs -> acción -> neto/100BB -> gradiente congelado por mano -> SPKNN002`.
 
-## 5. Riesgos y deuda técnica observable
+## 5. Limitaciones vigentes
 
-1. **Alcance de la validación:** la auditoría posterior añadió referencia independiente de ranking y liquidación, 100.000 manos y regresiones de reglas. Queda pendiente conformidad completa de transiciones contra un motor externo y variantes fuera de los seis asientos actuales. Ver [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md).
-2. **Generalización insuficientemente medida:** la evaluación principal usa solo dos tipos de rival; un mismo agente juega los seis asientos durante self-play; no se midió exploitability ni desempeño contra una población variada.
-3. **Estado parcialmente observado pero muy comprimido:** 64 features no codifican el historial ordenado completo; rangos de rival en solo tres clases y no 169 clases/1.326 combos. La red tiene ~2,3k parámetros, no cientos de miles.
-4. **REINFORCE de alta varianza:** recompensa final, baseline global y actualizaciones online; no hay critic neuronal, GAE/PPO, mini-batches, entrenamiento con réplicas ni rollback a la política campeona.
-5. **Entrenamiento no íntegramente retomable:** el checkpoint guarda pesos, baseline y steps, pero no el RNG y estado completo de optimizador/experimento; no hay manifiesto versionado con datos y métricas para seleccionar el mejor modelo.
-6. **Abstracción de apuestas:** cuatro tamaños fijos, no todas las apuestas posibles; la política de PHH aplana distintos tamaños históricos a una etiqueta bet/raise.
-7. **Sin aceleración GPU:** no hay kernel HIP/ROCm/Vulkan, ni multiactor CPU realmente paralelo; throughput reportado corresponde a runner CI.
-8. **Cobertura de datos históricos incompleta:** Pluribus 10k importadas; HandHQ 21,6M y ACPC completo pendientes. Los historiales NO suministran respuestas contrafactuales a acciones distintas de las históricas.
+1. **Generalización débil:** el piloto V2 de 100k manos por inicialización mejoró contra uniforme legal y empeoró sus medias frente a los otros siete rivales. No se eligió campeón. Corregir el cálculo no garantiza fuerza estratégica.
+2. **Referencias limitadas:** las heurísticas no están validadas competitivamente; PHH es un imitador de 960 estados/3 acciones, no Pluribus. La procedencia de rivales históricos y profesores tabulares no permite certificar un holdout completo.
+3. **Información resumida:** cartas exactas visibles, pero sin historial ordenado de apuestas ni rangos completos de 1.326 combinaciones; MLP pequeña.
+4. **Varianza y dinámica de self-play:** baseline global y retorno terminal; no hay critic, población entrenable de rivales ni selección validada de checkpoints. El gradiente corregido no prueba equilibrio ni una mejora universal.
+5. **Reproducibilidad acotada:** resume exacto con el mismo binario/configuración y segmentos registrados. La identidad/datos completos del profesor histórico y un scheduler general todavía no se serializan; el commit y SHA-256 se guardan en los manifiestos de evidencia.
+6. **Motor y variantes:** liquidación contrastada y regresiones amplias; falta conformidad completa de transiciones con otro motor. HU antiguo sigue separado sin rake.
+7. **Ejecución:** CPU secuencial; sin ROCm/Vulkan ni multiactor paralelo. PHH Pluribus 10k importado, HandHQ/ACPC completos pendientes.
 
-**Prioridades y criterios de aceptación:** [ROADMAP.md](ROADMAP.md).
+Prioridades y criterios: [ROADMAP.md](ROADMAP.md).
 
 ## 6. Instrucción para el siguiente agente
 
-Antes de lanzar entrenamiento adicional: (1) recuperar y verificar SHA-256 del checkpoint 100M; (2) confirmar que el código actual respeta `SPKNN001`; (3) ejecutar suite de regresión; (4) fijar semillas y oponentes de evaluación nuevos; (5) mantener congelados 0M, 10M, 50M, 100M; (6) implementar mejoras **en orden de prioridad** desde [ROADMAP.md](ROADMAP.md); (7) comparar con intervalos de confianza y no promover un modelo solo por el último checkpoint.
+Leer [NEURAL_V2.md](NEURAL_V2.md) y su JSON de evidencia antes de continuar. Para entrenar: usar un SPKNN002 o una ruta nueva, fijar seed/LR/rake y ejecutar las regresiones; para comparar con 100M: cargar el SPKNN001 congelado y verificar su SHA. No reentrenar ni reinterpretar V1.
 
-Las modificaciones estructurales de entrada/capas requieren **nuevo identificador de checkpoint** y una migración explícita; no reinterpretar pesos binarios antiguos silenciosamente.
+Separar selección/entrenamiento/test y conservar resultados de todos los rivales. No promocionar automáticamente el último checkpoint: el piloto actual evidencia especialización contra uniforme. Priorizar entrenamiento con oponentes diversos y control de varianza antes de otra campaña masiva.
+
+Cambios posteriores de observaciones/arquitectura necesitan otro identificador y compatibilidad explícita. Las métricas históricas anteriores mantienen su commit, motor y rake originales.

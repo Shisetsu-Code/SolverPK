@@ -3,3 +3,6 @@
 *.profdata
 __pycache__/
 *.pyc
+
+# Immutable small research checkpoints retained with their evidence.
+!audit/2026-11-19/neural-v2/models/*.bin
