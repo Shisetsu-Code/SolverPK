@@ -18,7 +18,8 @@ fn external_engine_export() {
     let mut action_count = 0;
     for id in 0..hands {
         let seed = rng.next();
-        let button = id % N;
+        // Both stack groups independently cover all six button positions.
+        let button = (id / 2) % N;
         let initial = if id % 2 == 0 { [STACK; N] }
             else { std::array::from_fn(|_| sizes[rng.range(sizes.len())]) };
         let mut table = Table6::new(seed, button);

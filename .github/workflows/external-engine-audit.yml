@@ -44,20 +44,31 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --release external_engine_export -- --ignored --nocapture 2>&1 | tee external-export.log
-      - name: Compare independent engines
+      - name: Replay full hands with pinned PokerKit
         if: always()
         shell: bash
         env:
           PYTHONPATH: '${{ github.workspace }}/external-oracles/pokerkit:${{ github.workspace }}/external-oracles/treys'
         run: |
           set -euo pipefail
-          if test -f scripts/external_engine_compare.py; then
-            python scripts/external_engine_compare.py --input external-hands.jsonl --output external-comparison.json 2>&1 | tee external-comparison.log
-          fi
-          if test -f scripts/external_evaluator.py; then
-            python scripts/external_evaluator.py --output external-evaluator.tsv 2>&1 | tee external-evaluator.log
-            cargo test --release external_evaluator -- --ignored --nocapture 2>&1 | tee -a external-evaluator.log
-          fi
+          python scripts/external_engine_compare.py --input external-hands.jsonl --output external-comparison.json --expected-hands 6000 2>&1 | tee external-comparison.log
+      - name: Verify evaluator against PokerKit and Treys
+        if: always()
+        shell: bash
+        env:
+          PYTHONPATH: '${{ github.workspace }}/external-oracles/pokerkit:${{ github.workspace }}/external-oracles/treys'
+        run: |
+          set -euo pipefail
+          python scripts/external_evaluator.py --output external-evaluator.tsv 2>&1 | tee external-evaluator.log
+          cargo test --release evaluator::external_tests::external_evaluator_matches_treys_and_pokerkit -- --ignored --exact --nocapture 2>&1 | tee -a external-evaluator.log
+          python -c 'import json,pathlib; p=pathlib.Path("external-evaluator.json"); d=json.loads(p.read_text()); d["solverpk_verification"]="passed: Rust external_evaluator_matches_treys_and_pokerkit"; p.write_text(json.dumps(d,indent=2,sort_keys=True)+"\n")'
+      - name: Exhaustive evaluator and accounting stress regression
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --release exhaustive_five_card -- --ignored --nocapture 2>&1 | tee external-exhaustive.log
+          cargo test --release audit_stress -- --ignored --nocapture 2>&1 | tee external-stress.log
       - name: Preserve reproducible audit evidence
         if: always()
         uses: actions/upload-artifact@v4

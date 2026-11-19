@@ -21,16 +21,9 @@ impl Limits {
         Ok(limits)
     }
     fn from_args(args:&[String])->io::Result<Self> {
-        fn number(args:&[String],key:&str,default:i64)->io::Result<i64>{
-            let matches:Vec<_>=args.windows(2).filter(|w|w[0]==key).collect();
-            if matches.len()>1 {return Err(io::Error::new(io::ErrorKind::InvalidInput,format!("duplicate {key}")));}
-            if let Some(w)=matches.first(){return w[1].parse::<i64>().map_err(|_|io::Error::new(io::ErrorKind::InvalidInput,format!("invalid {key}")));}
-            if args.last().is_some_and(|s|s==key){return Err(io::Error::new(io::ErrorKind::InvalidInput,format!("missing {key}")));}
-            Ok(default)
-        }
-        let bankroll=number(args,"--bankroll-usd",DEFAULT_BANKROLL_USD)?;
-        let stop_loss=number(args,"--stop-loss-usd",bankroll)?;
-        let max_bet=number(args,"--max-bet-usd",DEFAULT_MAX_WAGER_USD)?;
+        let bankroll=neural_arg(args,"--bankroll-usd",DEFAULT_BANKROLL_USD)?;
+        let stop_loss=neural_arg(args,"--stop-loss-usd",bankroll)?;
+        let max_bet=neural_arg(args,"--max-bet-usd",DEFAULT_MAX_WAGER_USD)?;
         Self::from_dollars(bankroll,stop_loss,max_bet)
     }
 }
