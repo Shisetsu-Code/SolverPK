@@ -610,7 +610,12 @@ fn initialize_from_phh(bots:&mut [Bot;N],model:&FrozenPolicy)->usize{
     initialized
 }
 
+#[derive(Default)]
+struct RiskTelemetry {hero_allins:u64,hero_max_single_action:i64,hero_max_exposure:i64}
 fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool,action_counts:&mut [u64;ACTIONS],rake:RakeConfig)->Settlement{
+    play_audited(bots,seed,button,rate,random_opponent,phh_opponent,phh_candidate,action_counts,rake,None)
+}
+fn play_audited(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool,action_counts:&mut [u64;ACTIONS],rake:RakeConfig,mut risk:Option<&mut RiskTelemetry>)->Settlement{
     let mut t=Table6::new(seed,button);
     let mut rng=Rng::new(seed^0xbeecafefeed55eed);
     let mut history:[Vec<Visit>;N]=std::array::from_fn(|_|Vec::new());
@@ -651,7 +656,16 @@ fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,ph
                 1=>Action::Call,
                 a=>Action::Raise(t.raise_to(p,a)),
             };
+            let before=t.total[p];
             t.act(action).expect("policy proposed legal action");
+            if p==0 {
+                if let Some(telemetry)=risk.as_deref_mut(){
+                    let paid=t.total[p]-before;
+                    telemetry.hero_max_single_action=telemetry.hero_max_single_action.max(paid);
+                    telemetry.hero_max_exposure=telemetry.hero_max_exposure.max(t.total[p]);
+                    if choice==5 {telemetry.hero_allins+=1;}
+                }
+            }
             history[p].push(Visit{key,action:choice,probs:values});
         }
         if t.alive()==1{break;}
