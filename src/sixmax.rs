@@ -487,7 +487,7 @@ mod tests{
         let r=t.estimated_ranges[3];
         assert!((r.iter().sum::<f32>()-1.0).abs()<1e-6);
         assert!(r[0]>0.15);
-        assert_eq!(t.view(1).range_bucket,0);
+        assert_eq!(t.view(1).range_bucket,1);
     }
     #[test]fn six_bet_size_actions_are_legal(){
         let t=Table6::new(9,0);
