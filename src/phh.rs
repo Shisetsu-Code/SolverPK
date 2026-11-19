@@ -194,12 +194,16 @@ impl State{
                 self.stacks[p]-=payment;self.street_paid[p]+=payment;self.total[p]+=payment;self.pot+=payment;
             }
             2=>{
-                if amount<=0 || amount>self.stacks[p]{return Err("invalid wager size".into());}
-                let target=self.street_paid[p]+amount;
+                // PHH cbr amount is the TARGET total wager for this street,
+                // not the increment paid on this action. A SB that raises to
+                // 300 with 50 already posted pays 250 more.
+                let target=amount;
+                let payment=target-self.street_paid[p];
+                if payment<=0 || payment>self.stacks[p]{return Err("invalid raise target".into());}
                 if target<=self.current{return Err("cbr does not exceed prior bet".into());}
                 let raise=target-self.current;
-                if raise<self.min_raise && amount!=self.stacks[p]{return Err(format!("under-minimum non-all-in raise: {raise}")); }
-                self.stacks[p]-=amount;self.total[p]+=amount;self.street_paid[p]=target;self.pot+=amount;
+                if raise<self.min_raise && payment!=self.stacks[p]{return Err(format!("under-minimum non-all-in raise: {raise}")); }
+                self.stacks[p]-=payment;self.total[p]+=payment;self.street_paid[p]=target;self.pot+=payment;
                 self.current=target;
                 if raise>=self.min_raise {self.min_raise=raise;}
                 // Short all-in raises do not reopen action for players who have
@@ -342,6 +346,12 @@ mod tests{
         assert_eq!(o[0][10],2);
         assert_eq!(i64::from_le_bytes(o[0][24..32].try_into().unwrap()),15000);
         assert_eq!(o[0][16],7); // 9c is rank index 7
+    }
+    #[test] fn blind_raise_is_to_total_not_increment(){
+        let t="variant='NT'\nplayers=['A','B']\nstarting_stacks=[10000,10000]\nfinishing_stacks=[9700,10300]\nantes=[0,0]\nblinds_or_straddles=[50,100]\nmin_bet=100\nactions=['d dh p1 Ac5d','d dh p2 Jh8h','p1 cbr 300','p2 cc','d db 2sQs9c','p1 cc','p2 cbr 450','p1 f']";
+        let h=parse_hand(t).unwrap();
+        let records=reconstruct(&h,19).unwrap();
+        assert_eq!(records.len(),4);
     }
     #[test] fn incomplete_hand_rejected(){
         let t="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cc']";
