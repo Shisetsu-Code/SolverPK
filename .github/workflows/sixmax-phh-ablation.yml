@@ -1,0 +1,67 @@
+name: Sixmax PHH warmstart ablation
+on:
+  push:
+    paths:
+      - '.github/workflows/sixmax-phh-ablation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  ablation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Rust tests and optimized build
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Obtain historical PHH demonstrator
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p phh
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir phh
+          test -s phh/pluribus-imitation.bin
+      - name: Train from scratch, 1M
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-train --hands 1000000 --seed 81122 --checkpoint scratch.bin | tee scratch-train.log
+      - name: Train with historical PHH warmstart, 1M
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-train --hands 1000000 --seed 81122 --phh-init phh/pluribus-imitation.bin --checkpoint warmstart.bin | tee warmstart-train.log
+      - name: Held-out Pluribus imitation benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint scratch.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee scratch-phh.log
+          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint warmstart.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee warmstart-phh.log
+      - name: Frozen same-policy null control
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint scratch.bin --opponent clone | tee scratch-clone.log
+          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint warmstart.bin --opponent clone | tee warmstart-clone.log
+      - name: Save evidence and model checkpoints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sixmax-phh-ablation
+          path: |
+            scratch.bin
+            warmstart.bin
+            scratch-train.log
+            warmstart-train.log
+            scratch-phh.log
+            warmstart-phh.log
+            scratch-clone.log
+            warmstart-clone.log
+          retention-days: 30
+          if-no-files-found: warn
