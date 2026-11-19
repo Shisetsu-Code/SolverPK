@@ -33,5 +33,13 @@
     "workflow_and_pilot": "no blocking findings"
   },
   "archived_recipe_original_git_blob": "c3ac82093860b7640c2db496e4b670e717fe7bad",
-  "minor_followup": "Strictly align documentary rake metadata bounds with CLI bounds for manually constructed checksum-valid checkpoints; game rules still come from validated CLI."
+  "minor_followup": "Strictly align documentary rake metadata bounds with CLI bounds for manually constructed checksum-valid checkpoints; game rules still come from validated CLI.",
+  "main_integration": {
+    "pull_request": 2,
+    "merge_commit": "dbd910638bfba7219541ab6ea017cf14f1a7fb51",
+    "workflow_run_id": 44598247851,
+    "workflow_job_id": 135822281748,
+    "conclusion": "success",
+    "tests_passed": 140
+  }
 }

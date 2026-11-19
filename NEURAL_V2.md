@@ -1,6 +1,6 @@
 # Neural V2: correcciones, validación y resultados
 
-**Fecha:** 19 de noviembre de 2026. **Estado:** implementado y validado. [CI completa](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44595765332), commit `c94321087fb114edfd562be448fb401c0d210a12`.
+**Fecha:** 19 de noviembre de 2026. **Estado:** integrado en main mediante [PR #2](https://github.com/Shisetsu-Code/SolverPK/pull/2); [CI de main](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44598247851): 140 pruebas aprobadas. [CI completa](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44595765332), commit `c94321087fb114edfd562be448fb401c0d210a12`.
 
 ## Dictamen
 
