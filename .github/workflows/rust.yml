@@ -12,3 +12,7 @@ jobs:
         run: cargo test --all-targets
       - name: Simulator smoke test
         run: cargo run --release -- --hands 100 --samples 8 --seed 42
+      - name: Self-play smoke test and checkpoint resume
+        run: |
+          cargo run --release -- --self-play --hands 200 --rooms 16 --agents 8 --samples 2 --checkpoint selfplay.bin
+          cargo run --release -- --self-play --resume --hands 100 --rooms 16 --agents 8 --samples 2 --checkpoint selfplay.bin
