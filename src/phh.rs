@@ -172,6 +172,8 @@ impl State{
             (if self.stacks[actor]>to_call && self.stacks.iter().enumerate().any(|(p,&v)|p!=actor && !self.folded[p] && v>0){4}else{0});
         b[16..18].copy_from_slice(&self.hole[actor]);
         b[88]=u8::from(is_pluribus); // actor identity, not a model feature
+        let big_blind=self.min_bet.clamp(0,u32::MAX as i64) as u32;
+        b[89..93].copy_from_slice(&big_blind.to_le_bytes());
         b[18..23].copy_from_slice(&self.board);
         for (offset,value) in [(24,self.pot),(32,to_call),(40,self.stacks[actor]),
             (48,self.min_raise),(56,amount),(64,self.street_paid[actor]),
