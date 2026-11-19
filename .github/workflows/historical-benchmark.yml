@@ -1,0 +1,60 @@
+name: Historical Pluribus benchmark for Self-play 10M and 20M
+on:
+  push:
+    paths:
+      - '.github/workflows/historical-benchmark.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Validate and build Rust
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Download frozen historical checkpoints
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p models/10m models/20m
+          gh run download 44533415706 --repo Shisetsu-Code/SolverPK --name solverpk-optimized-fresh-10m-rerun --dir models/10m
+          gh run download 44534678539 --repo Shisetsu-Code/SolverPK --name solverpk-10m-vs-20m --dir models/20m
+          test -s models/10m/selfplay.bin
+          test -s models/20m/selfplay.bin
+          sha256sum models/10m/selfplay.bin models/20m/selfplay.bin | tee checkpoint-sha256.txt
+      - name: Sparse clone public Pluribus 10k hands
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/uoftcprg/phh-dataset.git upstream-phh
+          git -C upstream-phh sparse-checkout set data/pluribus
+      - name: Validate and reconstruct historical decisions with actor identity
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --import-phh --source upstream-phh/data/pluribus --output historical.bin > import.log 2> rejected.log
+          cat import.log
+          test -s historical.bin
+      - name: Match frozen policies against historical Pluribus decisions
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --compare-phh-historical --source historical.bin --model-10m models/10m/selfplay.bin --model-20m models/20m/selfplay.bin --samples 32 --seed 4411 | tee result-seed1.log
+          ./target/release/solverpk --compare-phh-historical --source historical.bin --model-10m models/10m/selfplay.bin --model-20m models/20m/selfplay.bin --samples 64 --seed 8822 | tee result-seed2.log
+      - name: Export benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-selfplay-benchmark
+          path: |
+            import.log
+            rejected.log
+            result-seed1.log
+            result-seed2.log
+            checkpoint-sha256.txt
+          retention-days: 30
+          if-no-files-found: warn
