@@ -5,6 +5,7 @@ mod imitation;
 mod phh_eval;
 mod phh_compare;
 mod sixmax;
+mod neural;
 use std::env;
 use std::time::Instant;
 
@@ -223,6 +224,8 @@ fn main() {
     if args.iter().any(|a|a=="--help" || a=="-h") {
         println!("solverpk --hands 10000 --seed 42 --samples 64 --verbose");
         println!("solverpk --sixmax-train --hands 100000 --checkpoint sixmax.bin");
+        println!("solverpk --sixmax-neural-train --hands 20000 --checkpoint sixmax-neural.bin");
+        println!("solverpk --sixmax-neural-eval --hands 6000 --checkpoint sixmax-neural.bin --tabular sixmax.bin");
         println!("solverpk --sixmax-eval --hands 60000 --checkpoint sixmax.bin");
         println!("solverpk --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000");
         println!("solverpk --self-play --hands 10000 --rooms 64 --agents 8 --samples 8 --checkpoint selfplay.bin");
@@ -235,6 +238,14 @@ fn main() {
         println!("solverpk --baseline-test --checkpoint selfplay.bin --baseline random|mc|clone --hands 100000 --samples 16");
         println!("Bot0: tight/aggressive. Bot1: loose/aggressive with occasional bluffs.");
         println!("Heads-up cash simulation, 100 BB stacks, no rake. Every hand resets stacks.");
+        return;
+    }
+    if args.iter().any(|a| a=="--sixmax-neural-train") {
+        if let Err(e)=sixmax::neural_train(&args) {eprintln!("Neural training error: {e}");std::process::exit(2);}
+        return;
+    }
+    if args.iter().any(|a| a=="--sixmax-neural-eval") {
+        if let Err(e)=sixmax::neural_eval(&args) {eprintln!("Neural evaluation error: {e}");std::process::exit(2);}
         return;
     }
     if args.iter().any(|a| a=="--sixmax-duel") {
