@@ -1,0 +1,16 @@
+name: Rust CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Tests
+        run: cargo test --all-targets
+      - name: Simulator smoke test
+        run: cargo run --release -- --hands 100 --samples 8 --seed 42
