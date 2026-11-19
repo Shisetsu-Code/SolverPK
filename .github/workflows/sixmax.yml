@@ -1,0 +1,42 @@
+name: Sixmax Rust self-play verification
+on:
+  push:
+    paths:
+      - 'src/sixmax.rs'
+      - '.github/workflows/sixmax.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sixmax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Unit tests and optimized build
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Train 100000 complete six-player hands
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-train --hands 100000 --seed 7101 --checkpoint sixmax.bin | tee training.log
+          test -s sixmax.bin
+      - name: Frozen six-seat baseline evaluation
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin | tee evaluation.log
+      - name: Save evidence and trained policy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sixmax-training-baseline
+          path: |
+            sixmax.bin
+            training.log
+            evaluation.log
+          retention-days: 30
+          if-no-files-found: warn
