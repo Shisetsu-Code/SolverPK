@@ -33,3 +33,29 @@ The evaluator uses small temporary allocations to prioritize correctness and ins
 4. Add exploitability assessment, variance reduction, mirror matches and automated CI.
 
 License: MIT.
+
+## Self-play: agents that learn while playing
+
+Run a league of 8 learning agents across 64 **logical** rooms, with all hands played as full heads-up Texas Hold'em deals:
+
+```bash
+cargo run --release -- --self-play --hands 10000 --rooms 64 --agents 8 --samples 8 --checkpoint selfplay.bin
+```
+
+Continue learning from saved state:
+
+```bash
+cargo run --release -- --self-play --resume --hands 10000 --rooms 64 --agents 8 --samples 8 --checkpoint selfplay.bin
+```
+
+Options: `--hands`, `--rooms`, `--agents` (2..256), `--samples` (Monte Carlo samples per action), `--seed`, `--learning-rate`, `--checkpoint`, `--resume`, `--verbose`.
+
+### What actually learns
+
+Agents use **tabular softmax actor-critic** (640 information-state buckets, three abstract actions). After each hand their chosen action probabilities are updated using the final chip reward and a per-bucket baseline. The models are tiny and checkpoint to a compact versioned binary format. Agents only observe their own hole cards via sampled equity, publicly visible board, pot, position and price to call. No hidden opponent cards are passed to the policy.
+
+This is an operational **learning baseline**, not a neural-network model, a GTO solver, or proof of strong poker. The reward is a noisy whole-hand signal, the feature abstraction omits detailed betting histories and opponent ranges, and self-play alone can cycle or overfit to its own population. Validate progress using frozen opponent policies and held-out paired deals before interpreting bb/100 as strength.
+
+**Important:** `--rooms` interleaves independent logical tables in one process; it does not yet parallelize execution across CPU cores. All learning currently runs on CPU; GPU training can follow after the simulator and benchmarks have been verified. The present self-play arena remains heads-up; 6-max/9-max will require a separate, validated multi-player betting engine with side pots.
+
+No third-party runtime or ML crates are required.
