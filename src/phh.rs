@@ -418,6 +418,38 @@ mod tests{
         assert_eq!(s.observe(4,2,34,1,6,false)[15]&4,4,
             "the subsequent full raise also reopens action for the caller");
     }
+    #[test] fn called_all_in_runs_out_without_dummy_checks(){
+        let text="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,20]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cbr 20','p2 cc','d db 2c3d4h','d db 5s','d db 9c']";
+        let h=parse_hand(text).unwrap();
+        let records=reconstruct(&h,1).expect("a called all-in needs only its board runout");
+        assert_eq!(records.len(),2);
+    }
+    #[test] fn outstanding_all_in_call_blocks_board_transition(){
+        let text="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cbr 100','d db 2c3d4h','p2 cc','d db 5s','p2 cc','d db 9c','p2 cc']";
+        let h=parse_hand(text).unwrap();
+        assert!(reconstruct(&h,1).is_err(),"the flop must not erase the outstanding 98 call");
+        let mut s=State::new(&h).unwrap();
+        s.action(0,2,10000).unwrap();
+        assert!(s.next_street(&[0,14,28]).is_err());
+        assert_eq!(s.board_len,0);
+        assert_eq!(s.current-s.street_paid[1],9800);
+    }
+    #[test] fn dry_side_pot_bet_is_not_exported(){
+        let text="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,20]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cbr 20','p2 cc','d db 2c3d4h','p1 cbr 2','d db 5s','p1 cc','d db 9c','p1 cc']";
+        let h=parse_hand(text).unwrap();
+        assert!(reconstruct(&h,1).is_err(),"a player cannot bet into an empty side pot against an all-in opponent");
+    }
+    #[test] fn lone_player_cannot_raise_all_in_opponent(){
+        let h=Hand{players:2,starting:vec![20,100],blinds:vec![1,2],
+            antes:vec![0;2],min_bet:2,..Hand::default()};
+        let mut s=State::new(&h).unwrap();
+        s.action(0,2,20).unwrap();
+        assert_eq!(s.observe(1,1,0,1,1,false)[15],0b011);
+        assert!(s.action(1,2,38).is_err(),"raise validation must match the legal-action mask");
+        assert_eq!(s.queue.front().copied(),Some(1));
+        s.action(1,1,0).unwrap();
+        assert_eq!(s.street_paid[1],20);
+    }
     #[test] fn cards_and_amounts(){
         assert_eq!(card_id("As").unwrap(),51);
         assert_eq!(parse_money("0.25").unwrap(),25);
