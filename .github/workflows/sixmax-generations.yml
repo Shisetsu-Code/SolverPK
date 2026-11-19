@@ -1,0 +1,70 @@
+name: Sixmax generation 100k vs 1M
+on:
+  push:
+    paths:
+      - '.github/workflows/sixmax-generations.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Rust conformance tests and optimized build
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Download frozen Pluribus imitation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p phh
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir phh
+          test -s phh/pluribus-imitation.bin
+      - name: Train fresh generation 100k
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-train --hands 100000 --seed 79131 --checkpoint 6max.bin | tee train-100k.log
+          cp 6max.bin model-100k.bin
+      - name: Evaluate generation 100k
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 92001 --checkpoint model-100k.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee eval-100k-phh.log
+          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 92001 --checkpoint model-100k.bin --opponent clone | tee eval-100k-clone.log
+      - name: Continue to 1M
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-train --resume --hands 900000 --seed 79132 --checkpoint 6max.bin | tee train-1m.log
+      - name: Evaluate generation 1M on same held-out seeds
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 92001 --checkpoint 6max.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee eval-1m-phh.log
+          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 92001 --checkpoint 6max.bin --opponent clone | tee eval-1m-clone.log
+          sha256sum model-100k.bin 6max.bin | tee model-sha256.txt
+      - name: Save generation checkpoints and metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sixmax-generation-comparison
+          path: |
+            6max.bin
+            model-100k.bin
+            train-100k.log
+            train-1m.log
+            eval-100k-phh.log
+            eval-100k-clone.log
+            eval-1m-phh.log
+            eval-1m-clone.log
+            model-sha256.txt
+          retention-days: 30
+          if-no-files-found: warn
