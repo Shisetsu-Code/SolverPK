@@ -76,3 +76,9 @@ cargo run --release -- --sixmax-eval --hands 120000 --seed 99 --checkpoint sixma
 To warm-start from an imported PHH imitation policy and compare two frozen generations, see [SIXMAX.md](SIXMAX.md). The six-max workflows evaluate against a frozen historical Pluribus **imitation**, not the actual Pluribus agent. Historical PHH replay and the earlier Heads-Up training use different model formats and cannot be mixed directly.
 
 The 1M-hand six-max ablation confirmed the current projected PHH policy does **not** improve the trained agent (direct matched-table scratch +46.604 bb/100 versus PHH warm-start, approximate 95% half-width 5.598 bb/100). These are simulation metrics, not results versus human opponents.
+
+## Actual neural policy (new)
+
+`src/neural.rs` provides a **real MLP with backpropagation**, not the previous tabular policy. The six-max game engine can train it on full-hand rewards (`--sixmax-neural-train`) or distill a trained tabular teacher (`--sixmax-neural-distill`) and evaluate it in frozen full six-player matches (`--sixmax-neural-eval`). See [NEURAL_SIXMAX.md](NEURAL_SIXMAX.md).
+
+The initial small neural architecture is a CPU Rust prototype, not yet ROCm/GPU-accelerated. Full 1,326-combination opponent ranges and full ordered betting history remain to be implemented. Neural versus tabular performance is not yet conclusively better.
