@@ -1,0 +1,52 @@
+name: Optimized fresh self-play 10M
+on:
+  push:
+    paths:
+      - '.github/workflows/optimized-10m.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Unit tests
+        run: cargo test --all-targets
+      - name: Build release
+        run: cargo build --release
+      - name: Baseline speed at 4 and 16 MC samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --self-play --hands 20000 --eval-hands 0 --rooms 64 --agents 8 --samples 4 --seed 11 --checkpoint benchmark4.bin | tee benchmark4.log
+          ./target/release/solverpk --self-play --hands 20000 --eval-hands 0 --rooms 64 --agents 8 --samples 16 --seed 11 --checkpoint benchmark16.bin | tee benchmark16.log
+      - name: Train first 5M from zero with corrected poker engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --self-play --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 16 --seed 2026111901 --checkpoint selfplay.bin | tee train-5m.log
+          cp selfplay.bin checkpoint-5m.bin
+      - name: Train second 5M from 5M checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --self-play --resume --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 16 --seed 2026111902 --checkpoint selfplay.bin | tee train-10m.log
+          sha256sum checkpoint-5m.bin selfplay.bin | tee checkpoints.sha256
+      - name: Publish complete training outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solverpk-optimized-fresh-10m
+          path: |
+            benchmark4.log
+            benchmark16.log
+            train-5m.log
+            train-10m.log
+            checkpoint-5m.bin
+            selfplay.bin
+            checkpoints.sha256
+          retention-days: 30
+          if-no-files-found: warn
