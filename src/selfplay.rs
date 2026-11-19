@@ -73,7 +73,11 @@ fn learn(agent: &mut Agent, history: &[Experience], net: i64, alpha: f32) {
         row.seen = row.seen.saturating_add(1);
     }
 }
-fn play(
+#[derive(Clone, Copy)]
+enum Baseline { Uniform, MonteCarlo }
+
+fn play_baseline(
+    baseline: Option<(usize, Baseline)>,
     agents: &mut [Agent], first: usize, second: usize, hand: usize,
     deal_seed: u64, rng: &mut Rng, samples: usize, alpha: f32, verbose: bool,
 ) -> (i64, bool) {
@@ -106,7 +110,24 @@ fn play(
             let price = call as f64 / (table.pot()+call).max(1) as f64;
             let state = bucket(street, equity, price, table.pot(), (actor == table.pos) as usize);
             let index = if actor == 0 { first } else { second };
-            let probs = probabilities(&agents[index].rows[state], legal);
+            let probs = if let Some((target, mode)) = baseline {
+                if target == index {
+                    match mode {
+                        Baseline::Uniform => {
+                            let n = legal.iter().filter(|&&b|b).count() as f32;
+                            std::array::from_fn(|a| if legal[a] {1.0/n} else {0.0})
+                        }
+                        Baseline::MonteCarlo => {
+                            // Deterministic, non-learning equity policy; equal
+                            // equity estimation budget and legal action mask.
+                            let fold = legal[0] && equity + 0.03 < price;
+                            let raise = legal[2] && equity > if call > 0 {0.72} else {0.61};
+                            let a=if fold {0} else if raise {2} else {1};
+                            std::array::from_fn(|i| if i==a {1.0} else {0.0})
+                        }
+                    }
+                } else { probabilities(&agents[index].rows[state],legal) }
+            } else { probabilities(&agents[index].rows[state],legal) };
             let action = sample(probs, rng);
             history[actor].push(Experience { state, action, probs });
             if action == 0 {
@@ -154,6 +175,13 @@ fn play(
     if verbose { println!("  terminal={} net={} / {}",street_name,net[0],net[1]); }
     (net[0],showdown)
 }
+fn play(
+    agents: &mut [Agent], first: usize, second: usize, hand: usize,
+    deal_seed: u64, rng: &mut Rng, samples: usize, alpha: f32, verbose: bool,
+) -> (i64, bool) {
+    play_baseline(None, agents, first, second, hand, deal_seed, rng, samples, alpha, verbose)
+}
+
 fn persist(path: &str, agents: &[Agent]) -> io::Result<()> {
     let tmp = format!("{path}.tmp");
     let mut data = Vec::with_capacity(16+agents.len()*STATES*20);
@@ -261,6 +289,60 @@ pub fn duel(args: &[String]) -> io::Result<()> {
     Ok(())
 }
 
+/// Frozen candidate versus a fixed non-learning strategy or an identical clone.
+pub fn baseline_test(args: &[String]) -> io::Result<()> {
+    let path = args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
+        .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --checkpoint"))?;
+    let baseline_str = args.windows(2).find(|w|w[0]=="--baseline").map(|w|w[1].as_str()).unwrap_or("random");
+    let mode = match baseline_str {
+        "random" => Some(Baseline::Uniform),
+        "mc" => Some(Baseline::MonteCarlo),
+        "clone" => None,
+        _ => return Err(io::Error::new(io::ErrorKind::InvalidInput,"baseline must be random, mc, or clone")),
+    };
+    let hands: usize = super::arg(args,"--hands",100000);
+    let samples: usize = super::arg(args,"--samples",16);
+    let seed: u64 = super::arg(args,"--seed",777);
+    if hands<2 || hands%2!=0 || samples==0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"hands must be positive and even; samples >=1"));
+    }
+    let candidate = restore(path)?[0].clone();
+    let opponent = if mode.is_none() { candidate.clone() } else { Agent::new() };
+    let mut agents = [candidate,opponent];
+    let mut sum=0.0f64;
+    let mut sum2=0.0f64;
+    let mut pair_sums=0.0f64;
+    let mut pair_sum2=0.0f64;
+    let start=Instant::now();
+    for pair in 0..hands/2 {
+        let pair_seed=seed ^ (pair as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let mut paired=0.0;
+        for seat in 0..2 {
+            let mut rng=Rng::new(pair_seed ^ 0xc318b18bffaf0123 ^ (seat as u64));
+            let (net,_)=play_baseline(mode.map(|m|(1,m)),&mut agents,0,1,seat,pair_seed,&mut rng,samples,0.0,false);
+            let bb=net as f64/BIG_BLIND as f64;
+            sum+=bb;
+            sum2+=bb*bb;
+            paired+=bb;
+        }
+        pair_sums+=paired;
+        pair_sum2+=paired*paired;
+    }
+    let n=hands as f64;
+    let mean=sum/n;
+    let pairs=(hands/2) as f64;
+    let pair_mean=pair_sums/pairs;
+    let pair_var=(pair_sum2/pairs-pair_mean*pair_mean).max(0.0);
+    let ci=100.0*1.96*(pair_var/pairs).sqrt()/2.0;
+    // Unpaired standard error printed for diagnostics alongside the paired unit.
+    let unpaired_ci=100.0*1.96*((sum2/n-mean*mean).max(0.0)/n).sqrt();
+    println!("BASELINE checkpoint={} opponent={} hands={} seed={} samples={}",path,baseline_str,hands,seed,samples);
+    println!("BASELINE candidate_bb100={:+.3} pair_cluster_95_half_width={:.3} unpaired_95_half_width={:.3} elapsed={:.3}s hands_per_sec={:.1}",
+        mean*100.0,ci,unpaired_ci,start.elapsed().as_secs_f64(),n/start.elapsed().as_secs_f64().max(1e-9));
+    println!("BASELINE interpretations: random=uniform legal actions; mc=heuristic equity estimate without learning; clone=same frozen policy");
+    Ok(())
+}
+
 pub fn run(args: &[String]) -> io::Result<()> {
     let hands: usize = super::arg(args,"--hands",10000);
     let rooms: usize = super::arg(args,"--rooms",64);
@@ -351,6 +433,15 @@ mod tests {
         let (_, ci)=evaluate(&agent, 20, 2, 9);
         assert!(ci.is_finite());
         assert_eq!(agent.rows[0].logits,before);
+    }
+    #[test] fn baseline_controls_do_not_train_agents() {
+        let mut agents=[Agent::new(),Agent::new()];
+        let before=agents[0].rows[0].logits;
+        let mut rng=Rng::new(992);
+        let _=play_baseline(Some((1,Baseline::Uniform)),&mut agents,0,1,0,82,&mut rng,8,0.0,false);
+        let _=play_baseline(Some((1,Baseline::MonteCarlo)),&mut agents,0,1,1,82,&mut rng,8,0.0,false);
+        assert_eq!(agents[0].rows[0].logits,before);
+        assert_eq!(agents[1].rows[0].logits,before);
     }
     #[test] fn valid_softmax() {
         let p=probabilities(&Row::default(),[false,true,false]);
