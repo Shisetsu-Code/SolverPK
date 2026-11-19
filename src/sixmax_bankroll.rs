@@ -41,7 +41,9 @@ struct Session {
     peak:i64,
     max_drawdown:i64,
     hands:u64,
-    allin_choices:u64,
+    hero_allins:u64,
+    max_single_action:i64,
+    max_hand_exposure:i64,
     total_rake:i64,
     stopped:Option<&'static str>,
 }
@@ -58,7 +60,7 @@ impl Session {
         }
         true
     }
-    fn record(&mut self,net:i64,rake:i64,allins:u64)->io::Result<()> {
+    fn record(&mut self,net:i64,rake:i64,risk:&RiskTelemetry)->io::Result<()> {
         // Because all participants are 100BB fixed, the absolute loss of the
         // candidate in one deal must not exceed the full USD 10 table buy-in.
         if net < -BUYIN_UNITS || net > BUYIN_UNITS*5 {
@@ -70,7 +72,12 @@ impl Session {
         self.max_drawdown=self.max_drawdown.max(self.peak-self.balance);
         self.hands+=1;
         self.total_rake+=rake;
-        self.allin_choices+=allins;
+        self.hero_allins+=risk.hero_allins;
+        self.max_single_action=self.max_single_action.max(risk.hero_max_single_action);
+        self.max_hand_exposure=self.max_hand_exposure.max(risk.hero_max_exposure);
+        if self.max_single_action>STACK || self.max_hand_exposure>STACK {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,"hero exceeded USD 10 wager cap"));
+        }
         Ok(())
     }
 }
@@ -100,17 +107,18 @@ pub fn bankroll_eval(args:&[String])->io::Result<()> {
     let mut actions=[0u64;ACTIONS];
     for i in 0..hands{
         if !session.eligible(limits){break;}
-        let before_allin=actions[5];
+        let mut risk=RiskTelemetry::default();
         let deal_seed=seed^(i as u64).wrapping_mul(0x9e3779b97f4a7c15);
-        let result=play(&mut bots,deal_seed,i%N,0.0,opponent=="random",model.as_ref(),false,&mut actions,rake);
-        session.record(result.net[0],result.rake,actions[5]-before_allin)?;
+        let result=play_audited(&mut bots,deal_seed,i%N,0.0,opponent=="random",model.as_ref(),false,&mut actions,rake,Some(&mut risk));
+        session.record(result.net[0],result.rake,&risk)?;
     }
     if session.stopped.is_none(){session.stopped=Some("hands_limit");}
     let profit=session.balance-session.initial;
     let gain_per_100=if session.hands>0 {dollars(profit)*100.0/session.hands as f64}else{0.0};
-    println!("SIXMAX_BANKROLL bankroll_start_usd={:.2} bankroll_end_usd={:.2} profit_usd={:+.4} stop_loss_usd={:.2} maximum_wager_usd={:.2} bb_usd=0.10 buyin_usd=10.00 hands_requested={} hands_played={} stop_reason={} max_drawdown_usd={:.4} allin_choices_table={} rake_table_usd={:.4} profit_per_100_hands_usd={:+.4} gain_bb_per_100_hands={:+.3} opponent={} seed={} checkpoint={}",
+    println!("SIXMAX_BANKROLL bankroll_start_usd={:.2} bankroll_end_usd={:.2} profit_usd={:+.4} stop_loss_usd={:.2} maximum_wager_usd={:.2} bb_usd=0.10 buyin_usd=10.00 hands_requested={} hands_played={} stop_reason={} max_drawdown_usd={:.4} hero_allin_actions={} hero_max_single_action_usd={:.2} hero_max_hand_exposure_usd={:.2} rake_table_usd={:.4} profit_per_100_hands_usd={:+.4} gain_bb_per_100_hands={:+.3} opponent={} seed={} checkpoint={}",
         dollars(session.initial),dollars(session.balance),dollars(profit),dollars(limits.stop_loss),dollars(limits.max_bet),
-        hands,session.hands,session.stopped.unwrap(),dollars(session.max_drawdown),session.allin_choices,
+        hands,session.hands,session.stopped.unwrap(),dollars(session.max_drawdown),session.hero_allins,
+        session.max_single_action as f64/BB as f64*0.10,session.max_hand_exposure as f64/BB as f64*0.10,
         dollars(session.total_rake),gain_per_100,gain_per_100/0.10,opponent,seed,path);
     println!("SIXMAX_BANKROLL_NOTE max_wager_usd=10 is the maximum TOTAL amount at risk per player per hand, not a $10 wager on each street; fixed 100BB buy-in; stop-loss is a cumulative loss limit relative to initial bankroll, not a peak-based trailing loss; no doubling of stakes");
     Ok(())
@@ -131,7 +139,7 @@ mod tests {
     fn losses_are_booked_and_trigger_stop_at_limit(){
         let l=Limits::from_dollars(50,20,10).unwrap();
         let mut s=Session::new(l);
-        for _ in 0..2 {assert!(s.eligible(l));s.record(-BUYIN_UNITS,0,1).unwrap();}
+        for _ in 0..2 {assert!(s.eligible(l));s.record(-BUYIN_UNITS,0,&RiskTelemetry::default()).unwrap();}
         assert_eq!(dollars(s.balance),30.0);
         assert!(!s.eligible(l));
         assert_eq!(s.stopped,Some("stop_loss"));
@@ -140,16 +148,16 @@ mod tests {
     fn cannot_play_if_full_buyin_unfunded(){
         let l=Limits::from_dollars(50,50,10).unwrap();
         let mut s=Session::new(l);
-        for _ in 0..5 {assert!(s.eligible(l));s.record(-BUYIN_UNITS,0,0).unwrap();}
+        for _ in 0..5 {assert!(s.eligible(l));s.record(-BUYIN_UNITS,0,&RiskTelemetry::default()).unwrap();}
         assert!(!s.eligible(l));assert_eq!(s.stopped,Some("stop_loss"));
-        let mut z=Session::new(l);z.record(-BUYIN_UNITS*4-1,0,0).unwrap_err();
+        let mut z=Session::new(l);z.record(-BUYIN_UNITS*4-1,0,&RiskTelemetry::default()).unwrap_err();
     }
     #[test]
     fn early_stop_when_balance_below_buyin_even_before_stop_loss(){
         let l=Limits::from_dollars(50,50,10).unwrap();
         let mut s=Session::new(l);
-        for _ in 0..4{s.record(-BUYIN_UNITS,0,0).unwrap();}
-        s.record(-BUYIN_UNITS/2,0,0).unwrap();
+        for _ in 0..4{s.record(-BUYIN_UNITS,0,&RiskTelemetry::default()).unwrap();}
+        s.record(-BUYIN_UNITS/2,0,&RiskTelemetry::default()).unwrap();
         assert_eq!(dollars(s.balance),5.0);
         assert!(!s.eligible(l));assert_eq!(s.stopped,Some("insufficient_buyin"));
     }
@@ -163,7 +171,7 @@ mod tests {
     fn session_gain_per_100_is_in_dollars_not_blinds(){
         let l=Limits::from_dollars(50,50,10).unwrap();
         let mut s=Session::new(l);
-        for _ in 0..100{s.record(BB_UNITS,0,0).unwrap();}
+        for _ in 0..100{s.record(BB_UNITS,0,&RiskTelemetry::default()).unwrap();}
         assert_eq!(dollars(s.balance-s.initial),10.0);
     }
 }
