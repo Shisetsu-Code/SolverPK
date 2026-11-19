@@ -1,0 +1,43 @@
+name: Neural sixmax training and evaluation
+on:
+  push:
+    paths:
+      - 'src/neural.rs'
+      - '.github/workflows/neural-sixmax.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test and compile
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Train tabular baseline
+        run: ./target/release/solverpk --sixmax-train --hands 100000 --seed 4101 --checkpoint sixmax-tabular.bin | tee tabular-train.log
+      - name: Train real neural MLP
+        run: ./target/release/solverpk --sixmax-neural-train --hands 20000 --learning-rate 0.002 --seed 4101 --checkpoint sixmax-neural.bin | tee neural-train.log
+      - name: Frozen neural versus tabular baseline
+        run: ./target/release/solverpk --sixmax-neural-eval --hands 6000 --seed 9401 --checkpoint sixmax-neural.bin --tabular sixmax-tabular.bin | tee neural-vs-tabular.log
+      - name: Load old checkpoint and continue
+        run: ./target/release/solverpk --sixmax-neural-train --resume --hands 5000 --learning-rate 0.001 --seed 4102 --checkpoint sixmax-neural.bin | tee neural-resume.log
+      - name: Upload neural model and benchmarks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sixmax-neural-baseline
+          path: |
+            sixmax-neural.bin
+            sixmax-tabular.bin
+            neural-train.log
+            neural-resume.log
+            neural-vs-tabular.log
+            tabular-train.log
+          retention-days: 30
+          if-no-files-found: warn
