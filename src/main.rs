@@ -1,5 +1,6 @@
 mod selfplay;
 mod evaluator;
+mod phh;
 use std::env;
 use std::time::Instant;
 
@@ -220,9 +221,14 @@ fn main() {
         println!("solverpk --self-play --hands 10000 --rooms 64 --agents 8 --samples 8 --checkpoint selfplay.bin");
         println!("solverpk --self-play --resume --hands 10000 --rooms 64 --agents 8 --checkpoint selfplay.bin");
         println!("solverpk --duel --left 1m.bin --right 11m.bin --hands 100000 --samples 8");
+        println!("solverpk --import-phh --source data/pluribus --output actions.bin --max-files 1000");
         println!("solverpk --baseline-test --checkpoint selfplay.bin --baseline random|mc|clone --hands 100000 --samples 16");
         println!("Bot0: tight/aggressive. Bot1: loose/aggressive with occasional bluffs.");
         println!("Heads-up cash simulation, 100 BB stacks, no rake. Every hand resets stacks.");
+        return;
+    }
+    if args.iter().any(|a| a=="--import-phh") {
+        if let Err(e)=phh::run(&args) {eprintln!("PHH import error: {e}"); std::process::exit(2);}
         return;
     }
     if args.iter().any(|a| a=="--baseline-test") {
