@@ -29,6 +29,22 @@ jobs:
         run: |
           set -euo pipefail
           ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin | tee evaluation.log
+      - name: Restore frozen Pluribus imitation policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p phh-model
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir phh-model
+          test -s phh-model/pluribus-imitation.bin
+      - name: Sixmax versus Pluribus historical-behavior opponent
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent phh --phh-model phh-model/pluribus-imitation.bin | tee evaluation-phh.log
+          ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent phh --candidate-phh --phh-model phh-model/pluribus-imitation.bin | tee evaluation-phh-null.log
+          ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent clone | tee evaluation-clone.log
       - name: Save evidence and trained policy
         if: always()
         uses: actions/upload-artifact@v4
@@ -38,5 +54,8 @@ jobs:
             sixmax.bin
             training.log
             evaluation.log
+            evaluation-phh.log
+            evaluation-phh-null.log
+            evaluation-clone.log
           retention-days: 30
           if-no-files-found: warn
