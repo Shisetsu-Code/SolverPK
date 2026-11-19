@@ -19,12 +19,12 @@ jobs:
         run: |
           cargo test --all-targets
           cargo build --release
-      - name: Restore previous trained policy
+      - name: Restore freshly trained 10M policy
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run download 44522869784 --repo Shisetsu-Code/SolverPK --name solverpk-10m-continuation --dir old
-          test -s old/selfplay.bin
+          gh run download 44532239059 --repo Shisetsu-Code/SolverPK --name solverpk-optimized-fresh-10m --dir fresh
+          test -s fresh/selfplay.bin
       - name: Fixed random opponent and pure Monte Carlo baseline
         shell: bash
         run: |
