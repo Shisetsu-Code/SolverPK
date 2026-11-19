@@ -1,6 +1,7 @@
 //! Playable six-handed No-Limit Hold'em cash table and lightweight self-play.
 //! No external dependencies. Separate from historical PHH replay and HU arena.
 use crate::{deck, score7, Rng};
+use crate::imitation::FrozenPolicy;
 use std::fs::File;
 use std::io::{self,Read,Write};
 use std::time::Instant;
@@ -212,7 +213,7 @@ fn reinforce(bot:&mut Bot,history:&[Visit],net:i64,rate:f32){
         row.visits=row.visits.saturating_add(1);
     }
 }
-fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool)->[i64;N]{
+fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool)->[i64;N]{
     let mut t=Table6::new(seed,button);
     let mut rng=Rng::new(seed^0xbeecafefeed55eed);
     let mut history:[Vec<Visit>;N]=std::array::from_fn(|_|Vec::new());
@@ -228,7 +229,11 @@ fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool)->
             let p=t.actor;
             let v=t.view(p);
             let key=state(v);
-            let values=if random_opponent && p!=0 {
+            let values=if let Some(model)=phh_opponent {
+                if p!=0 || phh_candidate {
+                    model.predict_multi(v.street as usize,v.hole,v.pot,v.call,v.on_button,v.active,v.legal).0
+                }else{probs(&bots[p].table[key],v.legal)}
+            }else if random_opponent && p!=0 {
                 let n=v.legal.iter().filter(|&&x|x).count() as f32;
                 std::array::from_fn(|a|if v.legal[a]{1.0/n}else{0.0})
             }else{probs(&bots[p].table[key],v.legal)};
@@ -296,7 +301,7 @@ pub fn run(args:&[String])->io::Result<()>{
     let mut totals=[0i64;N];
     for i in 0..hands{
         let s=seed^((i as u64).wrapping_mul(0x9e3779b97f4a7c15));
-        let result=play(&mut bots,s,i%N,rate,false);
+        let result=play(&mut bots,s,i%N,rate,false,None,false);
         for p in 0..N{totals[p]+=result[p];}
     }
     save(path,&bots)?;
@@ -314,19 +319,32 @@ pub fn evaluate(args:&[String])->io::Result<()>{
     let seed:u64=super::arg(args,"--seed",42);
     if hands==0 || hands%N!=0{return Err(io::Error::new(io::ErrorKind::InvalidInput,"hands must be divisible by 6"));}
     let original=load(path)?;
-    // Candidate policy always bot 0, opposing seats uniform-random legal policies.
+    let opponent=args.windows(2).find(|w|w[0]=="--opponent").map(|w|w[1].as_str()).unwrap_or("random");
+    if opponent!="random" && opponent!="phh" && opponent!="clone" {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"opponent must be random, phh or clone"));
+    }
+    let phh_path=args.windows(2).find(|w|w[0]=="--phh-model").map(|w|w[1].as_str());
+    let phh=if opponent=="phh" || args.iter().any(|w|w=="--candidate-phh") {
+        Some(FrozenPolicy::load(phh_path.ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --phh-model"))?)?)
+    }else{None};
+    let candidate_phh=args.iter().any(|w|w=="--candidate-phh");
+    if candidate_phh && opponent!="phh" {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"--candidate-phh requires --opponent phh"));
+    }
+    // Candidate policy stays seat 0, with button rotating across six positions.
     let champion=original[0].clone();
     let mut totals=0f64;let mut total_sq=0f64;
     for i in 0..hands {
         let mut bots=std::array::from_fn(|_|Bot::new());
         bots[0]=champion.clone();
+        if opponent=="clone" {for bot in &mut bots[1..] {*bot=champion.clone();}}
         let pair_seed=seed ^ ((i/N) as u64).wrapping_mul(0x9e3779b97f4a7c15);
-        let net=play(&mut bots,pair_seed,i%N,0.0,true)[0] as f64/BB as f64;
+        let net=play(&mut bots,pair_seed,i%N,0.0,opponent=="random",phh.as_ref(),candidate_phh)[0] as f64/BB as f64;
         totals+=net;total_sq+=net*net;
     }
     let mean=totals/hands as f64;
     let half=1.96*((total_sq/hands as f64-mean*mean).max(0.0)/hands as f64).sqrt()*100.0;
-    println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_approx_half={:.3} baseline=uniform_random_five_opponents",hands,mean*100.0,half);
+    println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_approx_half={:.3} opponent={} candidate={} eval_seed={}",hands,mean*100.0,half,opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
     Ok(())
 }
 #[cfg(test)]
@@ -376,10 +394,15 @@ mod tests{
         let w=t.settle();
         assert_eq!(w.iter().sum::<i64>(),t.pot);
     }
+    #[test]fn complete_table_reference_isolated(){
+        let mut t=Table6::new(5,1);
+        assert_eq!(t.hole.iter().flatten().copied().collect::<std::collections::HashSet<_>>().len(),12);
+        let _=t.view(0);
+    }
     #[test]fn seeded_games_conserve(){
         let mut bots=std::array::from_fn(|_|Bot::new());
         for i in 0..500 {
-            let result=play(&mut bots,i*137+4,(i as usize)%N,0.03,false);
+            let result=play(&mut bots,i*137+4,(i as usize)%N,0.03,false,None,false);
             assert_eq!(result.iter().sum::<i64>(),0);
         }
     }
