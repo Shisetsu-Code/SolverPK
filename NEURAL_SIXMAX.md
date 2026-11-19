@@ -69,10 +69,32 @@ The neural net used about 9.3M gradient updates across the million deals. There 
 
 These are CPU-based measurements from GitHub Actions runners. No RX 6800 XT benchmark has been performed.
 
-## 100-million-hand neural continuation
+## 100 millones de manos de self-play neuronal — finalizado
 
-The [100M six-max training workflow](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44564068762) has been configured and started. It resumes from the **1-million-hand distilled neural checkpoint** from run 44562688853, then executes **ten sequential 10M-hand six-player self-play segments** using independently seeded segments and decaying REINFORCE learning rates (0.00060 to 0.000075). The policy remains a 64→32→6 MLP trained on CPU; no GPU training is implied.
+**Estado verificado:** [GitHub Actions 44564068762](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44564068762) terminó con `completed/success`, diez bloques 10M exitosos, 44 tests aprobados y `CONFIRMED_100M_HANDS=100000000`.
 
-The workflow preserves a versioned checkpoint after each 10M hands and uploads intermediate checkpoints/evaluations at 10M, 50M and 100M. The 0M/10M/50M/100M frozen checks use identical evaluation seeds and the same 1M-hand tabular teacher and Pluribus imitation. Final verification requires ten successful 10M training logs; a merely triggered workflow is not proof that 100M completed.
+Continuó el checkpoint neuronal previamente **distilado con 1M** de manos desde el tabular. Por tanto, «100M» significa **100 millones de manos sintéticas nuevas de self-play**, no 100 millones de historiales PHH. Se utilizó la misma MLP 64→32→6, en CPU, con learning rates decrecientes de 0,00060 a 0,000075 en bloques de 10M. Las actualizaciones neuronales acumuladas al final fueron **1.163.673.406**.
 
-No automatic champion selection or best-model rollback is implemented: training longer can **reduce** poker EV. Compare held-out results at each milestone and prefer the best validated checkpoint, not necessarily the final weights. Accuracy against the Pluribus imitator is not equivalent to professional or GTO strength. Evaluation seeds should be extended in follow-up independent tests to avoid selection bias.
+### Evaluación congelada
+
+Cada evaluación usa **120.000 manos** por rival con semilla `944104` y seis posiciones de botón por grupo. El valor mostrado es `bb/100 ± semiancho IC 95 % aproximado`:
+
+| Checkpoint | Vs. cinco copias del profesor tabular | Vs. cinco copias del imitador PHH |
+|---|---:|---:|
+| Inicial, tras distilación 1M | −22,332 ±25,077 | +112,355 ±15,233 |
+| 10M nuevas | +24,149 ±8,568 | +29,530 ±6,015 |
+| 50M nuevas | +36,948 ±13,463 | +44,428 ±8,284 |
+| **100M nuevas** | **+60,114 ±14,417** | **+47,346 ±8,090** |
+
+**Conclusión:** hay una mejora clara en esta simulación frente al profesor tabular, pero **la política perdió rendimiento relativo al checkpoint inicial** contra el imitador PHH. No se demostró GTO, ni robustez frente a rivales distintos, ni mejora generalizada en otros entornos. No se estimó varianza entre entrenamientos independientes.
+
+### Artefactos y reproducción
+
+- `neural-100m-full-evidence`: los diez checkpoints, logs y evaluaciones.
+- `neural-100m-checkpoint-10m`, `neural-100m-checkpoint-50m`, `neural-100m-checkpoint-100m`.
+- SHA-256 modelo final `a712525d815872286eb960f330b5f585e4218fef627f7276b2e2e1adb08a8ac4`.
+- Workflow `.github/workflows/neural-100m.yml`.
+- El experimento se ejecutó en el commit `0bca3c95a31149d8cb246dd89afd92cc5ffc8170`. Los resultados posteriores deben declarar su propio commit.
+- Los artefactos tienen retención de 30 días; conservarlos externamente.
+
+El informe técnico completo está en [PROJECT_STATUS.md](PROJECT_STATUS.md). La **lista de próximas mejoras**, con validación independiente del motor, liga de rivales, checkpoints reproducibles, rangos de 1.326 combos, historial de apuestas, actor–critic v2 y GPU AMD, está en [ROADMAP.md](ROADMAP.md). Evitar una nueva campaña masiva antes de validar la generalización del modelo actual.
