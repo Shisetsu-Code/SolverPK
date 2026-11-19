@@ -220,8 +220,8 @@ impl Default for PolicyRow{
     fn default()->Self{Self{weights:[-0.8,0.5,-0.3,-0.5,-0.7,-1.2],baseline:0.0,visits:0}}
 }
 #[derive(Clone)]
-struct Bot{table:[PolicyRow;STATES]}
-impl Bot {fn new()->Self{Self{table:[PolicyRow::default();STATES]}}}
+struct Bot{table:Box<[PolicyRow]>}
+impl Bot {fn new()->Self{Self{table:vec![PolicyRow::default();STATES].into_boxed_slice()}}}
 fn probs(row:&PolicyRow,legal:[bool;ACTIONS])->[f32;ACTIONS]{
     let max=(0..ACTIONS).filter(|&i|legal[i]).map(|i|row.weights[i]).fold(f32::NEG_INFINITY,f32::max);
     let mut out=[0f32;ACTIONS];let mut total=0f32;
@@ -376,11 +376,11 @@ pub fn evaluate(args:&[String])->io::Result<()>{
     }
     // Candidate policy stays seat 0, with button rotating across six positions.
     let champion=original[0].clone();
+    let mut bots=std::array::from_fn(|_|Bot::new());
+    bots[0]=champion.clone();
+    if opponent=="clone" {for bot in &mut bots[1..] {*bot=champion.clone();}}
     let mut totals=0f64;let mut total_sq=0f64;
     for i in 0..hands {
-        let mut bots=std::array::from_fn(|_|Bot::new());
-        bots[0]=champion.clone();
-        if opponent=="clone" {for bot in &mut bots[1..] {*bot=champion.clone();}}
         let pair_seed=seed ^ ((i/N) as u64).wrapping_mul(0x9e3779b97f4a7c15);
         let net=play(&mut bots,pair_seed,i%N,0.0,opponent=="random",phh.as_ref(),candidate_phh)[0] as f64/BB as f64;
         totals+=net;total_sq+=net*net;
