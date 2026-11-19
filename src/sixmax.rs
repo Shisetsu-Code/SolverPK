@@ -530,6 +530,37 @@ mod tests{
             }
         }
     }
+    #[test]fn short_allin_does_not_reopen_raising(){
+        let mut t=Table6::new(23,0);
+        t.act(Action::Raise(20)).unwrap(); // seat 3 raises from BB=2
+        assert_eq!(t.actor,4);
+        t.stack[4]=30;
+        t.act(Action::Raise(30)).unwrap(); // short all-in, only +10 over 20
+        while t.actor!=3 && !t.completed(){
+            t.act(Action::Call).unwrap();
+        }
+        assert_eq!(t.actor,3);
+        let legal=t.legal(3);
+        assert!(legal[1]);
+        assert!(!legal[2..].iter().any(|&x|x),"short raise reopened betting");
+        t.act(Action::Call).unwrap();
+        assert!(t.completed());
+    }
+    #[test]fn deterministic_three_way_sidepot_payout(){
+        let mut t=Table6::new(5,0);
+        t.total=[10,20,30,0,0,0];
+        t.pot=60;
+        t.stack=[190,180,170,200,200,200];
+        t.folded=[false,false,false,true,true,true];
+        // Main pot: five-high club straight flush (seat 0);
+        // next pot: trip nines (seat 1); unmatched last tier (seat 2).
+        t.hole[0]=[12,3]; // Ac,5c
+        t.hole[1]=[46,20]; // 9s,9d
+        t.hole[2]=[44,18]; // 7s,7d
+        t.board=[0,1,2,16,33]; // 2c 3c 4c 5d 9h
+        let paid=t.settle();
+        assert_eq!(paid,[30,20,10,0,0,0]);
+    }
     #[test]fn seeded_games_conserve(){
         let mut bots=std::array::from_fn(|_|Bot::new());
         let mut counts=[0u64;ACTIONS];
