@@ -67,3 +67,21 @@ published bb/100 figures as independently validated estimates.
   checkpoints; evaluate against held-out agent populations.
 - Increase and benchmark equity samples; measure policy robustness across
   multiple seeds and opponents.
+
+## Corrected frozen duel results (2026-11-19)
+
+With the revised RNG seeding, seat rotation and all-in response handling,
+GitHub Actions run [44530221520](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44530221520)
+ran 100,000 hands for each independent seed (8 equity samples/action):
+
+| Seed | Policy 1M (left) | Policy 11M (right) | Approx 95% half width |
+|---|---:|---:|---:|
+| 77101 | -42.291 bb/100 | +42.291 bb/100 | 13.761 bb/100 |
+| 77102 | -45.406 bb/100 | +45.406 bb/100 | 13.778 bb/100 |
+
+13 Rust tests passed. This **reverses the direction** of the previous comparison:
+the original seat-biased duel reported an advantage for 1M, which is invalid.
+In the corrected head-to-head tests, 11M outperforms 1M. The results do not
+prove either model is strong versus realistic opponents. Uncertainty bands
+treat hands approximately as independent despite paired seeds and adaptive
+trajectories; do not infer more precision than the test supports.
