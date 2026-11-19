@@ -1,0 +1,10 @@
+[package]
+name = "solverpk"
+version = "0.1.0"
+edition = "2021"
+description = "Deterministic heads-up Texas Hold'em bot simulator"
+license = "MIT"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
