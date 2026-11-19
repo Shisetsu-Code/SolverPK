@@ -75,9 +75,11 @@ fn learn(agent: &mut Agent, history: &[Experience], net: i64, alpha: f32) {
 }
 fn play(
     agents: &mut [Agent], first: usize, second: usize, hand: usize,
-    rng: &mut Rng, samples: usize, alpha: f32, verbose: bool,
+    deal_seed: u64, rng: &mut Rng, samples: usize, alpha: f32, verbose: bool,
 ) -> (i64, bool) {
-    let mut table = Table::new(rng, hand % 2);
+    // Cards come from their own RNG: betting/Monte Carlo cannot influence deals.
+    let mut deal_rng=Rng::new(deal_seed);
+    let mut table = Table::new(&mut deal_rng, hand % 2);
     let mut history: [Vec<Experience>; 2] = [Vec::new(), Vec::new()];
     let mut street_name = "preflop";
     if verbose { println!("Hand {}: agent {} vs agent {}", hand+1, first, second); }
@@ -203,11 +205,12 @@ fn evaluate(candidate: &Agent, hands: usize, samples: usize, seed: u64) -> (f64,
     // Pair seats for every candidate. Evaluation never calls learn().
     for i in 0..hands {
         let mut agents = vec![candidate.clone(), Agent::new()];
-        let mut rng = Rng::new(seed ^ ((i/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
+        let pair_seed=seed ^ ((i/2) as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let mut rng = Rng::new(pair_seed ^ 0x93bca01dceadbeef);
         // Candidate remains in physical seat 0; Table::new alternates
         // the small blind according to i % 2. Do NOT swap both agent
         // mapping and blind index, which fixes the candidate to SB.
-        let result = play(&mut agents, 0, 1, i, &mut rng, samples, 0.0, false).0;
+        let result = play(&mut agents, 0, 1, i, pair_seed, &mut rng, samples, 0.0, false).0;
         net += result;
         let bb = result as f64 / BIG_BLIND as f64;
         sum_sq += bb*bb;
@@ -240,9 +243,10 @@ pub fn duel(args: &[String]) -> io::Result<()> {
     for hand in 0..hands {
         // Every pair uses same starting RNG seed, opposite seats. Policy decisions
         // alter RNG consumption so these are NOT perfectly paired trajectories.
-        let mut rng=Rng::new(seed ^ ((hand/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
+        let pair_seed=seed ^ ((hand/2) as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let mut rng=Rng::new(pair_seed ^ 0x93bca01dceadbeef);
         // Left policy always occupies seat 0, while the blind alternates.
-        let (chips,shown) = play(&mut agents,0,1,hand,&mut rng,samples,0.0,false);
+        let (chips,shown) = play(&mut agents,0,1,hand,pair_seed,&mut rng,samples,0.0,false);
         win_sum+=chips;
         sq+=(chips as f64 / BIG_BLIND as f64).powi(2);
         showdown_count+=shown as u64;
@@ -284,7 +288,8 @@ pub fn run(args: &[String]) -> io::Result<()> {
         let a = rng.range(agents.len());
         let mut b = rng.range(agents.len()-1);
         if b >= a {b+=1;}
-        let (net,showdown)=play(&mut agents,a,b,hand,&mut rng,samples,alpha,verbose);
+        let deal_seed=seed ^ (hand as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let (net,showdown)=play(&mut agents,a,b,hand,deal_seed,&mut rng,samples,alpha,verbose);
         net_sum+=net;
         showdowns+=showdown as u64;
         if (hand+1)%10000==0 { println!("played={} hands/s={:.1} showdowns={}",hand+1,(hand+1)as f64/start.elapsed().as_secs_f64().max(1e-9),showdowns); }
@@ -308,6 +313,20 @@ pub fn run(args: &[String]) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn deal_independent_from_action_rng() {
+        let mut a=Rng::new(111);
+        let mut b=Rng::new(999);
+        let mut shuffled_a=Rng::new(42);
+        let mut shuffled_b=Rng::new(42);
+        assert_eq!(crate::deck(&mut shuffled_a),crate::deck(&mut shuffled_b));
+        let mut agents_a=vec![Agent::new(),Agent::new()];
+        let mut agents_b=vec![Agent::new(),Agent::new()];
+        let _=play(&mut agents_a,0,1,0,42,&mut a,4,0.0,false);
+        let _=play(&mut agents_b,0,1,0,42,&mut b,32,0.0,false);
+        let mut d1=Rng::new(42);
+        let mut d2=Rng::new(42);
+        assert_eq!(crate::deck(&mut d1),crate::deck(&mut d2));
+    }
     #[test] fn independent_duel_seed_streams() {
         let mut a=Rng::new(77101 ^ 0u64.wrapping_mul(0x9e3779b97f4a7c15));
         let mut b=Rng::new(77102 ^ 0u64.wrapping_mul(0x9e3779b97f4a7c15));
@@ -348,7 +367,7 @@ mod tests {
     #[test] fn self_play_conserves_chips() {
         let mut agents=vec![Agent::new(),Agent::new()];
         let mut rng=Rng::new(7);
-        for i in 0..20 { play(&mut agents,0,1,i,&mut rng,2,0.01,false); }
+        for i in 0..20 { play(&mut agents,0,1,i,i as u64,&mut rng,2,0.01,false); }
         assert_eq!(agents[0].net+agents[1].net,0);
     }
 }
