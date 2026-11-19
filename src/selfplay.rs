@@ -182,6 +182,21 @@ fn play(
     play_baseline(None, agents, first, second, hand, deal_seed, rng, samples, alpha, verbose)
 }
 
+/// Frozen tabular policy for out-of-distribution historical action evaluation.
+pub(crate) struct HistoricalPolicy { agent: Agent }
+impl HistoricalPolicy {
+    pub(crate) fn load(path:&str)->io::Result<Self>{
+        Ok(Self{agent:restore(path)?[0].clone()})
+    }
+    pub(crate) fn predict(
+        &self,street:usize,equity:f64,pot:i64,to_call:i64,on_button:bool,legal:[bool;3]
+    )->[f32;3]{
+        let odds=to_call as f64/(pot+to_call).max(1) as f64;
+        let key=bucket(street,equity,odds,pot,usize::from(on_button));
+        probabilities(&self.agent.rows[key],legal)
+    }
+}
+
 fn persist(path: &str, agents: &[Agent]) -> io::Result<()> {
     let tmp = format!("{path}.tmp");
     let mut data = Vec::with_capacity(16+agents.len()*STATES*20);
