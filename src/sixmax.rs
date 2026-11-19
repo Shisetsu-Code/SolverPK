@@ -418,15 +418,24 @@ pub fn evaluate(args:&[String])->io::Result<()>{
     let mut bots=std::array::from_fn(|_|Bot::new());
     bots[0]=champion.clone();
     if opponent=="clone" {for bot in &mut bots[1..] {*bot=champion.clone();}}
-    let mut totals=0f64;let mut total_sq=0f64;
-    for i in 0..hands {
-        let pair_seed=seed ^ ((i/N) as u64).wrapping_mul(0x9e3779b97f4a7c15);
-        let net=play(&mut bots,pair_seed,i%N,0.0,opponent=="random",phh.as_ref(),candidate_phh)[0] as f64/BB as f64;
-        totals+=net;total_sq+=net*net;
+    let groups=hands/N;
+    let mut totals=0f64;
+    let mut group_sq=0f64;
+    for group in 0..groups {
+        let pair_seed=seed ^ (group as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let mut group_result=0f64;
+        for position in 0..N {
+            let net=play(&mut bots,pair_seed,position,0.0,opponent=="random",phh.as_ref(),candidate_phh)[0] as f64/BB as f64;
+            group_result+=net;
+        }
+        totals+=group_result;
+        group_sq+=group_result*group_result;
     }
     let mean=totals/hands as f64;
-    let half=1.96*((total_sq/hands as f64-mean*mean).max(0.0)/hands as f64).sqrt()*100.0;
-    println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_approx_half={:.3} opponent={} candidate={} eval_seed={}",hands,mean*100.0,half,opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
+    let group_mean=totals/groups as f64;
+    let group_var=(group_sq/groups as f64-group_mean*group_mean).max(0.0);
+    let half=1.96*(group_var/groups as f64).sqrt()*100.0/N as f64;
+    println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_six_hand_cluster_half={:.3} opponent={} candidate={} eval_seed={}",hands,mean*100.0,half,opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
     Ok(())
 }
 #[cfg(test)]
