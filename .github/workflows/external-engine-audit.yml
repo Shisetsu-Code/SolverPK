@@ -55,7 +55,7 @@ jobs:
             python scripts/external_engine_compare.py --input external-hands.jsonl --output external-comparison.json 2>&1 | tee external-comparison.log
           fi
           if test -f scripts/external_evaluator.py; then
-            python scripts/external_evaluator.py 2>&1 | tee external-evaluator.log
+            python scripts/external_evaluator.py --output external-evaluator.tsv 2>&1 | tee external-evaluator.log
             cargo test --release external_evaluator -- --ignored --nocapture 2>&1 | tee -a external-evaluator.log
           fi
       - name: Preserve reproducible audit evidence
