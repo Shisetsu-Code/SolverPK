@@ -42,7 +42,7 @@ jobs:
             for rival in phh random clone; do
               for seed in 990071 990073 990079 990081 990083; do
                 if [[ "$model" == "10" ]]; then checkpoint="references/ten/tabular-corrected-10m.bin"; else checkpoint="references/twenty/tabular-corrected-20m.bin"; fi
-                args=(--sixmax-bankroll-eval --hands 100000 --seed "$seed" --checkpoint "references/${model == 10 ? "ten" : "twenty"}/tabular-corrected-${model}m.bin" --opponent "$rival" --bankroll-usd 50 --max-bet-usd 10 --stop-loss-usd 50 --rake-bps 500 --rake-cap-bb 3)
+                args=(--sixmax-bankroll-eval --hands 100000 --seed "$seed" --checkpoint "$checkpoint" --opponent "$rival" --bankroll-usd 50 --max-bet-usd 10 --stop-loss-usd 50 --rake-bps 500 --rake-cap-bb 3)
                 if [[ "$rival" == phh ]]; then args+=(--phh-model references/phh/pluribus-imitation.bin); fi
                 ./target/release/solverpk "${args[@]}" | tee -a evidence/bankroll-results.log
               done
