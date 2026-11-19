@@ -2,8 +2,7 @@
 
 Source: https://github.com/uoftcprg/phh-dataset
 
-The existing SolverPK self-play arena remains **Heads-Up only**. This component is a separate
-**2–10-player historical replay/validation engine**, not yet a playable 6-max self-play engine.
+The PHH importer is a separate **2–10-player historical replay/validation engine**. SolverPK **now also has a playable, trainable 6-max arena** in `src/sixmax.rs`, plus a neural 6-max policy in `src/neural.rs`; its rules implementation is separate from the PHH replay, so identical behavior between them is not automatically guaranteed. The earlier `src/selfplay.rs` agent remains Heads-Up only.
 
 ## Commands
 
@@ -52,6 +51,9 @@ Each record captures **the state before the recorded decision**, and the histori
 | 64–71 | Actor's committed street wager (`i64`, hundredths) |
 | 72–79 | Number of non-folded players (`i64`) |
 | 80–87 | Maximum opponent live stack (`i64`, hundredths) |
+| 88 | Flag: 1 if historical actor is named `Pluribus`; metadata, not a model input | 
+| 89–92 | `u32` little endian: reference minimum bet used for blind/scale normalization |
+| 93–95 | Reserved |
 
 Remaining bytes reserved for future schema updates. File and model formats are versioned and intentionally separate from the earlier 16-byte `SPKPHH01` action index. Do not mix files.
 
@@ -77,4 +79,4 @@ Known limits:
 - Historical actions are demonstrations, not ground-truth optimum policies.
 - The learner does not use hidden rival cards, but additional safeguards are necessary for train/evaluation splits across duplicate historical hands and sequences.
 
-**Next engineering milestone:** extend replay validation to representative HandHQ files and larger samples, then implement a true multiway playable arena using the validated state transitions. Only after that should supervised demonstrations be incorporated into self-play.
+**Current next milestone:** extend streaming replay coverage to HandHQ (21,6M human hands), deduplicate sessions, verify poker rules against an independent engine, and build a **lossless sequence/bet-size feature pipeline** shared by PHH and the playable 6-max arena. A coarse PHH warm-start was tested and did **not** improve 6-max play (see [SIXMAX.md](SIXMAX.md)); current neural 100M training uses simulated self-play, not raw PHH hands. Priorities: [ROADMAP.md](ROADMAP.md).
