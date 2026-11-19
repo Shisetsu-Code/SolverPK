@@ -69,7 +69,8 @@ impl FrozenPolicy {
                         let value=u64::from_le_bytes(bytes);
                         original[street_rank_suit_price][multi][pos][action]=value;
                         pooled[street_rank_suit_price][pos][action]
-                            =pooled[street_rank_suit_price][pos][action].saturating_add(value);
+                            =pooled[street_rank_suit_price][pos][action].checked_add(value)
+                                .ok_or_else(||invalid("pooled action counts overflow"))?;
                     }
                 }
             }
@@ -93,7 +94,7 @@ impl FrozenPolicy {
         let group=(((street.min(3)*5+ranks)*2+suited)*4)+price;
         let multi=if active<=2{0}else if active<=4{1}else{2};
         let counts=&self.original[group][multi][usize::from(on_button)];
-        let seen=counts.iter().sum::<u64>()>0;
+        let seen=counts.iter().any(|&count|count>0);
         let mut probs=[0f32;3];let mut total=0f32;
         for i in 0..3{if legal[i]{probs[i]=(counts[i] as f32)+1.0;total+=probs[i];}}
         for p in &mut probs{*p/=total;}
@@ -115,7 +116,7 @@ impl FrozenPolicy {
         };
         let group=(((street.min(3)*5+ranks)*2+suited)*4)+price;
         let counts=&self.pooled[group][usize::from(on_button)];
-        let observations=counts.iter().sum::<u64>();
+        let seen=counts.iter().any(|&count|count>0);
         let mut probs=[0f32;3];let mut total=0.0;
         for action in 0..3 {
             if legal[action] {
@@ -125,7 +126,7 @@ impl FrozenPolicy {
             }
         }
         for p in &mut probs {*p=(*p as f64/total) as f32;}
-        (probs,observations>0)
+        (probs,seen)
     }
 }
 
@@ -164,7 +165,13 @@ pub fn run(args:&[String])->io::Result<()>{
         let legal=(0..ACTIONS).filter(|&a|r[15]&(1<<a)!=0).count();
         loss-=probs[action].max(1e-12).ln();
         null_loss+=(legal as f64).ln();
-        if probs[action]==probs.iter().copied().fold(0.0,f64::max){correct+=1;}
+        // Top-1 accuracy chooses one legal action; ties use the lowest index.
+        // Counting every maximum as correct inflates unseen uniform buckets.
+        let mut predicted=(0..ACTIONS).find(|&a|r[15]&(1<<a)!=0).unwrap();
+        for candidate in predicted+1..ACTIONS{
+            if r[15]&(1<<candidate)!=0 && probs[candidate]>probs[predicted]{predicted=candidate;}
+        }
+        if predicted==action{correct+=1;}
         evaluated+=1;
         Ok(())
     })?;
@@ -199,5 +206,32 @@ mod tests{
     #[test] fn normalize_policy(){
         let counts=Counts::new();let p=counts.probability(0,0b110);
         assert_eq!(p,[0.0,0.5,0.5]);
+    }
+    #[test] fn seen_state_does_not_overflow_action_counts(){
+        let mut model=FrozenPolicy{pooled:[[[0u64;3];2];4*5*2*4],original:[[[[0u64;3];2];3];4*5*2*4]};
+        // Unknown hole cards, preflop, no bet: group 32, off button.
+        model.pooled[32][0]=[u64::MAX,1,0];
+        model.original[32][0][0]=[u64::MAX,1,0];
+        let (hu,hu_seen)=model.predict(0,[255,255],3,0,false,[true;3]);
+        let (multi,multi_seen)=model.predict_multi(0,[255,255],3,0,false,2,[true;3]);
+        assert!(hu_seen && multi_seen);
+        assert!(hu.iter().chain(&multi).all(|p|p.is_finite()));
+        assert!((hu.iter().sum::<f32>()-1.0).abs()<1e-6);
+        assert!((multi.iter().sum::<f32>()-1.0).abs()<1e-6);
+    }
+    #[test] fn overflowing_pooled_checkpoint_counts_are_rejected(){
+        let path=std::env::temp_dir().join(format!("solverpk-imitation-overflow-{}.bin",std::process::id()));
+        let mut data=Vec::from(*b"SPKIMT01");
+        data.extend_from_slice(&(BUCKETS as u32).to_le_bytes());
+        for bucket in 0..BUCKETS{
+            for action in 0..3{
+                let count:u64=if action==0 && bucket==0{u64::MAX}else if action==0 && bucket==2{1}else{0};
+                data.extend_from_slice(&count.to_le_bytes());
+            }
+        }
+        std::fs::write(&path,data).unwrap();
+        let result=FrozenPolicy::load(path.to_str().unwrap());
+        std::fs::remove_file(path).unwrap();
+        assert!(matches!(result,Err(e) if e.kind()==io::ErrorKind::InvalidData));
     }
 }

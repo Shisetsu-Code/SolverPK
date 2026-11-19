@@ -6,6 +6,7 @@ mod phh_eval;
 mod phh_compare;
 mod sixmax;
 mod neural;
+mod accounting;
 use std::env;
 use std::time::Instant;
 
@@ -223,12 +224,14 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.iter().any(|a|a=="--help" || a=="-h") {
         println!("solverpk --hands 10000 --seed 42 --samples 64 --verbose");
-        println!("solverpk --sixmax-train --hands 100000 --checkpoint sixmax.bin");
-        println!("solverpk --sixmax-neural-train --hands 20000 --checkpoint sixmax-neural.bin");
-        println!("solverpk --sixmax-neural-distill --teacher sixmax.bin --hands 100000 --checkpoint sixmax-neural.bin");
-        println!("solverpk --sixmax-neural-eval --hands 6000 --checkpoint sixmax-neural.bin --tabular sixmax.bin");
-        println!("solverpk --sixmax-eval --hands 60000 --checkpoint sixmax.bin");
-        println!("solverpk --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000");
+        println!("solverpk --sixmax-train --hands 100000 --checkpoint sixmax.bin --rake-bps 500 --rake-cap-bb 3");
+        println!("solverpk --sixmax-neural-train --hands 20000 --checkpoint sixmax-neural.bin --rake-bps 500 --rake-cap-bb 3");
+        println!("solverpk --sixmax-neural-distill --teacher sixmax.bin --hands 100000 --checkpoint sixmax-neural.bin --rake-bps 0");
+        println!("solverpk --sixmax-neural-eval --hands 6000 --checkpoint sixmax-neural.bin --tabular sixmax.bin --rake-bps 500 --rake-cap-bb 3");
+        println!("solverpk --sixmax-eval --hands 60000 --checkpoint sixmax.bin --rake-bps 0");
+        println!("solverpk --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000 --rake-bps 0");
+        println!("Sixmax requires explicit --rake-bps (500 = 5%, 0 = none); positive rake requires --rake-cap-bb. Default no-flop-no-drop; --rake-preflop overrides it.");
+        println!("Sixmax bb/100 is net after rake. The 5%/3BB example is a configurable scenario, not a specific poker room tariff.");
         println!("solverpk --self-play --hands 10000 --rooms 64 --agents 8 --samples 8 --checkpoint selfplay.bin");
         println!("solverpk --self-play --resume --hands 10000 --rooms 64 --agents 8 --checkpoint selfplay.bin");
         println!("solverpk --duel --left 1m.bin --right 11m.bin --hands 100000 --samples 8");
@@ -307,7 +310,7 @@ fn main() {
         if verbose { println!("Hand {} (SB=bot{})",hand+1,hand%2); }
         let (win,winner,showdown)=t.play(&mut bot_rng,samples,verbose);
         let net=[0,1].map(|p|win[p]-t.invested[p]);
-        // A refund may add to winnings but invested already excludes the refunded amount.
+        // Winnings include unmatched refunds; invested retains all debited chips.
         for p in 0..2 {
             stats[p].net += net[p];
             stats[p].actions += t.actions[p];

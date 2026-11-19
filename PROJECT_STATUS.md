@@ -1,10 +1,12 @@
 # SolverPK — estado técnico y traspaso (2026-11-19)
 
+> **Actualización posterior a los 100M:** [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) contiene las correcciones verificadas de reglas/rake, la reevaluación congelada y las limitaciones estratégicas detectadas. Las tablas de experimentos anteriores de este archivo son históricas y no representan resultados después de rake.
+
 > **Fuente de verdad para continuar el desarrollo.** Leer este archivo antes de modificar la arquitectura, los checkpoints o los benchmarks. El plan priorizado está en [ROADMAP.md](ROADMAP.md).
 
 ## 1. Resumen ejecutivo
 
-SolverPK es un proyecto de investigación de póker Texas Hold'em en **Rust sin crates externos**, con tres líneas distintas que no deben confundirse:
+SolverPK es un proyecto de investigación de póker Texas Hold'em en **Rust sin crates externos**, con cuatro componentes distintos que no deben confundirse:
 
 | Componente | Archivo principal | Agente | Estado |
 |---|---|---|---|
@@ -15,7 +17,7 @@ SolverPK es un proyecto de investigación de póker Texas Hold'em en **Rust sin 
 
 La red neuronal **no existía** al comienzo del proyecto: los primeros checkpoints eran tablas. El entrenamiento de 100M pertenece exclusivamente al modelo neuronal 6-max y se hizo con **manos sintéticas generadas por el simulador**, no con 100M de manos humanas descargadas.
 
-**No existe aún:** solver GTO verificado, CFR+ completo, modelo profundo de millones de parámetros, entrenamiento ROCm, rango probabilístico real de 1.326 combinaciones, motor avalado por pruebas independientes ni entrenamiento de los 21,6M registros HandHQ.
+**No existe aún:** solver GTO verificado, CFR+ completo, modelo profundo de millones de parámetros, entrenamiento ROCm, rango probabilístico real de 1.326 combinaciones, certificación externa de todas las reglas NLHE ni entrenamiento de los 21,6M registros HandHQ.
 
 ## 2. Arquitectura neuronal comprobada
 
@@ -23,7 +25,7 @@ La red neuronal **no existía** al comienzo del proyecto: los primeros checkpoin
 - Acciones abstractas: fold, check/call y cuatro objetivos raise-to (aprox. 33 %, 75 %, 100 % del bote, all-in). No controla libremente todos los tamaños legales del NLHE.
 - Entrenamiento: REINFORCE de recompensa terminal y baseline escalar móvil; backpropagation implementada manualmente; no hay optimizador Adam ni critic neuronal.
 - La misma red juega **los seis asientos en self-play**; no hay liga neuronal de rivales independientes ni evaluación de explotabilidad.
-- Representación actual: cartas propias, board visible, stacks, precio de igualar, bote, ciegas/posición, cantidad de jugadores, textura pública, presión resumida y rangos **heurísticos de tres clases** actualizados por acciones públicas. No recibe cartas privadas del rival ni cartas futuras del board.
+- Representación actual: rangos de cartas propias y si son suited (sin identidad de sus palos), conteos de rangos/palos del board visible, stack propio, precio de igualar, bote, indicador de botón, cantidad de jugadores, textura pública, presión resumida y rangos **heurísticos de tres clases** actualizados por acciones públicas. No recibe cartas privadas del rival ni cartas futuras del board.
 - Distilación opcional de la política tabular mediante entropía cruzada. Checkpoint neuronal `SPKNN001`; tabular 6-max `SPK6MAX3`. Formatos **no intercambiables**.
 - Entrenamiento ejecutado en **CPU de GitHub Actions**. No hay GPU ni ROCm habilitados.
 
@@ -95,16 +97,16 @@ cargo test --all-targets
 cargo build --release
 
 # Entrenamiento neuronal desde cero
-cargo run --release -- --sixmax-neural-train --hands 20000 --seed 42 --checkpoint neural.bin
+cargo run --release -- --sixmax-neural-train --rake-bps 0 --hands 20000 --seed 42 --checkpoint neural.bin
 
 # Continuar sobre pesos existentes
-cargo run --release -- --sixmax-neural-train --resume --hands 10000000 --seed 810211 --learning-rate 0.00060 --checkpoint neural.bin
+cargo run --release -- --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 810211 --learning-rate 0.00060 --checkpoint neural.bin
 
 # Frente al profesor tabular congelado
-cargo run --release -- --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural.bin --tabular scratch.bin
+cargo run --release -- --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural.bin --tabular scratch.bin
 
 # Frente al imitador PHH congelado
-cargo run --release -- --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural.bin --tabular scratch.bin --phh-model pluribus-imitation.bin
+cargo run --release -- --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural.bin --tabular scratch.bin --phh-model pluribus-imitation.bin
 ```
 
 Nota: los comandos de evaluación requieren descargar los checkpoints de referencia, no incluidos en la instalación de código. Para reproducir **exactamente** el resultado publicado hay que usar el commit y los archivos/hash mencionados arriba, no asumir que la rama `main` futura es idéntica.
@@ -113,7 +115,7 @@ Flujo de datos: `PHH -> phh.rs -> SPKOBS02 -> imitation.rs -> SPKIMT01 (oponente
 
 ## 5. Riesgos y deuda técnica observable
 
-1. **Reglas sin validación independiente:** los tests internos no equivalen a conformidad completa de NLHE 6-max; falta comparar transiciones, apuestas mínimas, short raises, all-ins, botes laterales y reparto de odd chips contra otra implementación.
+1. **Alcance de la validación:** la auditoría posterior añadió referencia independiente de ranking y liquidación, 100.000 manos y regresiones de reglas. Queda pendiente conformidad completa de transiciones contra un motor externo y variantes fuera de los seis asientos actuales. Ver [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md).
 2. **Generalización insuficientemente medida:** la evaluación principal usa solo dos tipos de rival; un mismo agente juega los seis asientos durante self-play; no se midió exploitability ni desempeño contra una población variada.
 3. **Estado parcialmente observado pero muy comprimido:** 64 features no codifican el historial ordenado completo; rangos de rival en solo tres clases y no 169 clases/1.326 combos. La red tiene ~2,3k parámetros, no cientos de miles.
 4. **REINFORCE de alta varianza:** recompensa final, baseline global y actualizaciones online; no hay critic neuronal, GAE/PPO, mini-batches, entrenamiento con réplicas ni rollback a la política campeona.

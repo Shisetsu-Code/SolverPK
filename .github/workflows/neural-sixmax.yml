@@ -1,9 +1,5 @@
 name: Neural sixmax training and evaluation
 on:
-  push:
-    paths:
-      - 'src/neural.rs'
-      - '.github/workflows/neural-sixmax.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,17 +16,17 @@ jobs:
           cargo test --all-targets
           cargo build --release
       - name: Train tabular baseline
-        run: ./target/release/solverpk --sixmax-train --hands 100000 --seed 4101 --checkpoint sixmax-tabular.bin | tee tabular-train.log
+        run: ./target/release/solverpk --sixmax-train --rake-bps 0 --hands 100000 --seed 4101 --checkpoint sixmax-tabular.bin | tee tabular-train.log
       - name: Train real neural MLP
-        run: ./target/release/solverpk --sixmax-neural-train --hands 20000 --learning-rate 0.002 --seed 4101 --checkpoint sixmax-neural.bin | tee neural-train.log
+        run: ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --hands 20000 --learning-rate 0.002 --seed 4101 --checkpoint sixmax-neural.bin | tee neural-train.log
       - name: Frozen neural versus tabular baseline
-        run: ./target/release/solverpk --sixmax-neural-eval --hands 6000 --seed 9401 --checkpoint sixmax-neural.bin --tabular sixmax-tabular.bin | tee neural-vs-tabular.log
+        run: ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 6000 --seed 9401 --checkpoint sixmax-neural.bin --tabular sixmax-tabular.bin | tee neural-vs-tabular.log
       - name: Load old checkpoint and continue
-        run: ./target/release/solverpk --sixmax-neural-train --resume --hands 5000 --learning-rate 0.001 --seed 4102 --checkpoint sixmax-neural.bin | tee neural-resume.log
+        run: ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 5000 --learning-rate 0.001 --seed 4102 --checkpoint sixmax-neural.bin | tee neural-resume.log
       - name: Supervised neural distillation from tabular teacher
-        run: ./target/release/solverpk --sixmax-neural-distill --hands 100000 --seed 6101 --teacher sixmax-tabular.bin --checkpoint sixmax-neural-distilled.bin | tee neural-distill.log
+        run: ./target/release/solverpk --sixmax-neural-distill --rake-bps 0 --hands 100000 --seed 6101 --teacher sixmax-tabular.bin --checkpoint sixmax-neural-distilled.bin | tee neural-distill.log
       - name: Frozen distilled neural vs tabular
-        run: ./target/release/solverpk --sixmax-neural-eval --hands 12000 --seed 9401 --checkpoint sixmax-neural-distilled.bin --tabular sixmax-tabular.bin | tee neural-distilled-vs-tabular.log
+        run: ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 12000 --seed 9401 --checkpoint sixmax-neural-distilled.bin --tabular sixmax-tabular.bin | tee neural-distilled-vs-tabular.log
       - name: Upload neural model and benchmarks
         if: always()
         uses: actions/upload-artifact@v4

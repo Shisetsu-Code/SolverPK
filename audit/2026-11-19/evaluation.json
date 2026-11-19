@@ -1,0 +1,157 @@
+{
+  "engine": "accounting-v2",
+  "model_training_environment": "historical pre-audit, no rake",
+  "binary_sha256": "c9e12ca9389860523471ed1fbe0c628c60e5deea6661803e9417da91aee9d1c6",
+  "checkpoint_sha256_before": {
+    "neural": "a712525d815872286eb960f330b5f585e4218fef627f7276b2e2e1adb08a8ac4",
+    "tabular": "899482efff86724f106abfbc478392a0128f4416b0a731ba390eaf7eaefc6a08",
+    "phh": "dd032a79192bf48a98e42b536b77588c5f59ec731da1fafa75d495a727b0d327"
+  },
+  "checkpoint_sha256_after": {
+    "neural": "a712525d815872286eb960f330b5f585e4218fef627f7276b2e2e1adb08a8ac4",
+    "tabular": "899482efff86724f106abfbc478392a0128f4416b0a731ba390eaf7eaefc6a08",
+    "phh": "dd032a79192bf48a98e42b536b77588c5f59ec731da1fafa75d495a727b0d327"
+  },
+  "rake_scenario_is_operator_specific": false,
+  "results": [
+    {
+      "seed": 944104,
+      "seed_role": "historical_recheck",
+      "opponent": "tabular",
+      "rake_profile": "no_rake",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 56.56,
+      "approx_ci95_half_bb100": 14.292,
+      "table_rake_bb100": 0.0
+    },
+    {
+      "seed": 944104,
+      "seed_role": "historical_recheck",
+      "opponent": "tabular",
+      "rake_profile": "five_percent_cap_three_bb",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 47.663,
+      "approx_ci95_half_bb100": 13.986,
+      "table_rake_bb100": 70.92175
+    },
+    {
+      "seed": 944104,
+      "seed_role": "historical_recheck",
+      "opponent": "phh",
+      "rake_profile": "no_rake",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 47.838,
+      "approx_ci95_half_bb100": 8.037,
+      "table_rake_bb100": 0.0
+    },
+    {
+      "seed": 944104,
+      "seed_role": "historical_recheck",
+      "opponent": "phh",
+      "rake_profile": "five_percent_cap_three_bb",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 41.943,
+      "approx_ci95_half_bb100": 7.801,
+      "table_rake_bb100": 55.6895
+    },
+    {
+      "seed": 2026111901,
+      "seed_role": "new_test_seed",
+      "opponent": "tabular",
+      "rake_profile": "no_rake",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 71.782,
+      "approx_ci95_half_bb100": 15.087,
+      "table_rake_bb100": 0.0
+    },
+    {
+      "seed": 2026111901,
+      "seed_role": "new_test_seed",
+      "opponent": "tabular",
+      "rake_profile": "five_percent_cap_three_bb",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 62.635,
+      "approx_ci95_half_bb100": 14.768,
+      "table_rake_bb100": 70.14008
+    },
+    {
+      "seed": 2026111901,
+      "seed_role": "new_test_seed",
+      "opponent": "phh",
+      "rake_profile": "no_rake",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 44.65,
+      "approx_ci95_half_bb100": 8.076,
+      "table_rake_bb100": 0.0
+    },
+    {
+      "seed": 2026111901,
+      "seed_role": "new_test_seed",
+      "opponent": "phh",
+      "rake_profile": "five_percent_cap_three_bb",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 38.767,
+      "approx_ci95_half_bb100": 7.854,
+      "table_rake_bb100": 55.53879
+    },
+    {
+      "seed": 2026111902,
+      "seed_role": "new_test_seed",
+      "opponent": "tabular",
+      "rake_profile": "no_rake",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 45.857,
+      "approx_ci95_half_bb100": 14.892,
+      "table_rake_bb100": 0.0
+    },
+    {
+      "seed": 2026111902,
+      "seed_role": "new_test_seed",
+      "opponent": "tabular",
+      "rake_profile": "five_percent_cap_three_bb",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 37.139,
+      "approx_ci95_half_bb100": 14.588,
+      "table_rake_bb100": 71.00908
+    },
+    {
+      "seed": 2026111902,
+      "seed_role": "new_test_seed",
+      "opponent": "phh",
+      "rake_profile": "no_rake",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 44.776,
+      "approx_ci95_half_bb100": 8.031,
+      "table_rake_bb100": 0.0
+    },
+    {
+      "seed": 2026111902,
+      "seed_role": "new_test_seed",
+      "opponent": "phh",
+      "rake_profile": "five_percent_cap_three_bb",
+      "hands": 120000,
+      "independent_deal_clusters": 20000,
+      "net_bb100": 38.829,
+      "approx_ci95_half_bb100": 7.796,
+      "table_rake_bb100": 55.72696
+    }
+  ],
+  "limits": [
+    "Frozen weak internal opponents, not the original Pluribus agent or humans",
+    "Intervals reflect sampled deals, not model quality or simulator correctness",
+    "The historical checkpoint was not retrained after the rule changes"
+  ],
+  "verified_source_commit": "0b7356c7460e8a4ff80dd78483aceeadb175bdab",
+  "workflow_run": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44587114212"
+}

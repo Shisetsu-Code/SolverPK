@@ -112,33 +112,5 @@ pub fn evaluate(cards: &[u8]) -> u64 {
 pub fn score5(cards: &[u8;5]) -> u64 {evaluate(cards)}
 pub fn score7(cards: &[u8;7]) -> u64 {evaluate(cards)}
 #[cfg(test)]
-mod tests {
-    use super::*;
-    fn c(r:u8,s:u8)->u8 {s*13+r-2}
-    #[test]
-    fn non_flush_straight_is_not_straight_flush() {
-        // Five clubs but the mixed-suit straight is not clubs-only.
-        let board=[c(2,0),c(3,0),c(4,0),c(5,0),c(9,0),c(6,1),c(7,2)];
-        assert_eq!(score7(&board)>>20,5);
-    }
-    #[test]
-    fn two_trips_makes_full_house() {
-        let cards=[c(14,0),c(14,1),c(14,2),c(13,0),c(13,1),c(13,2),c(2,3)];
-        assert_eq!(score7(&cards)>>20,6);
-    }
-    #[test]
-    fn best_five_cross_check_by_enumeration() {
-        let mut rng=crate::Rng::new(0x5ead);
-        for _ in 0..5000 {
-            let d=crate::deck(&mut rng);
-            let seven=[d[0],d[1],d[2],d[3],d[4],d[5],d[6]];
-            let mut best=0;
-            for a in 0..3 {for b in a+1..4 {for c in b+1..5 {
-                for d in c+1..6 {for e in d+1..7 {
-                    best=best.max(score5(&[seven[a],seven[b],seven[c],seven[d],seven[e]]));
-                }}
-            }}}
-            assert_eq!(score7(&seven),best,"cards={seven:?}");
-        }
-    }
-}
+#[path = "evaluator_tests.rs"]
+mod tests;

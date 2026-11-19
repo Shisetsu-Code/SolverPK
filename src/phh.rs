@@ -122,7 +122,7 @@ struct State{
     stacks:Vec<i64>,start:Vec<i64>,total:Vec<i64>,street_paid:Vec<i64>,
     folded:Vec<bool>,hole:Vec<[u8;2]>,board:[u8;5],board_len:usize,
     pot:i64,street:u8,current:i64,min_raise:i64,min_bet:i64,
-    queue:VecDeque<usize>,button:usize,
+    queue:VecDeque<usize>,button:usize,acted_at:Vec<Option<i64>>,
 }
 fn ordered_after(seat:usize,n:usize,eligible:impl Fn(usize)->bool)->VecDeque<usize>{
     (1..=n).map(|k|(seat+k)%n).filter(|&p|eligible(p)).collect()
@@ -134,6 +134,7 @@ impl State{
             street_paid:vec![0;n],folded:vec![false;n],hole:vec![[UNKNOWN;2];n],
             board:[UNKNOWN;5],board_len:0,pot:0,street:0,current:0,
             min_raise:hand.min_bet,min_bet:hand.min_bet,queue:VecDeque::new(),button:0,
+            acted_at:vec![None;n],
         };
         for p in 0..n {
             let ante=hand.antes[p].min(s.stacks[p]);
@@ -150,7 +151,10 @@ impl State{
         Ok(s)
     }
     fn next_street(&mut self, cards:&[u8])->Result<(),String>{
-        if !self.queue.is_empty() && self.stacks.iter().enumerate().filter(|(i,v)|**v>0 && !self.folded[*i]).count()>1{
+        let live_bettors=self.stacks.iter().enumerate().filter(|(p,v)|**v>0 && !self.folded[*p]).count();
+        let call_outstanding=self.stacks.iter().enumerate()
+            .any(|(p,&stack)|stack>0 && !self.folded[p] && self.street_paid[p]<self.current);
+        if call_outstanding || (!self.queue.is_empty() && live_bettors>1){
             return Err(format!("premature board transition; outstanding actions {:?}",self.queue));
         }
         let expected=match self.board_len{0=>3,3=>1,4=>1,_=>return Err("board already complete".into())};
@@ -158,8 +162,21 @@ impl State{
         for &c in cards{self.board[self.board_len]=c;self.board_len+=1;}
         self.street=match self.board_len{3=>1,4=>2,5=>3,_=>unreachable!()};
         self.street_paid.fill(0);self.current=0;self.min_raise=self.min_bet;
-        self.queue=ordered_after(self.button,self.stacks.len(),|p|!self.folded[p] && self.stacks[p]>0);
+        self.acted_at.fill(None);
+        // A lone live stack cannot bet against all-in opponents. Once any
+        // outstanding call is resolved, the board runs out without checks.
+        self.queue=if live_bettors>1 {
+            ordered_after(self.button,self.stacks.len(),|p|!self.folded[p] && self.stacks[p]>0)
+        }else{VecDeque::new()};
         Ok(())
+    }
+    fn has_live_opponent(&self,p:usize)->bool{
+        self.stacks.iter().enumerate().any(|(q,&stack)|q!=p && !self.folded[q] && stack>0)
+    }
+    fn raise_right_open(&self,p:usize)->bool{
+        // Short all-ins reopen only when their cumulative increment since
+        // this player's last action reaches the last complete raise size.
+        self.acted_at[p].map_or(true,|previous|self.current-previous>=self.min_raise)
     }
     fn observe(&self,actor:usize,action:u8,amount:i64,hand_id:u64,index:u16,is_pluribus:bool)->[u8;96]{
         let mut b=[0u8;RECORD_BYTES];
@@ -169,7 +186,7 @@ impl State{
         b[13]=self.stacks.len() as u8;b[14]=self.button as u8;
         let to_call=(self.current-self.street_paid[actor]).max(0);
         b[15]=(if to_call>0{1}else{0}) | 2 |
-            (if self.stacks[actor]>to_call && self.stacks.iter().enumerate().any(|(p,&v)|p!=actor && !self.folded[p] && v>0){4}else{0});
+            (if self.raise_right_open(actor) && self.stacks[actor]>to_call && self.has_live_opponent(actor){4}else{0});
         b[16..18].copy_from_slice(&self.hole[actor]);
         b[88]=u8::from(is_pluribus); // actor identity, not a model feature
         let big_blind=self.min_bet.clamp(0,u32::MAX as i64) as u32;
@@ -186,6 +203,8 @@ impl State{
     fn action(&mut self,p:usize,kind:u8,amount:i64)->Result<(),String>{
         if self.queue.front().copied()!=Some(p){return Err(format!("out of turn player {} expected {:?}",p+1,self.queue.front().map(|i|i+1)));}
         if self.folded[p] || self.stacks[p]==0{return Err("folded/all-in player cannot act".into());}
+        if kind==2 && !self.raise_right_open(p){return Err("betting not reopened for this player".into());}
+        if kind==2 && !self.has_live_opponent(p){return Err("cannot raise against only all-in opponents".into());}
         let to_call=(self.current-self.street_paid[p]).max(0);
         self.queue.pop_front();
         match kind{
@@ -210,12 +229,13 @@ impl State{
                 self.stacks[p]-=payment;self.total[p]+=payment;self.street_paid[p]=target;self.pot+=payment;
                 self.current=target;
                 if raise>=self.min_raise {self.min_raise=raise;}
-                // Short all-in raises do not reopen action for players who have
-                // already acted; all others must still respond.
+                // Every player owing chips must respond; raise_right_open
+                // separately tracks whether that response may include a raise.
                 self.queue=ordered_after(p,self.stacks.len(),|i|!self.folded[i] && i!=p && self.stacks[i]>0 && self.street_paid[i]<target);
             }
             _=>return Err("invalid action kind".into())
         }
+        self.acted_at[p]=Some(self.current);
         Ok(())
     }
     fn settle(&self,hand:&Hand)->Result<(),String>{
@@ -299,6 +319,9 @@ fn reconstruct(h:&Hand,id:u64)->Result<Vec<[u8;96]>,String>{
     if !s.queue.is_empty() && s.folded.iter().filter(|&&f|!f).count()>1{
         return Err("hand stopped with outstanding betting actions".into());
     }
+    if s.folded.iter().filter(|&&f|!f).count()>1 && s.board_len<5{
+        return Err("hand stopped before complete board".into());
+    }
     s.settle(h)?;
     Ok(out)
 }
@@ -360,6 +383,83 @@ mod tests{
     #[test] fn incomplete_hand_rejected(){
         let t="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cc']";
         let h=parse_hand(t).unwrap();assert!(reconstruct(&h,1).is_err());
+    }
+    #[test] fn incomplete_hand_after_closed_betting_round_rejected(){
+        let t="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cc','p2 cc']";
+        let h=parse_hand(t).unwrap();
+        assert!(reconstruct(&h,1).is_err(),"a closed preflop round does not complete a hand with two live players");
+    }
+    fn after_short_all_in()->State{
+        let h=Hand{players:3,starting:vec![100,14,100],blinds:vec![1,2,0],
+            antes:vec![0;3],min_bet:2,..Hand::default()};
+        let mut s=State::new(&h).unwrap();
+        s.action(2,2,10).unwrap();
+        s.action(0,1,0).unwrap();
+        s.action(1,2,14).unwrap();
+        s
+    }
+    #[test] fn short_all_in_does_not_restore_raise_mask(){
+        let s=after_short_all_in();
+        assert_eq!(s.observe(2,1,0,1,3,false)[15],0b011,
+            "the original raiser faces only 4 against a full-raise size of 8");
+    }
+    #[test] fn short_all_in_does_not_restore_raise_right(){
+        let mut s=after_short_all_in();
+        assert!(s.action(2,2,22).is_err(),"a short all-in must not permit a re-raise");
+        assert_eq!(s.queue.front().copied(),Some(2),"a rejected raise must preserve the turn");
+        s.action(2,1,0).unwrap();
+        assert_eq!(s.street_paid[2],14,"calling the extra 4 remains legal");
+    }
+    #[test] fn cumulative_short_all_ins_reopen_only_players_facing_full_raise(){
+        let h=Hand{players:5,starting:vec![100,18,100,14,100],blinds:vec![1,2,0,0,0],
+            antes:vec![0;5],min_bet:2,..Hand::default()};
+        let mut s=State::new(&h).unwrap();
+        s.action(2,2,10).unwrap(); // Complete raise: 8.
+        s.action(3,2,14).unwrap(); // Short all-in: 4.
+        s.action(4,1,0).unwrap(); // Called 14, so now needs 8 more to reopen.
+        s.action(0,1,0).unwrap();
+        s.action(1,2,18).unwrap(); // Another short all-in: 4.
+        assert_eq!(s.min_raise,8);
+        assert_eq!(s.observe(2,2,26,1,5,false)[15]&4,4,
+            "the original raiser now faces a cumulative full raise of 8");
+        assert_eq!(s.observe(4,1,0,1,5,false)[15]&4,0,
+            "the player who called 14 faces only 4 more");
+        s.action(2,2,26).unwrap();
+        assert_eq!(s.min_raise,8);
+        assert_eq!(s.observe(4,2,34,1,6,false)[15]&4,4,
+            "the subsequent full raise also reopens action for the caller");
+    }
+    #[test] fn called_all_in_runs_out_without_dummy_checks(){
+        let text="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,20]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cbr 20','p2 cc','d db 2c3d4h','d db 5s','d db 9c']";
+        let h=parse_hand(text).unwrap();
+        let records=reconstruct(&h,1).expect("a called all-in needs only its board runout");
+        assert_eq!(records.len(),2);
+    }
+    #[test] fn outstanding_all_in_call_blocks_board_transition(){
+        let text="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cbr 100','d db 2c3d4h','p2 cc','d db 5s','p2 cc','d db 9c','p2 cc']";
+        let h=parse_hand(text).unwrap();
+        assert!(reconstruct(&h,1).is_err(),"the flop must not erase the outstanding 98 call");
+        let mut s=State::new(&h).unwrap();
+        s.action(0,2,10000).unwrap();
+        assert!(s.next_street(&[0,14,28]).is_err());
+        assert_eq!(s.board_len,0);
+        assert_eq!(s.current-s.street_paid[1],9800);
+    }
+    #[test] fn dry_side_pot_bet_is_not_exported(){
+        let text="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,20]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cbr 20','p2 cc','d db 2c3d4h','p1 cbr 2','d db 5s','p1 cc','d db 9c','p1 cc']";
+        let h=parse_hand(text).unwrap();
+        assert!(reconstruct(&h,1).is_err(),"a player cannot bet into an empty side pot against an all-in opponent");
+    }
+    #[test] fn lone_player_cannot_raise_all_in_opponent(){
+        let h=Hand{players:2,starting:vec![20,100],blinds:vec![1,2],
+            antes:vec![0;2],min_bet:2,..Hand::default()};
+        let mut s=State::new(&h).unwrap();
+        s.action(0,2,20).unwrap();
+        assert_eq!(s.observe(1,1,0,1,1,false)[15],0b011);
+        assert!(s.action(1,2,38).is_err(),"raise validation must match the legal-action mask");
+        assert_eq!(s.queue.front().copied(),Some(1));
+        s.action(1,1,0).unwrap();
+        assert_eq!(s.street_paid[1],20);
     }
     #[test] fn cards_and_amounts(){
         assert_eq!(card_id("As").unwrap(),51);

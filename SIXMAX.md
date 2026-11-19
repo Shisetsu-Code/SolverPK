@@ -1,22 +1,24 @@
 # Playable six-player Hold'em simulator and evaluation
 
+> **Actualización posterior a los 100M:** [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) contiene las correcciones verificadas de reglas/rake, la reevaluación congelada y las limitaciones estratégicas detectadas. Las tablas de experimentos anteriores de este archivo son históricas y no representan resultados después de rake.
+
 Implementation: `src/sixmax.rs` (Rust standard library only). It is **independent** of the original Heads-Up `selfplay.rs` and PHH replay importer.
 
 ## Execute
 
 ```bash
 cargo test --all-targets
-cargo run --release -- --sixmax-train --hands 100000 --seed 42 --checkpoint sixmax.bin
-cargo run --release -- --sixmax-train --resume --hands 900000 --seed 43 --checkpoint sixmax.bin
-cargo run --release -- --sixmax-eval --hands 120000 --seed 92001 --checkpoint sixmax.bin --opponent random
+cargo run --release -- --sixmax-train --rake-bps 0 --hands 100000 --seed 42 --checkpoint sixmax.bin
+cargo run --release -- --sixmax-train --rake-bps 0 --resume --hands 900000 --seed 43 --checkpoint sixmax.bin
+cargo run --release -- --sixmax-eval --rake-bps 0 --hands 120000 --seed 92001 --checkpoint sixmax.bin --opponent random
 ```
 
 To test against the frozen Pluribus *imitation*, first download `pluribus-imitation.bin` from the archived workflow artifact at [PHH import 44541033820](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44541033820):
 
 ```bash
-cargo run --release -- --sixmax-eval --hands 120000 --seed 92001 --checkpoint sixmax.bin --opponent phh --phh-model pluribus-imitation.bin
-cargo run --release -- --sixmax-eval --hands 120000 --seed 92001 --checkpoint sixmax.bin --opponent phh --candidate-phh --phh-model pluribus-imitation.bin
-cargo run --release -- --sixmax-eval --hands 120000 --seed 92001 --checkpoint sixmax.bin --opponent clone
+cargo run --release -- --sixmax-eval --rake-bps 0 --hands 120000 --seed 92001 --checkpoint sixmax.bin --opponent phh --phh-model pluribus-imitation.bin
+cargo run --release -- --sixmax-eval --rake-bps 0 --hands 120000 --seed 92001 --checkpoint sixmax.bin --opponent phh --candidate-phh --phh-model pluribus-imitation.bin
+cargo run --release -- --sixmax-eval --rake-bps 0 --hands 120000 --seed 92001 --checkpoint sixmax.bin --opponent clone
 ```
 
 ## Supported table functionality
@@ -24,10 +26,10 @@ cargo run --release -- --sixmax-eval --hands 120000 --seed 92001 --checkpoint si
 - Six fixed seats, button/SB/BB rotation, preflop and postflop order.
 - 100 BB effective initial stacks (200 chips, 1/2 blinds), independent cash-style deals.
 - Fold, check, call and four **abstract** no-limit raise targets: approximately 33%, 75%, 100% pot and all-in, subject to minimum-raise and stack caps. The engine accepts validated numeric raise targets.
-- Reopening after full raises; a short all-in does not reopen re-raising for previous actors.
+- Reopening after a full raise or cumulative short all-ins that make a player face a full raise since their last action; an isolated insufficient increment does not reopen.
 - All-in eligibility, multiway main/side pot calculation, unmatched-bet return through pot tiers and split-pot odd chip allocation.
 - Exact seven-card evaluator, independent RNG for each deal versus policy actions.
-- No rake and no external poker platform integration.
+- Explicit configurable rake, one cap per hand, no-flop-no-drop, unmatched refunds excluded and fine fixed-point settlement in `src/accounting.rs`. No external poker platform integration.
 
 ## Learning
 
@@ -40,7 +42,7 @@ cargo run --release -- --sixmax-eval --hands 120000 --seed 92001 --checkpoint si
 
 ## Validation and results
 
-The [six-max CI](https://github.com/Shisetsu-Code/SolverPK/actions/workflows/sixmax.yml) runs unit/regression tests, 100k self-play hands and fixed-policy comparisons against random actions, the Pluribus imitation and a same-policy clone.
+The current [simulator audit CI](https://github.com/Shisetsu-Code/SolverPK/actions/workflows/simulator-audit.yml) runs unit/integration tests, exhaustive five-card ranking and 100k complete legal histories against independent settlement. The older [six-max experiment](https://github.com/Shisetsu-Code/SolverPK/actions/workflows/sixmax.yml) is now manual-only.
 
 The [generation comparison](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44548708132) trained a 100k generation from scratch, continued to 1M and evaluated each against the frozen Pluribus imitation on the same held-out deal seeds with 120k hands per comparison:
 
@@ -72,9 +74,9 @@ The [matched 6-max PHH ablation](https://github.com/Shisetsu-Code/SolverPK/actio
 - PHH warm-start: initialize policy logits in 10,008 of 19,440 coarse buckets from historical Pluribus imitation (`SPKIMT01`), then run identical-budget self-play.
 
 ```bash
-cargo run --release -- --sixmax-train --hands 1000000 --seed 81122 --checkpoint scratch.bin
-cargo run --release -- --sixmax-train --hands 1000000 --seed 81122 --phh-init pluribus-imitation.bin --checkpoint warmstart.bin
-cargo run --release -- --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000 --seed 99122
+cargo run --release -- --sixmax-train --rake-bps 0 --hands 1000000 --seed 81122 --checkpoint scratch.bin
+cargo run --release -- --sixmax-train --rake-bps 0 --hands 1000000 --seed 81122 --phh-init pluribus-imitation.bin --checkpoint warmstart.bin
+cargo run --release -- --sixmax-duel --rake-bps 0 --left scratch.bin --right warmstart.bin --hands 120000 --seed 99122
 ```
 
 All policies were **frozen** for evaluation. Each 6-max direct-duel deal was repeated with the two teams swapped and all six button positions, grouping 12 hands per statistical unit.

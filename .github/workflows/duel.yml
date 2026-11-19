@@ -1,9 +1,5 @@
 name: Frozen checkpoint duel 1M vs 11M
 on:
-  push:
-    paths:
-      - 'src/**'
-      - '.github/workflows/duel.yml'
   workflow_dispatch:
 permissions:
   contents: read

@@ -1,8 +1,5 @@
 name: Sixmax PHH warmstart ablation verified
 on:
-  push:
-    paths:
-      - '.github/workflows/sixmax-phh-ablation.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -31,30 +28,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-train --hands 1000000 --seed 81122 --checkpoint scratch.bin | tee scratch-train.log
+          ./target/release/solverpk --sixmax-train --rake-bps 0 --hands 1000000 --seed 81122 --checkpoint scratch.bin | tee scratch-train.log
       - name: Train with historical PHH warmstart, 1M
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-train --hands 1000000 --seed 81122 --phh-init phh/pluribus-imitation.bin --checkpoint warmstart.bin | tee warmstart-train.log
+          ./target/release/solverpk --sixmax-train --rake-bps 0 --hands 1000000 --seed 81122 --phh-init phh/pluribus-imitation.bin --checkpoint warmstart.bin | tee warmstart-train.log
       - name: Held-out Pluribus imitation benchmark
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint scratch.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee scratch-phh.log
-          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint warmstart.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee warmstart-phh.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 120000 --seed 99122 --checkpoint scratch.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee scratch-phh.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 120000 --seed 99122 --checkpoint warmstart.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee warmstart-phh.log
       - name: Frozen same-policy null control
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint scratch.bin --opponent clone | tee scratch-clone.log
-          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint warmstart.bin --opponent clone | tee warmstart-clone.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 120000 --seed 99122 --checkpoint scratch.bin --opponent clone | tee scratch-clone.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 120000 --seed 99122 --checkpoint warmstart.bin --opponent clone | tee warmstart-clone.log
       - name: Matched three-versus-three generation duel
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000 --seed 99122 | tee direct-duel.log
-          ./target/release/solverpk --sixmax-duel --left scratch.bin --right scratch.bin --hands 120000 --seed 99122 | tee null-duel.log
+          ./target/release/solverpk --sixmax-duel --rake-bps 0 --left scratch.bin --right warmstart.bin --hands 120000 --seed 99122 | tee direct-duel.log
+          ./target/release/solverpk --sixmax-duel --rake-bps 0 --left scratch.bin --right scratch.bin --hands 120000 --seed 99122 | tee null-duel.log
       - name: Save evidence and model checkpoints
         if: always()
         uses: actions/upload-artifact@v4

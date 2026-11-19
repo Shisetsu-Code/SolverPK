@@ -1,5 +1,7 @@
 # Real neural six-max policy (prototype)
 
+> **Actualización posterior a los 100M:** [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) contiene las correcciones verificadas de reglas/rake, la reevaluación congelada y las limitaciones estratégicas detectadas. Las tablas de experimentos anteriores de este archivo son históricas y no representan resultados después de rake.
+
 This repository previously used **tabular actor-critic**, not a neural network. That remains available in `sixmax.rs` as a reference baseline. The new `src/neural.rs` contains an actual trainable multilayer perceptron using Rust's standard library.
 
 ## Architecture
@@ -8,26 +10,26 @@ This repository previously used **tabular actor-critic**, not a neural network. 
 - Six actions: fold, check/call, 33% pot, 75% pot, pot and all-in abstract raise targets.
 - Backpropagation implemented in Rust, with policy-gradient REINFORCE and a moving reward baseline.
 - Alternative supervised pretraining: minimize policy cross-entropy to a frozen tabular teacher.
-- Inputs use only private hole cards owned by the actor plus publicly observed street/board, pot, call, stack, position, public betting pressure, remaining players and **coarse** public-action opponent beliefs.
+- Inputs use the actor's hole-card ranks and suitedness, visible-board rank/suit counts and public betting quantities. They OMIT the identity of the actor's suits, so flush ownership is not fully observable to this network. A versioned encoder and new training are required; historical SPKNN001 inputs remain unchanged for comparison.
 - Unrevealed board cards and other players' hole cards are not provided.
 - Binary checkpoint `SPKNN001` is versioned and different from the old tabular checkpoint.
 
 ### Commands
 
 ```bash
-cargo run --release -- --sixmax-train --hands 100000 --seed 4101 --checkpoint tabular.bin
+cargo run --release -- --sixmax-train --rake-bps 0 --hands 100000 --seed 4101 --checkpoint tabular.bin
 
 # Train from scratch using neural REINFORCE:
-cargo run --release -- --sixmax-neural-train --hands 20000 --seed 4101 --checkpoint neural.bin
+cargo run --release -- --sixmax-neural-train --rake-bps 0 --hands 20000 --seed 4101 --checkpoint neural.bin
 
 # Optionally initialize from the frozen teacher strategy:
-cargo run --release -- --sixmax-neural-distill --hands 100000 --teacher tabular.bin --checkpoint distilled.bin
+cargo run --release -- --sixmax-neural-distill --rake-bps 0 --hands 100000 --teacher tabular.bin --checkpoint distilled.bin
 
 # Compare frozen network against five copies of the tabular baseline:
-cargo run --release -- --sixmax-neural-eval --hands 12000 --seed 9401 --checkpoint distilled.bin --tabular tabular.bin
+cargo run --release -- --sixmax-neural-eval --rake-bps 0 --hands 12000 --seed 9401 --checkpoint distilled.bin --tabular tabular.bin
 
 # Resume an existing network:
-cargo run --release -- --sixmax-neural-train --resume --hands 5000 --seed 4102 --checkpoint distilled.bin
+cargo run --release -- --sixmax-neural-train --rake-bps 0 --resume --hands 5000 --seed 4102 --checkpoint distilled.bin
 ```
 
 ## Measured first results
@@ -51,7 +53,7 @@ cargo run --release -- --sixmax-neural-train --resume --hands 5000 --seed 4102 -
 2. This is a small ~2.3k-parameter baseline, not the proposed 0.5–2 million parameter model; scaling requires a richer feature architecture and an optimized batched backend.
 3. Opponent beliefs are still **3-class heuristic estimates**, not full 169-class or 1,326-combination weighted ranges.
 4. The policy observes summaries of betting pressure, not the full ordered action history.
-5. Main six-max engine needs independent conformance checking before serious poker strength claims.
+5. Independent ranking/settlement checks and betting regressions now pass; full external NLHE conformance and competitive poker strength remain unproved. See AUDIT_SIXMAX.md.
 6. The PHH imitator is a frozen coarse human-like/Pluribus-action approximation; it is not Pluribus, and the neural model here distills the tabular agent rather than directly consuming PHH observations.
 
 **Next milestones:** replace range beliefs with card-blocked weighted combination distributions, encode full action histories, introduce GPU batch inference/training, train much larger networks, and establish held-out league evaluation and EV-loss versus a validated search reference.

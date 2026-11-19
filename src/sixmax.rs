@@ -1,6 +1,7 @@
 //! Playable six-handed No-Limit Hold'em cash table and lightweight self-play.
 //! No external dependencies. Separate from historical PHH replay and HU arena.
 use crate::{deck, score7, Rng};
+use crate::accounting::{self, RakeConfig, Settlement, MONEY_SCALE, BB_UNITS};
 use crate::imitation::FrozenPolicy;
 use crate::neural::{Net, INPUT as NN_INPUT};
 use std::fs::File;
@@ -13,6 +14,29 @@ const BB:i64=2;
 const STATES:usize=4*5*3*3*3*4*3*3;
 const ACTIONS:usize=6;
 const MAGIC:&[u8;8]=b"SPK6MAX3";
+
+fn print_rules(rake:RakeConfig){
+    println!("SIXMAX_RULES engine=accounting-v2 bb_units={} rake_bps={} rake_cap_bb={:.5} no_flop_no_drop={} settlement_precision_bb=0.00005 metric=net_after_rake",
+        BB_UNITS,rake.basis_points,rake.cap_units as f64/BB_UNITS as f64,rake.no_flop_no_drop);
+}
+
+// Inputs are sums of per-cluster rewards in big blinds. Each cluster must
+// contain the same number of player-hands (6 for a seat, 36 for a 3v3 duel).
+fn cluster_result(sum:f64,sumsq:f64,groups:usize,player_hands_per_group:f64)->(f64,f64){
+    assert!(groups>=2,"at least two independent clusters are required");
+    let mean=sum/groups as f64;
+    let variance=((sumsq-sum*mean)/(groups-1) as f64).max(0.0);
+    (mean*100.0/player_hands_per_group,
+     1.96*(variance/groups as f64).sqrt()*100.0/player_hands_per_group)
+}
+
+#[cfg(test)]
+#[path = "sixmax_audit_tests.rs"]
+mod audit_tests;
+
+#[cfg(test)]
+#[path = "sixmax_stress_tests.rs"]
+mod stress_tests;
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 enum Action {Fold,Call,Raise(i64)} // Raise to street-total
@@ -80,10 +104,11 @@ impl Table6 {
     fn call(&self,p:usize)->i64{(self.high-self.street[p]).max(0).min(self.stack[p])}
     fn raise_to(&self,p:usize,action:usize)->i64{
         let max_to=self.street[p]+self.stack[p];
+        let pot_after_call=self.pot+self.call(p);
         let desired=match action{
-            2=>self.high+(self.pot/3).max(self.min_raise),
-            3=>self.high+((self.pot*3)/4).max(self.min_raise),
-            4=>self.high+self.pot.max(self.min_raise),
+            2=>self.high+(pot_after_call/3).max(self.min_raise),
+            3=>self.high+((pot_after_call*3)/4).max(self.min_raise),
+            4=>self.high+pot_after_call.max(self.min_raise),
             5=>max_to,
             _=>panic!("invalid bet-size action"),
         };
@@ -92,7 +117,10 @@ impl Table6 {
     fn legal(&self,p:usize)->[bool;ACTIONS]{
         let due=self.high-self.street[p];
         let opponent_live=(0..N).any(|q|q!=p && !self.folded[q] && self.stack[q]>0);
-        let possible=!self.acted[p] && opponent_live && self.stack[p]>due;
+        // Reopening is individual: short all-ins may cumulatively make a
+        // player face a full raise since their most recent call/bet.
+        let reopened=!self.acted[p] || due>=self.min_raise;
+        let possible=reopened && opponent_live && self.stack[p]>due;
         let mut result=[false;ACTIONS];
         result[0]=due>0;
         result[1]=true;
@@ -145,8 +173,8 @@ impl Table6 {
                         if q!=p && !self.folded[q] && self.stack[q]>0 {self.pending[q]=true;}
                     }
                 }else{
-                    // Short all-in does not reopen betting for actors that
-                    // already acted, but everyone owing chips must respond.
+                    // A short all-in does not change the full-raise size.
+                    // legal() checks cumulative reopening for each player.
                     self.acted[p]=true;
                     for q in 0..N {
                         if q!=p && !self.folded[q] && self.stack[q]>0 && self.street[q]<self.high {
@@ -169,50 +197,23 @@ impl Table6 {
         self.visible=match self.round{1=>3,2=>4,_=>5};
         self.street=[0;N];self.high=0;self.min_raise=BB;
         self.acted=[false;N];
-        self.pending=std::array::from_fn(|p|!self.folded[p] && self.stack[p]>0);
+        let can_bet=self.live_bettors()>1;
+        self.pending=std::array::from_fn(|p|can_bet && !self.folded[p] && self.stack[p]>0);
         self.actor=self.first_pending_after(self.button).unwrap_or(self.button);
         Ok(())
     }
-    fn settle(&self)->[i64;N]{
-        let mut winnings=[0i64;N];
-        let mut levels=self.total.to_vec();
-        levels.sort_unstable();levels.dedup();levels.retain(|&x|x>0);
-        let mut previous=0;
-        for level in levels{
-            let funders:Vec<usize>=(0..N).filter(|&p|self.total[p]>=level).collect();
-            let pot=(level-previous)*funders.len() as i64;
-            previous=level;
-            let eligible:Vec<usize>=funders.into_iter().filter(|&p|!self.folded[p]).collect();
-            assert!(!eligible.is_empty(),"unclaimable pot");
-            let winners=if eligible.len()==1{eligible}else{
-                let mut best=0;
-                let mut results=Vec::new();
-                for p in eligible {
-                    let score=score7(&[
-                        self.hole[p][0],self.hole[p][1],
-                        self.board[0],self.board[1],self.board[2],self.board[3],self.board[4]
-                    ]);
-                    if score>best{best=score;results.clear();results.push(p);}
-                    else if score==best {results.push(p);}
-                }
-                results
-            };
-            let share=pot/winners.len() as i64;
-            let extra=pot%winners.len() as i64;
-            // Odd chips distributed clockwise starting immediately after the button.
-            let mut ordered=winners;
-            ordered.sort_by_key(|&p|(p+N-self.button-1)%N);
-            for (i,p) in ordered.into_iter().enumerate(){
-                winnings[p]+=share+if (i as i64)<extra{1}else{0};
+    fn settle(&self,rake:RakeConfig)->Settlement {
+        assert_eq!(self.total.iter().sum::<i64>(),self.pot,"pot/contribution mismatch");
+        let ranks=std::array::from_fn(|p| {
+            if self.folded[p] || self.alive()==1 {0} else {
+                score7(&[self.hole[p][0],self.hole[p][1],
+                    self.board[0],self.board[1],self.board[2],self.board[3],self.board[4]])
             }
-        }
-        assert_eq!(winnings.iter().sum::<i64>(),self.pot);
-        winnings
+        });
+        accounting::settle(self.total,self.folded,ranks,self.button,self.visible>=3,rake)
     }
-    fn net(&self)->[i64;N]{
-        let w=self.settle();
-        std::array::from_fn(|p|w[p]-self.total[p])
-    }
+    #[cfg(test)]
+    fn net(&self)->[i64;N]{self.settle(RakeConfig::NONE).net}
     fn texture(&self)->usize{
         if self.visible<3{return 0;}
         let mut ranks=[0u8;13];let mut suits=[0u8;4];
@@ -284,8 +285,8 @@ fn neural_input(t:&Table6,p:usize)->[f32;NN_INPUT]{
 struct NeuralVisit {features:[f32;NN_INPUT],legal:[bool;ACTIONS],action:usize}
 fn play_neural(
     net:&mut Net,seed:u64,button:usize,rate:f32,
-    baseline:Option<(&Bot,Option<&FrozenPolicy>)>,
-)->[i64;N]{
+    baseline:Option<(&Bot,Option<&FrozenPolicy>)>,rake:RakeConfig,
+)->Settlement{
     let mut t=Table6::new(seed,button);
     let mut rng=Rng::new(seed^0xbaba9caf_19d0e911);
     let mut trajectory:[Vec<NeuralVisit>;N]=std::array::from_fn(|_|Vec::new());
@@ -328,21 +329,23 @@ fn play_neural(
         }
         if t.alive()==1 {break;}
     }
-    let net_chips=t.net();
-    assert_eq!(net_chips.iter().sum::<i64>(),0);
+    let settlement=t.settle(rake);
+    let net_chips=settlement.net;
     if rate>0.0 && baseline.is_none(){
         for p in 0..N{
-            let reward=(net_chips[p] as f32/(BB as f32*20.0)).clamp(-4.0,4.0);
+            let reward=(net_chips[p] as f32/(BB_UNITS as f32*20.0)).clamp(-4.0,4.0);
             for visit in &trajectory[p] {
                 net.reinforce(&visit.features,visit.legal,visit.action,reward,rate);
             }
         }
     }
-    net_chips
+    settlement
 }
 /// Generate real full-game states under a frozen tabular teacher, then
 /// minimize neural cross-entropy to the teacher's action distribution.
 pub fn neural_distill(args:&[String])->io::Result<()>{
+    let rake=RakeConfig::from_args(args)?;
+    print_rules(rake);
     let teacher_path=args.windows(2).find(|w|w[0]=="--teacher").map(|w|w[1].as_str())
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --teacher"))?;
     let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
@@ -391,7 +394,8 @@ pub fn neural_distill(args:&[String])->io::Result<()>{
             }
             if table.alive()==1{break;}
         }
-        assert_eq!(table.net().iter().sum::<i64>(),0);
+        let settlement=table.settle(rake);
+        assert_eq!(settlement.net.iter().sum::<i64>(),-settlement.rake);
     }
     nn.save(path)?;
     println!("SIXMAX_NEURAL_DISTILL hands={} steps={} mean_kl_sum_per_hand={:.5} elapsed={:.3}s model={}",
@@ -401,6 +405,8 @@ pub fn neural_distill(args:&[String])->io::Result<()>{
 }
 
 pub fn neural_train(args:&[String])->io::Result<()>{
+    let rake=RakeConfig::from_args(args)?;
+    print_rules(rake);
     let hands:usize=super::arg(args,"--hands",20000);
     let seed:u64=super::arg(args,"--seed",4101);
     let lr:f32=super::arg(args,"--learning-rate",0.002);
@@ -410,45 +416,55 @@ pub fn neural_train(args:&[String])->io::Result<()>{
     }
     let mut net=if args.iter().any(|v|v=="--resume"){Net::load(path)?}else{Net::new(seed)};
     let started=Instant::now();
+    let mut total_rake=0i64;
     for hand in 0..hands{
         let deal_seed=seed ^ (hand as u64).wrapping_mul(0x9e3779b97f4a7c15);
-        play_neural(&mut net,deal_seed,hand%N,lr,None);
+        let result=play_neural(&mut net,deal_seed,hand%N,lr,None,rake);
+        total_rake+=result.rake;
     }
     net.save(path)?;
+    println!("SIXMAX_HOUSE rake_bb={:.5}",total_rake as f64/BB_UNITS as f64);
     println!("SIXMAX_NEURAL_TRAIN hands={} steps={} elapsed={:.3}s hands_per_sec={:.2} checkpoint={}",
         hands,net.steps,started.elapsed().as_secs_f64(),
         hands as f64/started.elapsed().as_secs_f64().max(1e-9),path);
     Ok(())
 }
 pub fn neural_eval(args:&[String])->io::Result<()>{
+    let rake=RakeConfig::from_args(args)?;
+    print_rules(rake);
     let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --checkpoint"))?;
     let tab_path=args.windows(2).find(|w|w[0]=="--tabular").map(|w|w[1].as_str())
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --tabular"))?;
     let phh_path=args.windows(2).find(|w|w[0]=="--phh-model").map(|w|w[1].as_str());
+    let hands:usize=super::arg(args,"--hands",6000);
+    let seed:u64=super::arg(args,"--seed",98722);
+    if hands<2*N || hands%N!=0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"--hands must be a multiple of six and at least 12 (two independent clusters)"));
+    }
     let phh=phh_path.map(FrozenPolicy::load).transpose()?;
     let base=load(tab_path)?[0].clone();
     let mut net=Net::load(path)?;
-    let hands:usize=super::arg(args,"--hands",6000);
-    let seed:u64=super::arg(args,"--seed",98722);
-    if hands==0 || hands%N!=0{return Err(io::Error::new(io::ErrorKind::InvalidInput,"--hands must be multiple of six"));}
     let groups=hands/N;
     let started=Instant::now();
-    let mut sum=0f64;let mut sumsq=0f64;
+    let mut sum=0f64;
+    let mut sumsq=0f64;
+    let mut total_rake=0i64;
     for group in 0..groups {
         let deal_seed=seed ^ (group as u64).wrapping_mul(0x9e3779b97f4a7c15);
         let mut group_value=0f64;
         for button in 0..N {
-            group_value+=play_neural(&mut net,deal_seed,button,0.0,Some((&base,phh.as_ref())))[0] as f64/BB as f64;
+            let result=play_neural(&mut net,deal_seed,button,0.0,Some((&base,phh.as_ref())),rake);
+            group_value+=result.net[0] as f64/BB_UNITS as f64;
+            total_rake+=result.rake;
         }
-        sum+=group_value;sumsq+=group_value*group_value;
+        sum+=group_value;
+        sumsq+=group_value*group_value;
     }
-    let avg=sum/hands as f64*100.0;
-    let mean=sum/groups as f64;
-    let v=(sumsq/groups as f64-mean*mean).max(0.0);
-    let ci=1.96*(v/groups as f64).sqrt()*100.0/N as f64;
-    println!("SIXMAX_NEURAL_EVAL hands={} candidate=neural opponent={} bb100={:+.3} ci95_cluster_half={:.3} elapsed={:.3}s",
-        hands,if phh.is_some(){"phh_imitation"}else{"tabular"},avg,ci,started.elapsed().as_secs_f64());
+    let (avg,ci)=cluster_result(sum,sumsq,groups,N as f64);
+    println!("SIXMAX_NEURAL_EVAL hands={} clusters={} candidate=neural opponent={} bb100={:+.3} ci95_cluster_half={:.3} table_rake_bb100={:.5} eval_seed={} elapsed={:.3}s",
+        hands,groups,if phh.is_some(){"phh_imitation"}else{"tabular"},avg,ci,
+        total_rake as f64/BB_UNITS as f64*100.0/hands as f64,seed,started.elapsed().as_secs_f64());
     Ok(())
 }
 
@@ -494,7 +510,7 @@ fn draw(prob:[f32;ACTIONS],rng:&mut Rng)->usize{
 struct Visit{key:usize,action:usize,probs:[f32;ACTIONS]}
 fn reinforce(bot:&mut Bot,history:&[Visit],net:i64,rate:f32){
     if rate<=0.0{return;}
-    let reward=(net as f32/(BB as f32*20.0)).clamp(-5.0,5.0);
+    let reward=(net as f32/(BB_UNITS as f32*20.0)).clamp(-5.0,5.0);
     for visit in history{
         let row=&mut bot.table[visit.key];
         let adv=(reward-row.baseline).clamp(-5.0,5.0);
@@ -545,7 +561,7 @@ fn initialize_from_phh(bots:&mut [Bot;N],model:&FrozenPolicy)->usize{
     initialized
 }
 
-fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool,action_counts:&mut [u64;ACTIONS])->[i64;N]{
+fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool,action_counts:&mut [u64;ACTIONS],rake:RakeConfig)->Settlement{
     let mut t=Table6::new(seed,button);
     let mut rng=Rng::new(seed^0xbeecafefeed55eed);
     let mut history:[Vec<Visit>;N]=std::array::from_fn(|_|Vec::new());
@@ -591,12 +607,12 @@ fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,ph
         }
         if t.alive()==1{break;}
     }
-    let net=t.net();
-    assert_eq!(net.iter().sum::<i64>(),0,"net zero sum");
+    let settlement=t.settle(rake);
+    let net=settlement.net;
     for p in 0..N {
         reinforce(&mut bots[p],&history[p],net[p],rate);
     }
-    net
+    settlement
 }
 fn save(path:&str,bots:&[Bot;N])->io::Result<()>{
     let mut file=File::create(path)?;
@@ -622,12 +638,17 @@ fn load(path:&str)->io::Result<[Bot;N]>{
                 if !x.is_finite(){return Err(io::Error::new(io::ErrorKind::InvalidData,"nonfinite weight"));}
             }
             let mut b=[0u8;4];file.read_exact(&mut b)?;row.baseline=f32::from_le_bytes(b);
+            if !row.baseline.is_finite(){return Err(io::Error::new(io::ErrorKind::InvalidData,"nonfinite baseline"));}
             let mut v=[0u8;4];file.read_exact(&mut v)?;row.visits=u32::from_le_bytes(v);
         }
     }
+    let mut trailing=[0u8;1];
+    if file.read(&mut trailing)?!=0{return Err(io::Error::new(io::ErrorKind::InvalidData,"trailing 6max checkpoint bytes"));}
     Ok(bots)
 }
 pub fn run(args:&[String])->io::Result<()>{
+    let rake=RakeConfig::from_args(args)?;
+    print_rules(rake);
     let hands:usize=super::arg(args,"--hands",100000);
     let seed:u64=super::arg(args,"--seed",42);
     let rate:f32=super::arg(args,"--learning-rate",0.025);
@@ -643,29 +664,37 @@ pub fn run(args:&[String])->io::Result<()>{
     }
     let start=Instant::now();
     let mut totals=[0i64;N];
+    let mut total_rake=0i64;
     let mut action_counts=[0u64;ACTIONS];
     for i in 0..hands{
         let s=seed^((i as u64).wrapping_mul(0x9e3779b97f4a7c15));
-        let result=play(&mut bots,s,i%N,rate,false,None,false,&mut action_counts);
-        for p in 0..N{totals[p]+=result[p];}
+        let result=play(&mut bots,s,i%N,rate,false,None,false,&mut action_counts,rake);
+        for p in 0..N{totals[p]+=result.net[p];}
+        total_rake+=result.rake;
     }
     save(path,&bots)?;
+    assert_eq!(totals.iter().sum::<i64>(),-total_rake);
+    println!("SIXMAX_HOUSE rake_bb={:.5}",total_rake as f64/BB_UNITS as f64);
     println!("SIXMAX_ACTIONS total={} fold={} call={} bet33={} bet75={} pot={} allin={}",
         action_counts.iter().sum::<u64>(),action_counts[0],action_counts[1],
         action_counts[2],action_counts[3],action_counts[4],action_counts[5]);
     println!("SIXMAX hands={} time={:.3}s hands_per_sec={:.1} checkpoint={}",hands,
         start.elapsed().as_secs_f64(),hands as f64/start.elapsed().as_secs_f64().max(1e-9),path);
-    for p in 0..N {println!("SIXMAX player={} net={} bb100={:+.3} visited_states={}",p,totals[p],
-        totals[p] as f64/BB as f64*100.0/hands as f64,
+    for p in 0..N {println!("SIXMAX player={} net_units={} bb100={:+.3} visited_states={}",p,totals[p],
+        totals[p] as f64/BB_UNITS as f64*100.0/hands as f64,
         bots[p].table.iter().filter(|r|r.visits>0).count());}
     Ok(())
 }
 pub fn evaluate(args:&[String])->io::Result<()>{
+    let rake=RakeConfig::from_args(args)?;
+    print_rules(rake);
     let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing checkpoint"))?;
-    let hands:usize=super::arg(args,"--hands",100000);
+    let hands:usize=super::arg(args,"--hands",100002);
     let seed:u64=super::arg(args,"--seed",42);
-    if hands==0 || hands%N!=0{return Err(io::Error::new(io::ErrorKind::InvalidInput,"hands must be divisible by 6"));}
+    if hands<2*N || hands%N!=0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"hands must be divisible by 6 and at least 12"));
+    }
     let original=load(path)?;
     let opponent=args.windows(2).find(|w|w[0]=="--opponent").map(|w|w[1].as_str()).unwrap_or("random");
     if opponent!="random" && opponent!="phh" && opponent!="clone" {
@@ -679,7 +708,7 @@ pub fn evaluate(args:&[String])->io::Result<()>{
     if candidate_phh && opponent!="phh" {
         return Err(io::Error::new(io::ErrorKind::InvalidInput,"--candidate-phh requires --opponent phh"));
     }
-    // Candidate policy stays seat 0, with button rotating across six positions.
+    // One fixed candidate in seat 0, six positions per independent deal.
     let champion=original[0].clone();
     let mut bots=std::array::from_fn(|_|Bot::new());
     bots[0]=champion.clone();
@@ -687,73 +716,82 @@ pub fn evaluate(args:&[String])->io::Result<()>{
     let groups=hands/N;
     let mut totals=0f64;
     let mut group_sq=0f64;
+    let mut total_rake=0i64;
     let mut action_counts=[0u64;ACTIONS];
     for group in 0..groups {
         let pair_seed=seed ^ (group as u64).wrapping_mul(0x9e3779b97f4a7c15);
         let mut group_result=0f64;
         for position in 0..N {
-            let net=play(&mut bots,pair_seed,position,0.0,opponent=="random",phh.as_ref(),candidate_phh,&mut action_counts)[0] as f64/BB as f64;
-            group_result+=net;
+            let result=play(&mut bots,pair_seed,position,0.0,opponent=="random",phh.as_ref(),candidate_phh,&mut action_counts,rake);
+            group_result+=result.net[0] as f64/BB_UNITS as f64;
+            total_rake+=result.rake;
         }
         totals+=group_result;
         group_sq+=group_result*group_result;
     }
-    let mean=totals/hands as f64;
-    let group_mean=totals/groups as f64;
-    let group_var=(group_sq/groups as f64-group_mean*group_mean).max(0.0);
-    let half=1.96*(group_var/groups as f64).sqrt()*100.0/N as f64;
+    let (mean,half)=cluster_result(totals,group_sq,groups,N as f64);
     println!("SIXMAX_EVAL_ACTIONS total={} fold={} call={} bet33={} bet75={} pot={} allin={}",
         action_counts.iter().sum::<u64>(),action_counts[0],action_counts[1],
         action_counts[2],action_counts[3],action_counts[4],action_counts[5]);
-    println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_six_hand_cluster_half={:.3} opponent={} candidate={} eval_seed={}",hands,mean*100.0,half,opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
+    println!("SIXMAX_EVAL hands={} clusters={} bb100={:+.3} ci95_six_hand_cluster_half={:.3} table_rake_bb100={:.5} opponent={} candidate={} eval_seed={}",
+        hands,groups,mean,half,total_rake as f64/BB_UNITS as f64*100.0/hands as f64,
+        opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
     Ok(())
 }
+
 /// Direct frozen team duel, three seats per generation, rotating button
 /// and team-seat assignment. Scores are per player per 100 hands.
 pub fn duel(args:&[String])->io::Result<()>{
+    let rake=RakeConfig::from_args(args)?;
+    print_rules(rake);
     let left=args.windows(2).find(|w|w[0]=="--left").map(|w|w[1].as_str())
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --left"))?;
     let right=args.windows(2).find(|w|w[0]=="--right").map(|w|w[1].as_str())
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --right"))?;
     let hands:usize=super::arg(args,"--hands",120000);
     let seed:u64=super::arg(args,"--seed",91832);
-    if hands<N || hands%(2*N)!=0 {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput,"hands must be divisible by 12"));
+    if hands<4*N || hands%(2*N)!=0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"hands must be divisible by 12 and at least 24"));
     }
-    let a=load(left)?[0].clone();let b=load(right)?[0].clone();
+    let a=load(left)?[0].clone();
+    let b=load(right)?[0].clone();
     let mut seats:[Bot;N]=std::array::from_fn(|p|if p%2==0{a.clone()}else{b.clone()});
-    let mut totals=0f64;let mut pair_sq=0f64;
+    let mut totals=[0f64;2];
+    let mut pair_sq=[0f64;2];
+    let mut total_rake=0i64;
     let mut action_counts=[0u64;ACTIONS];
     let pairs=hands/(2*N);
     let start=Instant::now();
     for pair in 0..pairs {
-        // Both team assignments play the SAME six deals, with all button
-        // positions. Under identical policies the paired result is exactly 0.
         let deal_seed=seed ^ (pair as u64).wrapping_mul(0x9e3779b97f4a7c15);
-        let mut pair_net=0f64;
+        let mut pair_net=[0f64;2];
         for flip in 0..2 {
             if flip==1 {
                 for seat in (0..N).step_by(2){seats.swap(seat,seat+1);}
             }
             for button in 0..N {
-                let result=play(&mut seats,deal_seed,button,0.0,false,None,false,&mut action_counts);
-                let a_net=(0..N).filter(|&p|(p%2==0)==(flip==0))
-                    .map(|p|result[p]).sum::<i64>();
-                pair_net+=a_net as f64/BB as f64;
+                let result=play(&mut seats,deal_seed,button,0.0,false,None,false,&mut action_counts,rake);
+                for p in 0..N {
+                    let team=usize::from((p%2==0)!=(flip==0));
+                    pair_net[team]+=result.net[p] as f64/BB_UNITS as f64;
+                }
+                total_rake+=result.rake;
             }
             if flip==1 {
                 for seat in (0..N).step_by(2){seats.swap(seat,seat+1);}
             }
         }
-        totals+=pair_net;pair_sq+=pair_net*pair_net;
+        for team in 0..2 {
+            totals[team]+=pair_net[team];
+            pair_sq[team]+=pair_net[team]*pair_net[team];
+        }
     }
-    let mean=totals/(hands as f64*3.0)*100.0;
-    let pm=totals/pairs as f64;
-    let var=(pair_sq/pairs as f64-pm*pm).max(0.0);
-    let half=1.96*(var/pairs as f64).sqrt()*100.0/(2.0*N as f64*3.0);
-    println!("SIXMAX_DUEL left={} right={} hands={} left_bb100={:+.3} right_bb100={:+.3} ci95_twelve_hand_pair_half={:.3} elapsed={:.3}s",
-        left,right,hands,mean,-mean,half,start.elapsed().as_secs_f64());
-    println!("SIXMAX_DUEL_NOTE three seats per strategy, twelve matched deals per paired seed with both team assignments, frozen policies, no GTO guarantee");
+    let (left_mean,left_half)=cluster_result(totals[0],pair_sq[0],pairs,2.0*N as f64*3.0);
+    let (right_mean,right_half)=cluster_result(totals[1],pair_sq[1],pairs,2.0*N as f64*3.0);
+    println!("SIXMAX_DUEL left={} right={} hands={} clusters={} left_bb100={:+.3} right_bb100={:+.3} left_ci95_half={:.3} right_ci95_half={:.3} table_rake_bb100={:.5} eval_seed={} elapsed={:.3}s",
+        left,right,hands,pairs,left_mean,right_mean,left_half,right_half,
+        total_rake as f64/BB_UNITS as f64*100.0/hands as f64,seed,start.elapsed().as_secs_f64());
+    println!("SIXMAX_DUEL_NOTE three seats per strategy; matched button positions and team assignments; net per player after rake; frozen policies; no GTO guarantee");
     Ok(())
 }
 
@@ -801,11 +839,11 @@ mod tests{
         t.pot=t.total.iter().sum();
         t.stack=std::array::from_fn(|p|STACK-t.total[p]);
         t.folded=[false,false,true,false,true,false];
-        let w=t.settle();
-        assert_eq!(w.iter().sum::<i64>(),t.pot);
+        let w=t.settle(RakeConfig::NONE);
+        assert_eq!(w.payouts.iter().sum::<i64>(),t.pot*MONEY_SCALE);
     }
     #[test]fn complete_table_reference_isolated(){
-        let mut t=Table6::new(5,1);
+        let t=Table6::new(5,1);
         assert_eq!(t.hole.iter().flatten().copied().collect::<std::collections::HashSet<_>>().len(),12);
         let _=t.view(0);
     }
@@ -872,15 +910,15 @@ mod tests{
         t.hole[1]=[46,20]; // 9s,9d
         t.hole[2]=[44,18]; // 7s,7d
         t.board=[0,1,2,16,33]; // 2c 3c 4c 5d 9h
-        let paid=t.settle();
-        assert_eq!(paid,[30,20,10,0,0,0]);
+        let paid=t.settle(RakeConfig::NONE);
+        assert_eq!(paid.payouts,[300_000,200_000,100_000,0,0,0]);
     }
     #[test]fn seeded_games_conserve(){
         let mut bots=std::array::from_fn(|_|Bot::new());
         let mut counts=[0u64;ACTIONS];
         for i in 0..500 {
-            let result=play(&mut bots,i*137+4,(i as usize)%N,0.03,false,None,false,&mut counts);
-            assert_eq!(result.iter().sum::<i64>(),0);
+            let result=play(&mut bots,i*137+4,(i as usize)%N,0.03,false,None,false,&mut counts,RakeConfig::NONE);
+            assert_eq!(result.net.iter().sum::<i64>(),0);
         }
     }
 }

@@ -1,5 +1,19 @@
 # SolverPK — plan de mejoras priorizado después del entrenamiento neuronal 100M
 
+## Actualización de prioridades tras la auditoría económica
+
+Ver [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) para evidencia y resultados. Ya se corrigieron y probaron el reparto, rake configurable, resubidas cortas acumuladas, tamaños del bote, intervalos 6-max y validaciones de PHH/checkpoints. La referencia independiente de liquidación cubre 100.000 manos; el evaluador cubre exhaustivamente las manos de cinco cartas. Esto es un avance de P0.1; la conformidad completa contra otro motor sigue pendiente.
+
+**Prioridad previa al próximo entrenamiento masivo:**
+
+1. Nueva versión de observaciones que conserve palos propios y su relación con el board; fixtures de color/proyectos y separación de checkpoints anteriores.
+2. Objetivo de aprendizaje que preserve EV monetario y gradientes consistentes con la política que generó la trayectoria. El recorte actual puede invertir preferencias por EV.
+3. Liga congelada más exigente, semillas nuevas y selección independiente de test; PHH actual usa 960 estados/3 acciones y mezcla actores.
+4. Guardado atómico, metadatos de motor/rake/observaciones, estado reproducible y conservación de checkpoints.
+5. Corregir intervalos emparejados y reglas restantes de las arenas HU antiguas, o retirarlas para evitar confusión con el motor 6-max.
+
+El resto de este plan conserva propuestas y antecedentes históricos; las cifras anteriores a la auditoría no acreditan el motor corregido ni resultados después de rake.
+
 **Fecha:** 2026-11-19. **Base comprobada:** [PROJECT_STATUS.md](PROJECT_STATUS.md). No se propone otro entrenamiento masivo hasta superar los criterios P0.
 
 La red actual aprende y gana contra el bot tabular en la simulación, pero todavía no podemos estimar su calidad frente a jugadores competitivos ni su explotabilidad. Este plan prioriza **validez de resultados → calidad estratégica → velocidad**. Cada tarea tiene implementación, prueba y condición explícita para declararla finalizada.

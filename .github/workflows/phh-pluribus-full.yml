@@ -1,8 +1,5 @@
 name: PHH Pluribus full 10k import and imitation
 on:
-  push:
-    paths:
-      - '.github/workflows/phh-pluribus-full.yml'
   workflow_dispatch:
 permissions:
   contents: read
