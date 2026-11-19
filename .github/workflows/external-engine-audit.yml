@@ -1,0 +1,73 @@
+name: External poker engine comparison
+on:
+  push:
+    branches: [main, 'audit/external-engines-20261119']
+    paths: ['src/**', 'tests/**', 'scripts/external_*.py', '.github/workflows/external-engine-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOLVERPK_EXTERNAL_HANDS_JSONL: external-hands.jsonl
+      SOLVERPK_EXTERNAL_HANDS: '6000'
+      SOLVERPK_EXTERNAL_EVALUATOR_TSV: external-evaluator.tsv
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/checkout@v4
+        with:
+          repository: uoftcprg/pokerkit
+          ref: abf795299eaac41183495a0956ce7136ce38ed64
+          path: external-oracles/pokerkit
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ihendley/treys
+          ref: 70fbaade2f9b63ee3ea41b54aed7be2c921add7e
+          path: external-oracles/treys
+          persist-credentials: false
+      - name: Unit and CLI regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > external-source-commit.txt
+          cargo test --all-targets --no-fail-fast 2>&1 | tee external-tests.log
+      - name: Export actual six-max histories
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --release external_engine_export -- --ignored --nocapture 2>&1 | tee external-export.log
+      - name: Compare independent engines
+        if: always()
+        shell: bash
+        env:
+          PYTHONPATH: '${{ github.workspace }}/external-oracles/pokerkit:${{ github.workspace }}/external-oracles/treys'
+        run: |
+          set -euo pipefail
+          if test -f scripts/external_engine_compare.py; then
+            python scripts/external_engine_compare.py --input external-hands.jsonl --output external-comparison.json 2>&1 | tee external-comparison.log
+          fi
+          if test -f scripts/external_evaluator.py; then
+            python scripts/external_evaluator.py 2>&1 | tee external-evaluator.log
+            cargo test --release external_evaluator -- --ignored --nocapture 2>&1 | tee -a external-evaluator.log
+          fi
+      - name: Preserve reproducible audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: external-engine-audit
+          path: |
+            external-*.log
+            external-*.json
+            external-*.jsonl
+            external-*.tsv
+            external-source-commit.txt
+          retention-days: 90
+          if-no-files-found: error

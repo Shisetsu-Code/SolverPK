@@ -43,6 +43,10 @@ mod audit_tests;
 mod stress_tests;
 
 #[cfg(test)]
+#[path = "sixmax_external_tests.rs"]
+mod external_tests;
+
+#[cfg(test)]
 #[path = "sixmax_observation_tests.rs"]
 mod observation_tests;
 

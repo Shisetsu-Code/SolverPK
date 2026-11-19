@@ -145,6 +145,27 @@ mod tests {
         assert_eq!(s.stopped,Some("stop_loss"));
     }
     #[test]
+    fn stop_loss_blocks_a_buyin_that_could_exceed_the_remaining_loss_budget(){
+        let l=Limits::from_dollars(50,20,10).unwrap();
+        let mut s=Session::new(l);
+        for _ in 0..2 {
+            assert!(s.eligible(l));
+            s.record(-19*USD_UNITS/2,0,&RiskTelemetry::default()).unwrap();
+        }
+        assert_eq!(dollars(s.balance),31.0);
+        assert!(!s.eligible(l),"another USD 10 buy-in could cross the USD 30 bankroll floor");
+        assert_eq!(s.stopped,Some("stop_loss_budget"));
+    }
+    #[test]
+    fn stop_loss_smaller_than_the_buyin_does_not_start_a_hand(){
+        let l=Limits::from_dollars(50,1,10).unwrap();
+        let mut s=Session::new(l);
+        assert!(!s.eligible(l),"a USD 1 loss budget cannot fund a USD 10 hand");
+        assert_eq!(s.balance,50*USD_UNITS);
+        assert_eq!(s.hands,0);
+        assert_eq!(s.stopped,Some("stop_loss_budget"));
+    }
+    #[test]
     fn cannot_play_if_full_buyin_unfunded(){
         let l=Limits::from_dollars(50,50,10).unwrap();
         let mut s=Session::new(l);
