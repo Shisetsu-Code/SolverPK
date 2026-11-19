@@ -494,6 +494,51 @@ pub fn evaluate(args:&[String])->io::Result<()>{
     println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_six_hand_cluster_half={:.3} opponent={} candidate={} eval_seed={}",hands,mean*100.0,half,opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
     Ok(())
 }
+/// Direct frozen team duel, three seats per generation, rotating button
+/// and team-seat assignment. Scores are per player per 100 hands.
+pub fn duel(args:&[String])->io::Result<()>{
+    let left=args.windows(2).find(|w|w[0]=="--left").map(|w|w[1].as_str())
+        .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --left"))?;
+    let right=args.windows(2).find(|w|w[0]=="--right").map(|w|w[1].as_str())
+        .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --right"))?;
+    let hands:usize=super::arg(args,"--hands",120000);
+    let seed:u64=super::arg(args,"--seed",91832);
+    if hands<N || hands%(2*N)!=0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"hands must be divisible by 12"));
+    }
+    let a=load(left)?[0].clone();let b=load(right)?[0].clone();
+    let mut seats:[Bot;N]=std::array::from_fn(|p|if p%2==0{a.clone()}else{b.clone()});
+    let mut totals=0f64;let mut group_sq=0f64;
+    let mut action_counts=[0u64;ACTIONS];
+    let groups=hands/N;
+    let start=Instant::now();
+    for group in 0..groups{
+        if group%2==1 {
+            for seat in (0..N).step_by(2) {seats.swap(seat,seat+1);}
+        }
+        let deal_seed=seed ^ (group as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let mut group_net=0f64;
+        for button in 0..N {
+            let result=play(&mut seats,deal_seed,button,0.0,false,None,false,&mut action_counts);
+            let a_net=(0..N).filter(|&p|(p%2==0)==(group%2==0)).map(|p|result[p]).sum::<i64>();
+            group_net+=a_net as f64/BB as f64;
+        }
+        totals+=group_net;
+        group_sq+=group_net*group_net;
+        if group%2==1 {
+            for seat in (0..N).step_by(2) {seats.swap(seat,seat+1);}
+        }
+    }
+    let mean=totals/(hands as f64*3.0)*100.0;
+    let gm=totals/groups as f64;
+    let var=(group_sq/groups as f64-gm*gm).max(0.0);
+    let half=1.96*(var/groups as f64).sqrt()*100.0/(N as f64*3.0);
+    println!("SIXMAX_DUEL left={} right={} hands={} left_bb100={:+.3} right_bb100={:+.3} ci95_six_hand_cluster_half={:.3} elapsed={:.3}s",
+        left,right,hands,mean,-mean,half,start.elapsed().as_secs_f64());
+    println!("SIXMAX_DUEL_NOTE three seats per strategy, six button positions per shared deal, frozen policies, no GTO guarantee");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests{
     use super::*;
