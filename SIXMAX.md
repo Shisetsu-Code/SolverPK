@@ -94,3 +94,9 @@ The PHH warm-start retains distinctions for active-player count and button but c
 ### Safety of estimates
 
 Confidence intervals are approximate and account for grouped deal rotations. They do not fully account for uncertainty across independently trained model seeds, selection of candidate seat 0, or generalization to new opponents. Raw bb/100 values are for the no-rake abstract game only; they must not be treated as financial return expectations.
+
+## Neural policy and 100M self-play results
+
+The six-max arena is **also** used by a genuinely trainable `64→32→6` neural policy (`src/neural.rs`; Rust backpropagation, not the tabular policy documented above). After 1M teacher-distillation hands, [workflow 44564068762](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44564068762) successfully completed **100M further synthetic six-max self-play hands** (10 × 10M), with 44 tests passed. The frozen neural agent achieved **+60.114 ±14.417 bb/100** against five copies of its 1M-hand tabular teacher and **+47.346 ±8.090 bb/100** against five Pluribus-imitation bots; each comparison included 120k hands. The initial distilled checkpoint was stronger against the PHH imitator, so this is **not monotonic/generalized improvement**.
+
+For full data, checkpoint hashes, architecture, experimental caveats and reproduction: [PROJECT_STATUS.md](PROJECT_STATUS.md) and [NEURAL_SIXMAX.md](NEURAL_SIXMAX.md). For planned corrections and acceptance criteria: [ROADMAP.md](ROADMAP.md).
