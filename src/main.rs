@@ -3,6 +3,7 @@ mod evaluator;
 mod phh;
 mod imitation;
 mod phh_eval;
+mod phh_compare;
 use std::env;
 use std::time::Instant;
 
@@ -226,9 +227,14 @@ fn main() {
         println!("solverpk --import-phh --source data/pluribus --output observations.bin --max-files 1000");
         println!("solverpk --train-phh --source observations.bin --output imitation.bin");
         println!("solverpk --evaluate-phh --model imitation.bin --candidate phh|uniform|mc --hands 100000 --samples 32");
+        println!("solverpk --compare-phh-historical --source observations.bin --model-10m 10m.bin --model-20m 20m.bin --samples 32");
         println!("solverpk --baseline-test --checkpoint selfplay.bin --baseline random|mc|clone --hands 100000 --samples 16");
         println!("Bot0: tight/aggressive. Bot1: loose/aggressive with occasional bluffs.");
         println!("Heads-up cash simulation, 100 BB stacks, no rake. Every hand resets stacks.");
+        return;
+    }
+    if args.iter().any(|a| a=="--compare-phh-historical") {
+        if let Err(e)=phh_compare::run(&args) {eprintln!("Historical comparison error: {e}"); std::process::exit(2);}
         return;
     }
     if args.iter().any(|a| a=="--evaluate-phh") {
