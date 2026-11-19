@@ -1,0 +1,55 @@
+name: PHH imitation vs Monte Carlo
+on:
+  push:
+    paths:
+      - '.github/workflows/phh-vs-mc.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Tests and optimized build
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Restore frozen Pluribus policy
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p models
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir models
+          test -s models/pluribus-imitation.bin
+          sha256sum models/pluribus-imitation.bin | tee model.sha256
+      - name: Frozen policy vs Monte Carlo
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --evaluate-phh --model models/pluribus-imitation.bin --candidate phh --hands 100000 --samples 32 --seed 74101 | tee phh-seed-1.log
+          ./target/release/solverpk --evaluate-phh --model models/pluribus-imitation.bin --candidate phh --hands 100000 --samples 32 --seed 94211 | tee phh-seed-2.log
+      - name: Random and identical-MC controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --evaluate-phh --model models/pluribus-imitation.bin --candidate uniform --hands 100000 --samples 32 --seed 74101 | tee uniform.log
+          ./target/release/solverpk --evaluate-phh --model models/pluribus-imitation.bin --candidate mc --hands 100000 --samples 32 --seed 74101 | tee mc-control.log
+      - name: Store independent evaluations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phh-vs-monte-carlo
+          path: |
+            phh-seed-1.log
+            phh-seed-2.log
+            uniform.log
+            mc-control.log
+            model.sha256
+          retention-days: 30
+          if-no-files-found: warn
