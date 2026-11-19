@@ -1,7 +1,7 @@
 {
   "engine": "accounting-v2",
   "model_training_environment": "historical pre-audit, no rake",
-  "binary_sha256": "7b277c60862358f9529786a9e89d6d894ea2db77a91d94a4e3145d25820bb8fd",
+  "binary_sha256": "c9e12ca9389860523471ed1fbe0c628c60e5deea6661803e9417da91aee9d1c6",
   "checkpoint_sha256_before": {
     "neural": "a712525d815872286eb960f330b5f585e4218fef627f7276b2e2e1adb08a8ac4",
     "tabular": "899482efff86724f106abfbc478392a0128f4416b0a731ba390eaf7eaefc6a08",
@@ -151,5 +151,7 @@
     "Frozen weak internal opponents, not the original Pluribus agent or humans",
     "Intervals reflect sampled deals, not model quality or simulator correctness",
     "The historical checkpoint was not retrained after the rule changes"
-  ]
+  ],
+  "verified_source_commit": "0b7356c7460e8a4ff80dd78483aceeadb175bdab",
+  "workflow_run": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44587114212"
 }

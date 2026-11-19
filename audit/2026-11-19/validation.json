@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-19",
+  "source_commit": "0b7356c7460e8a4ff80dd78483aceeadb175bdab",
+  "workflow_run_id": 44587114212,
+  "workflow_job_id": 135782935834,
+  "conclusion": "success",
+  "tests": {
+    "unit_passed": 89,
+    "cli_integration_passed": 4,
+    "explicit_release_audits_passed": 2,
+    "total_passed": 95,
+    "failed": 0
+  },
+  "evaluator": {
+    "five_card_hands_exhaustive": 2598960,
+    "distinct_rankings": 7462,
+    "independent_5_6_7_card_samples": 30000
+  },
+  "legal_history_stress": {
+    "seed": "0xd1ce6a1120261119",
+    "hands": 100000,
+    "fixed_stack_hands": 50000,
+    "heterogeneous_stack_hands": 50000,
+    "actions": 874267,
+    "showdowns": 94354,
+    "fold_wins": 5646,
+    "sidepot_hands": 41957,
+    "split_pot_hands": 6072,
+    "refund_checks": 43705
+  },
+  "evaluation": {
+    "cases": 12,
+    "hands_per_case": 120000,
+    "hands_total": 1440000,
+    "clusters_per_case": 20000,
+    "checkpoint_hashes_unchanged": true
+  },
+  "negative_regression_runs": [
+    44582539425,
+    44583328393,
+    44584191602,
+    44586214682
+  ]
+}

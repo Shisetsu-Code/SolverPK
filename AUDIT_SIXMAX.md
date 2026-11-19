@@ -21,9 +21,10 @@ El modelo sigue siendo un prototipo con limitaciones estratégicas importantes: 
 ## Alcance y trazabilidad
 
 - Base inspeccionada: `ac49c32060f6c78ae9ba4514a4b82161c31e8525`.
-- Motor y benchmark verificados: `f20d41fbe52070ee5ad45db6d8faa75cfa44329b`.
-- [Ejecución completa de la auditoría y reevaluación](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44585058810).
+- Motor y benchmark verificados: `0b7356c7460e8a4ff80dd78483aceeadb175bdab`.
+- [Ejecución completa de la auditoría y reevaluación](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44587114212).
 - Evidencia numérica permanente: [audit/2026-11-19/evaluation.json](audit/2026-11-19/evaluation.json).
+- Resumen de validación y contadores: [audit/2026-11-19/validation.json](audit/2026-11-19/validation.json).
 - Código central: [accounting.rs](src/accounting.rs), [sixmax.rs](src/sixmax.rs), [phh.rs](src/phh.rs), [neural.rs](src/neural.rs), [imitation.rs](src/imitation.rs).
 
 Se revisaron el motor multijugador, ranking de cartas, flujo de apuestas, recompensas, métricas, carga de checkpoints, replay PHH y automatizaciones. Las utilidades Heads-Up antiguas también se revisaron estáticamente; conservan una abstracción distinta y **no reciben el rake del motor 6-max**. Las limitaciones HU pendientes se enumeran al final.
@@ -100,7 +101,7 @@ cargo run --release -- --sixmax-neural-eval --hands 120000 --seed 2026111901 \
 
 ## Validación ejecutada
 
-La [ejecución 44585058810](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44585058810) compiló el release y pasó **91 pruebas**: 85 unitarias, 4 de integración CLI y 2 pruebas amplias ejecutadas explícitamente en release.
+La [ejecución 44587114212](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44587114212) compiló el release y pasó **95 pruebas**: 89 unitarias, 4 de integración CLI y 2 pruebas amplias ejecutadas explícitamente en release.
 
 | Comprobación | Cobertura y resultado |
 |---|---|
@@ -126,7 +127,7 @@ cargo test --release exhaustive_five_card -- --ignored --nocapture
 cargo test --release audit_stress -- --ignored --nocapture
 ```
 
-La revisión independiente final añadió cuatro casos PHH: runout válido con stacks desiguales, prohibición de avanzar el board con un call pendiente, rechazo de apuestas a side pots vacíos y coherencia entre máscara y ejecución. Los cuatro fallaron antes de corregirse en [44586214682](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44586214682).
+La revisión independiente final añadió cuatro casos PHH: runout válido con stacks desiguales, prohibición de avanzar el board con un call pendiente, rechazo de apuestas a side pots vacíos y coherencia entre máscara y ejecución. Los cuatro fallaron antes de corregirse en [44586214682](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44586214682) y pasaron en la ejecución final 44587114212. La revisión independiente aceptó las correcciones sin bloqueos pendientes.
 
 Evidencia de regresiones antes de arreglarlas: [primer RED](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44582539425), [rake y estadística](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44583328393), [replay/checkpoints](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44584191602). Son ejecuciones deliberadas para demostrar que las pruebas detectaban los defectos; no representan el estado final.
 
