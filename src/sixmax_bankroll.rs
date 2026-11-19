@@ -21,16 +21,9 @@ impl Limits {
         Ok(limits)
     }
     fn from_args(args:&[String])->io::Result<Self> {
-        fn number(args:&[String],key:&str,default:i64)->io::Result<i64>{
-            let matches:Vec<_>=args.windows(2).filter(|w|w[0]==key).collect();
-            if matches.len()>1 {return Err(io::Error::new(io::ErrorKind::InvalidInput,format!("duplicate {key}")));}
-            if let Some(w)=matches.first(){return w[1].parse::<i64>().map_err(|_|io::Error::new(io::ErrorKind::InvalidInput,format!("invalid {key}")));}
-            if args.last().is_some_and(|s|s==key){return Err(io::Error::new(io::ErrorKind::InvalidInput,format!("missing {key}")));}
-            Ok(default)
-        }
-        let bankroll=number(args,"--bankroll-usd",DEFAULT_BANKROLL_USD)?;
-        let stop_loss=number(args,"--stop-loss-usd",bankroll)?;
-        let max_bet=number(args,"--max-bet-usd",DEFAULT_MAX_WAGER_USD)?;
+        let bankroll=neural_arg(args,"--bankroll-usd",DEFAULT_BANKROLL_USD)?;
+        let stop_loss=neural_arg(args,"--stop-loss-usd",bankroll)?;
+        let max_bet=neural_arg(args,"--max-bet-usd",DEFAULT_MAX_WAGER_USD)?;
         Self::from_dollars(bankroll,stop_loss,max_bet)
     }
 }
@@ -56,6 +49,12 @@ impl Session {
         }
         if self.balance < limits.max_bet {
             self.stopped=Some("insufficient_buyin");
+            return false;
+        }
+        // Reserve the whole fixed buy-in before dealing: this hand must not
+        // be able to take the bankroll below the configured loss floor.
+        if self.balance-BUYIN_UNITS < self.initial-limits.stop_loss {
+            self.stopped=Some("stop_loss_budget");
             return false;
         }
         true
@@ -86,8 +85,8 @@ pub fn bankroll_eval(args:&[String])->io::Result<()> {
     let limits=Limits::from_args(args)?;
     let rake=RakeConfig::from_args(args)?;
     print_rules(rake);
-    let hands:usize=super::super::arg(args,"--hands",100000);
-    let seed:u64=super::super::arg(args,"--seed",42);
+    let hands:usize=neural_arg(args,"--hands",100000)?;
+    let seed:u64=neural_arg(args,"--seed",42)?;
     let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --checkpoint"))?;
     let opponent=args.windows(2).find(|w|w[0]=="--opponent").map(|w|w[1].as_str()).unwrap_or("phh");
@@ -112,7 +111,7 @@ pub fn bankroll_eval(args:&[String])->io::Result<()> {
         let result=play_audited(&mut bots,deal_seed,i%N,0.0,opponent=="random",model.as_ref(),false,&mut actions,rake,Some(&mut risk));
         session.record(result.net[0],result.rake,&risk)?;
     }
-    if session.stopped.is_none(){session.stopped=Some("hands_limit");}
+    if session.stopped.is_none() && session.eligible(limits){session.stopped=Some("hands_limit");}
     let profit=session.balance-session.initial;
     let gain_per_100=if session.hands>0 {dollars(profit)*100.0/session.hands as f64}else{0.0};
     println!("SIXMAX_BANKROLL bankroll_start_usd={:.2} bankroll_end_usd={:.2} profit_usd={:+.4} stop_loss_usd={:.2} maximum_wager_usd={:.2} bb_usd=0.10 buyin_usd=10.00 hands_requested={} hands_played={} stop_reason={} max_drawdown_usd={:.4} hero_allin_actions={} hero_max_single_action_usd={:.2} hero_max_hand_exposure_usd={:.2} rake_table_usd={:.4} profit_per_100_hands_usd={:+.4} gain_bb_per_100_hands={:+.3} opponent={} seed={} checkpoint={}",
@@ -120,7 +119,7 @@ pub fn bankroll_eval(args:&[String])->io::Result<()> {
         hands,session.hands,session.stopped.unwrap(),dollars(session.max_drawdown),session.hero_allins,
         session.max_single_action as f64/BB as f64*0.10,session.max_hand_exposure as f64/BB as f64*0.10,
         dollars(session.total_rake),gain_per_100,gain_per_100/0.10,opponent,seed,path);
-    println!("SIXMAX_BANKROLL_NOTE max_wager_usd=10 is the maximum TOTAL amount at risk per player per hand, not a $10 wager on each street; fixed 100BB buy-in; stop-loss is a cumulative loss limit relative to initial bankroll, not a peak-based trailing loss; no doubling of stakes");
+    println!("SIXMAX_BANKROLL_NOTE max_wager_usd=10 is the maximum TOTAL amount at risk per player per hand, not a $10 wager on each street; fixed 100BB buy-in; stop-loss is a hard cumulative loss limit relative to initial bankroll, not a peak-based trailing loss; stop_loss_budget stops before a hand whose full USD 10 buy-in could exceed the remaining loss budget; no doubling of stakes");
     Ok(())
 }
 #[cfg(test)]
@@ -143,6 +142,27 @@ mod tests {
         assert_eq!(dollars(s.balance),30.0);
         assert!(!s.eligible(l));
         assert_eq!(s.stopped,Some("stop_loss"));
+    }
+    #[test]
+    fn stop_loss_blocks_a_buyin_that_could_exceed_the_remaining_loss_budget(){
+        let l=Limits::from_dollars(50,20,10).unwrap();
+        let mut s=Session::new(l);
+        for _ in 0..2 {
+            assert!(s.eligible(l));
+            s.record(-19*USD_UNITS/2,0,&RiskTelemetry::default()).unwrap();
+        }
+        assert_eq!(dollars(s.balance),31.0);
+        assert!(!s.eligible(l),"another USD 10 buy-in could cross the USD 30 bankroll floor");
+        assert_eq!(s.stopped,Some("stop_loss_budget"));
+    }
+    #[test]
+    fn stop_loss_smaller_than_the_buyin_does_not_start_a_hand(){
+        let l=Limits::from_dollars(50,1,10).unwrap();
+        let mut s=Session::new(l);
+        assert!(!s.eligible(l),"a USD 1 loss budget cannot fund a USD 10 hand");
+        assert_eq!(s.balance,50*USD_UNITS);
+        assert_eq!(s.hands,0);
+        assert_eq!(s.stopped,Some("stop_loss_budget"));
     }
     #[test]
     fn cannot_play_if_full_buyin_unfunded(){

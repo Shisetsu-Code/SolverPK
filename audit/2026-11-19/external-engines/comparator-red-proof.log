@@ -1,0 +1,229 @@
+test_a_known_tie_does_not_allow_a_different_fee_assignment (__main__.ComparatorRegressionTests.test_a_known_tie_does_not_allow_a_different_fee_assignment) ... FAIL
+test_a_known_tie_does_not_allow_a_different_odd_unit_assignment (__main__.ComparatorRegressionTests.test_a_known_tie_does_not_allow_a_different_odd_unit_assignment) ... FAIL
+test_final_contributions_must_match_the_replayed_actions (__main__.ComparatorRegressionTests.test_final_contributions_must_match_the_replayed_actions) ... FAIL
+test_malformed_snapshot_types_lengths_and_ranges_are_rejected (__main__.ComparatorRegressionTests.test_malformed_snapshot_types_lengths_and_ranges_are_rejected) ... 
+  test_malformed_snapshot_types_lengths_and_ranges_are_rejected (__main__.ComparatorRegressionTests.test_malformed_snapshot_types_lengths_and_ranges_are_rejected) (field='l') ... FAIL
+  test_malformed_snapshot_types_lengths_and_ranges_are_rejected (__main__.ComparatorRegressionTests.test_malformed_snapshot_types_lengths_and_ranges_are_rejected) (field='to') ... FAIL
+  test_malformed_snapshot_types_lengths_and_ranges_are_rejected (__main__.ComparatorRegressionTests.test_malformed_snapshot_types_lengths_and_ranges_are_rejected) (field='f') ... FAIL
+test_one_gross_unit_cannot_move_to_a_player_who_won_no_pot (__main__.ComparatorRegressionTests.test_one_gross_unit_cannot_move_to_a_player_who_won_no_pot) ... FAIL
+test_one_raked_unit_cannot_move_to_a_player_who_won_no_pot (__main__.ComparatorRegressionTests.test_one_raked_unit_cannot_move_to_a_player_who_won_no_pot) ... FAIL
+test_original_real_histories_are_accepted (__main__.ComparatorRegressionTests.test_original_real_histories_are_accepted) ... ok
+test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) ... 
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=0, ledger='raked', recipient=5, amount=3) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=1, ledger='gross', recipient=1, amount=2) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=2, ledger='raked', recipient=3, amount=1) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=3, ledger='raked', recipient=5, amount=1) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=4, ledger='gross', recipient=3, amount=1) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=5, ledger='raked', recipient=5, amount=2) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=6, ledger='raked', recipient=5, amount=3) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=7, ledger='gross', recipient=1, amount=1) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=8, ledger='gross', recipient=2, amount=2) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=9, ledger='gross', recipient=2, amount=2) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=10, ledger='raked', recipient=1, amount=3) ... FAIL
+  test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=11, ledger='gross', recipient=2, amount=3) ... FAIL
+test_truncated_masks_cannot_skip_all_raise_comparisons (__main__.ComparatorRegressionTests.test_truncated_masks_cannot_skip_all_raise_comparisons) ... FAIL
+
+======================================================================
+FAIL: test_a_known_tie_does_not_allow_a_different_fee_assignment (__main__.ComparatorRegressionTests.test_a_known_tie_does_not_allow_a_different_fee_assignment)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 61, in test_a_known_tie_does_not_allow_a_different_fee_assignment
+    self.assert_financial_rejection(self.mutate_award(207, "raked", 5, 2))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : []
+
+======================================================================
+FAIL: test_a_known_tie_does_not_allow_a_different_odd_unit_assignment (__main__.ComparatorRegressionTests.test_a_known_tie_does_not_allow_a_different_odd_unit_assignment)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 58, in test_a_known_tie_does_not_allow_a_different_odd_unit_assignment
+    self.assert_financial_rejection(self.mutate_award(5477, "gross", 5, 2))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 5477, 'group': 'variable', 'ledger': 'raked', 'deltas_units': ['-2/7', 0, '-3/7', 0, 0, '5/7'], 'max_allowed_per_player_units': 8, 'post_killing_pot_merge': True, 'live_contribution_caps': [5, 10, 25, 50], 'native_positive_pots': 2, 'external_fee_pots': [{'pot_index': 0, 'amount_units': 450000, 'winners': [5, 0, 2], 'fee_per_winner_units': '45000/7'}, {'pot_index': 1, 'amount_units': 950000, 'winners': [5, 0], 'fee_per_winner_units': '142500/7'}]}]
+
+======================================================================
+FAIL: test_final_contributions_must_match_the_replayed_actions (__main__.ComparatorRegressionTests.test_final_contributions_must_match_the_replayed_actions)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 88, in test_final_contributions_must_match_the_replayed_actions
+    self.assertEqual(result.counts["completed"], 0)
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_malformed_snapshot_types_lengths_and_ranges_are_rejected (__main__.ComparatorRegressionTests.test_malformed_snapshot_types_lengths_and_ranges_are_rejected) (field='l')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 99, in test_malformed_snapshot_types_lengths_and_ranges_are_rejected
+    self.assertEqual(result.counts["completed"], 0)
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_malformed_snapshot_types_lengths_and_ranges_are_rejected (__main__.ComparatorRegressionTests.test_malformed_snapshot_types_lengths_and_ranges_are_rejected) (field='to')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 99, in test_malformed_snapshot_types_lengths_and_ranges_are_rejected
+    self.assertEqual(result.counts["completed"], 0)
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_malformed_snapshot_types_lengths_and_ranges_are_rejected (__main__.ComparatorRegressionTests.test_malformed_snapshot_types_lengths_and_ranges_are_rejected) (field='f')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 99, in test_malformed_snapshot_types_lengths_and_ranges_are_rejected
+    self.assertEqual(result.counts["completed"], 0)
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_one_gross_unit_cannot_move_to_a_player_who_won_no_pot (__main__.ComparatorRegressionTests.test_one_gross_unit_cannot_move_to_a_player_who_won_no_pot)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 52, in test_one_gross_unit_cannot_move_to_a_player_who_won_no_pot
+    self.assert_financial_rejection(self.mutate_award(3, "gross", 0, 1))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'gross', 'deltas_units': [-1, 1, 0, 0, 0, 0], 'max_allowed_per_player_units': 4, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1}]
+
+======================================================================
+FAIL: test_one_raked_unit_cannot_move_to_a_player_who_won_no_pot (__main__.ComparatorRegressionTests.test_one_raked_unit_cannot_move_to_a_player_who_won_no_pot)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 55, in test_one_raked_unit_cannot_move_to_a_player_who_won_no_pot
+    self.assert_financial_rejection(self.mutate_award(3, "raked", 0, 1))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'raked', 'deltas_units': [-1, 1, 0, 0, 0, 0], 'max_allowed_per_player_units': 8, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1, 'external_fee_pots': [{'pot_index': 0, 'amount_units': 2070000, 'winners': [0], 'fee_per_winner_units': 60000}]}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=0, ledger='raked', recipient=5, amount=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'raked', 'deltas_units': [-3, 0, 0, 0, 0, 3], 'max_allowed_per_player_units': 8, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1, 'external_fee_pots': [{'pot_index': 0, 'amount_units': 2070000, 'winners': [0], 'fee_per_winner_units': 60000}]}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=1, ledger='gross', recipient=1, amount=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'gross', 'deltas_units': [-2, 2, 0, 0, 0, 0], 'max_allowed_per_player_units': 4, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=2, ledger='raked', recipient=3, amount=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'raked', 'deltas_units': [-1, 0, 0, 1, 0, 0], 'max_allowed_per_player_units': 8, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1, 'external_fee_pots': [{'pot_index': 0, 'amount_units': 2070000, 'winners': [0], 'fee_per_winner_units': 60000}]}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=3, ledger='raked', recipient=5, amount=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'raked', 'deltas_units': [-1, 0, 0, 0, 0, 1], 'max_allowed_per_player_units': 8, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1, 'external_fee_pots': [{'pot_index': 0, 'amount_units': 2070000, 'winners': [0], 'fee_per_winner_units': 60000}]}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=4, ledger='gross', recipient=3, amount=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'gross', 'deltas_units': [-1, 0, 0, 1, 0, 0], 'max_allowed_per_player_units': 4, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=5, ledger='raked', recipient=5, amount=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'raked', 'deltas_units': [-2, 0, 0, 0, 0, 2], 'max_allowed_per_player_units': 8, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1, 'external_fee_pots': [{'pot_index': 0, 'amount_units': 2070000, 'winners': [0], 'fee_per_winner_units': 60000}]}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=6, ledger='raked', recipient=5, amount=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'raked', 'deltas_units': [-3, 0, 0, 0, 0, 3], 'max_allowed_per_player_units': 8, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1, 'external_fee_pots': [{'pot_index': 0, 'amount_units': 2070000, 'winners': [0], 'fee_per_winner_units': 60000}]}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=7, ledger='gross', recipient=1, amount=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'gross', 'deltas_units': [-1, 1, 0, 0, 0, 0], 'max_allowed_per_player_units': 4, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=8, ledger='gross', recipient=2, amount=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'gross', 'deltas_units': [-2, 0, 2, 0, 0, 0], 'max_allowed_per_player_units': 4, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=9, ledger='gross', recipient=2, amount=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'gross', 'deltas_units': [-2, 0, 2, 0, 0, 0], 'max_allowed_per_player_units': 4, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=10, ledger='raked', recipient=1, amount=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'raked', 'deltas_units': [-3, 3, 0, 0, 0, 0], 'max_allowed_per_player_units': 8, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1, 'external_fee_pots': [{'pot_index': 0, 'amount_units': 2070000, 'winners': [0], 'fee_per_winner_units': 60000}]}]
+
+======================================================================
+FAIL: test_seeded_conserved_wrong_recipient_mutations_are_rejected (__main__.ComparatorRegressionTests.test_seeded_conserved_wrong_recipient_mutations_are_rejected) (trial=11, ledger='gross', recipient=2, amount=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 69, in test_seeded_conserved_wrong_recipient_mutations_are_rejected
+    self.assert_financial_rejection(self.mutate_award(3, ledger, 0, recipient, amount))
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 40, in assert_financial_rejection
+    self.assertEqual(result.counts["completed"], 0, result.rounding)
+AssertionError: 1 != 0 : [{'hand': 3, 'group': 'variable', 'ledger': 'gross', 'deltas_units': [-3, 0, 3, 0, 0, 0], 'max_allowed_per_player_units': 4, 'post_killing_pot_merge': True, 'live_contribution_caps': [2, 5, 25, 75], 'native_positive_pots': 1}]
+
+======================================================================
+FAIL: test_truncated_masks_cannot_skip_all_raise_comparisons (__main__.ComparatorRegressionTests.test_truncated_masks_cannot_skip_all_raise_comparisons)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/0695fe5ca866/evidence/external-comparator-red-proof/external_comparator_tests.py", line 77, in test_truncated_masks_cannot_skip_all_raise_comparisons
+    self.assertEqual(result.counts["completed"], 0)
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.494s
+
+FAILED (failures=21)

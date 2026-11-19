@@ -43,6 +43,10 @@ mod audit_tests;
 mod stress_tests;
 
 #[cfg(test)]
+#[path = "sixmax_external_tests.rs"]
+mod external_tests;
+
+#[cfg(test)]
 #[path = "sixmax_observation_tests.rs"]
 mod observation_tests;
 
@@ -135,7 +139,10 @@ impl Table6 {
     }
     fn legal(&self,p:usize)->[bool;ACTIONS]{
         let due=self.high-self.street[p];
-        let opponent_live=(0..N).any(|q|q!=p && !self.folded[q] && self.stack[q]>0);
+        // A live stack must be able to contest money above the current bet.
+        // A short caller entirely covered by that bet cannot fund a side pot.
+        let opponent_live=(0..N).any(|q|q!=p && !self.folded[q]
+            && self.stack[q]+self.street[q]>self.high);
         // Reopening is individual: short all-ins may cumulatively make a
         // player face a full raise since their most recent call/bet.
         let reopened=!self.acted[p] || due>=self.min_raise;
@@ -617,6 +624,11 @@ fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,ph
 }
 fn play_audited(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool,action_counts:&mut [u64;ACTIONS],rake:RakeConfig,mut risk:Option<&mut RiskTelemetry>)->Settlement{
     let mut t=Table6::new(seed,button);
+    if let Some(telemetry)=risk.as_deref_mut(){
+        // Forced blinds are exposure even when everyone folds before hero acts.
+        telemetry.hero_max_single_action=telemetry.hero_max_single_action.max(t.total[0]);
+        telemetry.hero_max_exposure=telemetry.hero_max_exposure.max(t.total[0]);
+    }
     let mut rng=Rng::new(seed^0xbeecafefeed55eed);
     let mut history:[Vec<Visit>;N]=std::array::from_fn(|_|Vec::new());
     for street in 0..4{
@@ -663,7 +675,9 @@ fn play_audited(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent
                     let paid=t.total[p]-before;
                     telemetry.hero_max_single_action=telemetry.hero_max_single_action.max(paid);
                     telemetry.hero_max_exposure=telemetry.hero_max_exposure.max(t.total[p]);
-                    if choice==5 {telemetry.hero_allins+=1;}
+                    // Count calls and size-capped raises that consume the stack,
+                    // not only selections of the dedicated shove action label.
+                    if paid>0 && t.stack[p]==0 {telemetry.hero_allins+=1;}
                 }
             }
             history[p].push(Visit{key,action:choice,probs:values});

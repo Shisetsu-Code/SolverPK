@@ -1,5 +1,16 @@
 # Historial de cambios — SolverPK
 
+## 2026-11-19 — comparación con motores externos y controles de caja
+
+- Comparación reproducible del evaluador con PokerKit/Treys fijados por commit y hashes: 38.806 casos, incluidas las 7.462 fuerzas distintas de cinco cartas.
+- Exportación de 6.000 manos reales del motor 6-max y reproducción en PokerKit, con stacks fijos/desiguales y cobertura de las seis posiciones en cada grupo. Se registran diferencias de reglas y de convenciones monetarias.
+- Coincidencia de 72.541 estados/acciones y 6.000 liquidaciones brutas y netas bajo el mismo rake y reparto entero; tolerancia monetaria cero. El comparador rechaza pagos desviados, máscaras incompletas y aportes finales incoherentes.
+- 158 pruebas Rust y nueve métodos de regresión Python aprobados, incluida la enumeración de 2.598.960 manos de cinco cartas y estrés contable de 100.000 manos.
+- Stop loss duro financiando previamente la entrada completa; rechazo de parámetros inválidos/duplicados y motivo financiero de cierre correcto en la última mano.
+- Telemetría de all-in por agotamiento real del stack, incluyendo calls y raises recortados; exposición de ciegas aunque el candidato no tome decisiones.
+- Se impiden subidas adicionales cuando todos los rivales están cubiertos por la apuesta vigente.
+- Los hallazgos se reprodujeron con regresiones antes de corregirlos. Informe, alcance y evidencia: [EXTERNAL_ENGINE_AUDIT.md](EXTERNAL_ENGINE_AUDIT.md). No se reentrenaron ni sustituyeron checkpoints en esta auditoría.
+
 ## 2026-11-19 — Neural V2 y evaluación ampliada
 
 - Encoder 128D: cartas propias y board visible exactos, incluidos rango/palo; entrada invariante al orden de cartas, sin filtración de cartas ocultas.

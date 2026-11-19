@@ -1,0 +1,621 @@
+{
+  "schema": "solverpk-external-engine-audit-v1",
+  "date": "2026-11-19",
+  "scope": [
+    "no-limit six-max engine",
+    "shared hand evaluator",
+    "sixmax bankroll controls"
+  ],
+  "source_commit": "9d314670981b0c592e0eb482333e49c52a4d6bc4",
+  "baseline_commit": "2b178eb9d3424ecacdb859064b872d2d9893cc24",
+  "ci": {
+    "run_id": 44613024568,
+    "url": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44613024568",
+    "job_id": 135874285704,
+    "conclusion": "success",
+    "created_at": "2026-11-19T20:52:11Z",
+    "artifact_id": 14573697156,
+    "artifact_sha256": "fac58e264c4630210c8add94d46b8001a5e318c6b608b4c4420bb3127cf94597",
+    "artifact_expiry": "2027-02-17T20:52:12Z"
+  },
+  "source_files": {
+    "src/sixmax.rs": {
+      "git_blob": "fdea8edb1d704eab569e92534b923bad2b66329b",
+      "sha256": "3d900c6141748ac78f3780eecb59b2eccd7f272e6706e52d388fe5483b321756"
+    },
+    "src/sixmax_bankroll.rs": {
+      "git_blob": "8f08c55b892f88568c3666b28009c0a96611bb9b",
+      "sha256": "74f3ee54eb53c645784f63c4045d67b02838d676bf7b7a329330e71f685a6513"
+    },
+    "src/evaluator.rs": {
+      "git_blob": "abd970896d13f97c18ee3e8a9b0e50f91b99d4f3",
+      "sha256": "15c3247c98fe779111deac007ba7269831134efadf7f19d1a87a43ea251468b0"
+    },
+    "src/sixmax_external_tests.rs": {
+      "git_blob": "f3452b67017fefe680ad6a2cfe58ba4d605227b9",
+      "sha256": "fc47127b54ff87551b69e1c60fe3de36957a1bd0c33197f8f6c805a2a4e3d035"
+    },
+    "src/evaluator_external_tests.rs": {
+      "git_blob": "e162756a7850de171b358516d0ff35190fe132e5",
+      "sha256": "52b33489f58d984c73c1fde61fe2e0eab1fa73aad4d30ef5bdf6a8707e557f61"
+    },
+    "tests/bankroll_controls.rs": {
+      "git_blob": "34c464817fdb6dff42b75b83547f9f8ed689cc17",
+      "sha256": "fb8a6d373f1851266d06b70550a5dbeed0f83df1b62e7d92b16c4692a418edd4"
+    },
+    "scripts/external_evaluator.py": {
+      "git_blob": "804a7baa74f0176b3fbe5f7ead5978cfac80690f",
+      "sha256": "67280ef5fa8c10cd82852d2cfe792517cfd54a265fdac9276fd4e0e79c69fdf5"
+    },
+    "scripts/external_engine_compare.py": {
+      "git_blob": "7cfb0be7fad61455aaab4031b35246077aa40b5f",
+      "sha256": "b5b7bbe7522644a576b667ff9732e9b9283733a2b421f8609f640661e1a8f4d2"
+    },
+    "scripts/external_comparator_tests.py": {
+      "git_blob": "8ba675e229c9a2e035245c5230ac6bbca9a4d416",
+      "sha256": "bd0da4ec5d9c86849b11dfbdf50d83e9ad847c029a00b9b9496408be2f8e21cd"
+    },
+    ".github/workflows/external-engine-audit.yml": {
+      "git_blob": "31d3f80324562bec913a1f80f579e72b29e10ad0",
+      "sha256": "fb034c5ebd382f8f2e7776222acaa0ac9e65356d4dd48cbc450dfb796a606557"
+    }
+  },
+  "artifact_file_sha256": {
+    "external-comparison.log": "aae9b96f5030009c1e2c4ac5eea17cae4eb0ded1eecfcf7fdba212a3eefe5e05",
+    "external-comparator-tests.log": "195ef9b4ca06d5b111de20bb75ebe43e42ab1c3cf957a6b2961ca1640ee58589",
+    "external-exhaustive.log": "544bc0dedeadbe4d77b443536e9d161ac8635508ce6f99475f2cb36e2d792ad3",
+    "external-source-commit.txt": "5879bf9bf27534e9c63176d000f1b3300601c80b447868fea852bee0d2ff0a9e",
+    "external-tests.log": "86a12451b3a3ccc463d90a5c3e4854a1ca74cb98c3153c5a45713670fca9bf74",
+    "external-hands.jsonl": "7d75884fc22fba567654e59c29d6067e7ad5e2675dd8ab0d7791487323e2116e",
+    "external-evaluator.tsv": "5d5de8665184ee1948a8ff3d88d8910c809033d750981950bff0d3611fdb172c",
+    "external-evaluator.json": "80530a4dc48d987113993315d8212984d29607a7653f9cb7fbc80ff670bdebb3",
+    "external-export.log": "418c9c67a16d8676a5c1fa276e9c8ffb77a6a3c8e42df27b8ee4d284cb9354a0",
+    "external-evaluator.log": "8e52ab9e00cb0599b59faa544dfb473e7e045c67e492f1a8669a58a6be94cf6c",
+    "external-comparison.json": "bb9b17b5e15bded892f2510307906fa18039b6d812b05fc302046d913d2c483c",
+    "external-stress.log": "d25cb1f77a8c77f2613744aae46c905d50849ef0847dc359926a0214aa702ec7"
+  },
+  "tests": {
+    "rust_normal_unit": 133,
+    "rust_normal_integration": 21,
+    "rust_normal_total": 154,
+    "rust_explicit_ignored": 4,
+    "rust_total": 158,
+    "python_comparator_methods": 9,
+    "internal_exhaustive_five_card_combinations": 2598960
+  },
+  "external_hand_comparison": {
+    "strict_checks_passed": true,
+    "all_hands_replayed": true,
+    "summary": {
+      "hands": 6000,
+      "exported_actions": 72541,
+      "ledger_hands_checked": 6000,
+      "snapshots_attempted": 72541,
+      "snapshots_matched": 72541,
+      "actions_replayed": 72541,
+      "gross_policy_exact_hands": 6000,
+      "gross_exact_hands": 5984,
+      "raked_policy_exact_hands": 6000,
+      "raked_exact_hands": 5261,
+      "completed": 6000,
+      "known_mask_differences": 12261,
+      "pokerkit_post_killing_merged_pot_hands": 1911,
+      "raked_rational_rounding_hands": 739,
+      "fractional_pot_hands": 16,
+      "gross_rational_rounding_hands": 16,
+      "fixed": 3000,
+      "variable": 3000,
+      "errors": 0,
+      "incomplete": 0,
+      "known_errors": 0,
+      "unknown_errors": 0,
+      "unknown_mask_differences": 0
+    },
+    "groups": {
+      "fixed": {
+        "hands": 3000,
+        "exported_actions": 38105,
+        "ledger_hands_checked": 3000,
+        "snapshots_attempted": 38105,
+        "snapshots_matched": 38105,
+        "actions_replayed": 38105,
+        "gross_policy_exact_hands": 3000,
+        "gross_exact_hands": 2993,
+        "raked_policy_exact_hands": 3000,
+        "raked_exact_hands": 2993,
+        "completed": 3000,
+        "known_mask_differences": 5236,
+        "fractional_pot_hands": 7,
+        "gross_rational_rounding_hands": 7,
+        "raked_rational_rounding_hands": 7
+      },
+      "variable": {
+        "hands": 3000,
+        "exported_actions": 34436,
+        "ledger_hands_checked": 3000,
+        "snapshots_attempted": 34436,
+        "snapshots_matched": 34436,
+        "actions_replayed": 34436,
+        "gross_policy_exact_hands": 3000,
+        "gross_exact_hands": 2991,
+        "raked_policy_exact_hands": 3000,
+        "raked_exact_hands": 2268,
+        "completed": 3000,
+        "known_mask_differences": 7025,
+        "pokerkit_post_killing_merged_pot_hands": 1911,
+        "raked_rational_rounding_hands": 732,
+        "fractional_pot_hands": 9,
+        "gross_rational_rounding_hands": 9
+      }
+    },
+    "coverage": {
+      "buttons_by_group": {
+        "fixed": {
+          "0": 500,
+          "1": 500,
+          "2": 500,
+          "3": 500,
+          "4": 500,
+          "5": 500
+        },
+        "variable": {
+          "0": 500,
+          "1": 500,
+          "2": 500,
+          "3": 500,
+          "4": 500,
+          "5": 500
+        }
+      },
+      "all_positions_by_group": {
+        "fixed": true,
+        "variable": true
+      },
+      "balanced_by_group": {
+        "fixed": true,
+        "variable": true
+      }
+    },
+    "mask_difference_counts": {
+      "cash_free_fold_policy": 11441,
+      "pokerkit_first_short_bet_reopens_prior_actor": 820
+    },
+    "errors": [],
+    "metadata": {
+      "engine": "PokerKit",
+      "revision": "abf795299eaac41183495a0956ce7136ce38ed64",
+      "repository": "https://github.com/uoftcprg/pokerkit",
+      "python": "3.12.16",
+      "input": "external-hands.jsonl",
+      "input_sha256": "7d75884fc22fba567654e59c29d6067e7ad5e2675dd8ab0d7791487323e2116e",
+      "money_scale": 10000,
+      "rake_bps": 500,
+      "rake_cap_units": 60000,
+      "no_flop_no_drop": true,
+      "expected_hands": 6000,
+      "position_coverage_required": true,
+      "mask_count_unit": "action slots; four raise slots may have the same clipped target",
+      "comparison": "exact integer policy payouts from pre-kill PokerKit pots and ranks; native Fraction deltas are diagnostic only",
+      "acceptance_tolerance_units": 0,
+      "showdown_control": "show all known cards, capture public pots before hand killing, then kill and push through public APIs",
+      "known_difference_policy": {
+        "cash_free_fold_policy": "Cash-mode PokerKit allows warning-only free folds; Solver masks them.",
+        "pokerkit_first_short_bet_reopens_prior_actor": "PokerKit uses a first increment below BB as reopening threshold; TDA 2026 rule49 requires full bet/raise.",
+        "solver_covered_opponent_raise": "Solver offers raises despite no opponent able to match more than current highest bet; rejecting chosen actions ends that replay.",
+        "pokerkit_cumulative_reopening_reset": "PokerKit global short-allin list can reset before a previous actor returns; a player facing a full cumulative raise is entitled to raise."
+      },
+      "source_sha256": {
+        "pokerkit.state": "8c06107cc671a5debcc1cede731ccc659364bb5769b953e1ad60ba3194df40d5",
+        "pokerkit.games": "c7d1aee031f6a26ba540f95c7c07d056510dbde00167b83a4b9423a92a375fd3",
+        "pokerkit.utilities": "96a88973c7b90b820905a44955613bc82b4e2a065d91b26cb0bc4878c84d73e2",
+        "pokerkit.hands": "8bd1877b4b14c8ec1162742723e5daf9efb52e3d43d99fe871af9c5fed931fa9",
+        "pokerkit.lookups": "ab82def3592d51c2c4a644ccd8610634e14f823f13c714d0d54f5009c19fac66"
+      }
+    },
+    "examples": {
+      "cash_free_fold_policy": [
+        {
+          "hand": 3,
+          "group": "variable",
+          "step": 6,
+          "street": 1,
+          "actor": 2,
+          "action": 0,
+          "target": null,
+          "solver": false,
+          "pokerkit": true,
+          "category": "cash_free_fold_policy",
+          "reason": null,
+          "due": 0,
+          "solver_full_raise": 2,
+          "pokerkit_full_raise": 0
+        }
+      ],
+      "pokerkit_post_killing_pot_merge": [
+        {
+          "hand": 7,
+          "external_pre_kill_pots": [
+            {
+              "amount_units": 600000,
+              "eligible": [
+                4,
+                5,
+                0,
+                1,
+                2
+              ],
+              "winners": [
+                4
+              ]
+            },
+            {
+              "amount_units": 750000,
+              "eligible": [
+                5,
+                0,
+                1,
+                2
+              ],
+              "winners": [
+                2
+              ]
+            },
+            {
+              "amount_units": 4050000,
+              "eligible": [
+                5,
+                0,
+                2
+              ],
+              "winners": [
+                2
+              ]
+            },
+            {
+              "amount_units": 5000000,
+              "eligible": [
+                5,
+                0
+              ],
+              "winners": [
+                0
+              ]
+            }
+          ],
+          "native_positive_pots": 3
+        }
+      ],
+      "raked_rational_rounding": [
+        {
+          "hand": 7,
+          "group": "variable",
+          "ledger": "raked",
+          "deltas_units": [
+            "2/13",
+            0,
+            "4/13",
+            0,
+            "-6/13",
+            0
+          ],
+          "per_player_diagnostic_bounds_units": [
+            1,
+            0,
+            2,
+            0,
+            1,
+            0
+          ],
+          "exact_policy_match": true,
+          "acceptance_tolerance_units": 0,
+          "post_killing_pot_merge": true,
+          "native_positive_pots": 3,
+          "external_pre_kill_pots": [
+            {
+              "amount_units": 600000,
+              "eligible": [
+                4,
+                5,
+                0,
+                1,
+                2
+              ],
+              "winners": [
+                4
+              ]
+            },
+            {
+              "amount_units": 750000,
+              "eligible": [
+                5,
+                0,
+                1,
+                2
+              ],
+              "winners": [
+                2
+              ]
+            },
+            {
+              "amount_units": 4050000,
+              "eligible": [
+                5,
+                0,
+                2
+              ],
+              "winners": [
+                2
+              ]
+            },
+            {
+              "amount_units": 5000000,
+              "eligible": [
+                5,
+                0
+              ],
+              "winners": [
+                0
+              ]
+            }
+          ],
+          "external_fee_pots": [
+            {
+              "pot_index": 0,
+              "amount_units": 600000,
+              "eligible": [
+                4,
+                5,
+                0,
+                1,
+                2
+              ],
+              "winners": [
+                4
+              ],
+              "fee_per_winner_units": "45000/13",
+              "integer_pot_rake_units": 3462
+            },
+            {
+              "pot_index": 1,
+              "amount_units": 750000,
+              "eligible": [
+                5,
+                0,
+                1,
+                2
+              ],
+              "winners": [
+                2
+              ],
+              "fee_per_winner_units": "56250/13",
+              "integer_pot_rake_units": 4327
+            },
+            {
+              "pot_index": 2,
+              "amount_units": 4050000,
+              "eligible": [
+                5,
+                0,
+                2
+              ],
+              "winners": [
+                2
+              ],
+              "fee_per_winner_units": "303750/13",
+              "integer_pot_rake_units": 23365
+            },
+            {
+              "pot_index": 3,
+              "amount_units": 5000000,
+              "eligible": [
+                5,
+                0
+              ],
+              "winners": [
+                0
+              ],
+              "fee_per_winner_units": "375000/13",
+              "integer_pot_rake_units": 28846
+            }
+          ]
+        }
+      ],
+      "pokerkit_first_short_bet_reopens_prior_actor": [
+        {
+          "hand": 185,
+          "group": "variable",
+          "step": 6,
+          "street": 0,
+          "actor": 5,
+          "action": 2,
+          "target": 8,
+          "solver": false,
+          "pokerkit": true,
+          "category": "pokerkit_first_short_bet_reopens_prior_actor",
+          "reason": null,
+          "due": 1,
+          "solver_full_raise": 2,
+          "pokerkit_full_raise": 1
+        }
+      ],
+      "gross_rational_rounding": [
+        {
+          "hand": 307,
+          "group": "variable",
+          "ledger": "gross",
+          "deltas_units": [
+            "2/3",
+            0,
+            "-1/3",
+            "-1/3",
+            0,
+            0
+          ],
+          "per_player_diagnostic_bounds_units": [
+            1,
+            0,
+            1,
+            1,
+            0,
+            0
+          ],
+          "exact_policy_match": true,
+          "acceptance_tolerance_units": 0,
+          "post_killing_pot_merge": false,
+          "native_positive_pots": 4,
+          "external_pre_kill_pots": [
+            {
+              "amount_units": 100000,
+              "eligible": [
+                4,
+                5,
+                0,
+                2,
+                3
+              ],
+              "winners": [
+                0,
+                2,
+                3
+              ]
+            },
+            {
+              "amount_units": 40000,
+              "eligible": [
+                4,
+                5,
+                2,
+                3
+              ],
+              "winners": [
+                2,
+                3
+              ]
+            },
+            {
+              "amount_units": 60000,
+              "eligible": [
+                4,
+                5,
+                2
+              ],
+              "winners": [
+                2
+              ]
+            },
+            {
+              "amount_units": 100000,
+              "eligible": [
+                4,
+                5
+              ],
+              "winners": [
+                4
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "native_fraction_differences": {
+      "gross": {
+        "hands": 16,
+        "maximum_absolute_delta_units": "1",
+        "acceptance_tolerance_units": 0
+      },
+      "raked": {
+        "hands": 739,
+        "maximum_absolute_delta_units": "111/67",
+        "acceptance_tolerance_units": 0
+      }
+    }
+  },
+  "external_evaluator": {
+    "canonical_strengths": 7462,
+    "counts": {
+      "canonical_5": 7462,
+      "edge_5": 96,
+      "edge_6": 240,
+      "edge_7": 1008,
+      "random_5": 10000,
+      "random_6": 10000,
+      "random_7": 10000
+    },
+    "edge_fixtures": 28,
+    "engine_source_sha256": {
+      "pokerkit.hands": "8bd1877b4b14c8ec1162742723e5daf9efb52e3d43d99fe871af9c5fed931fa9",
+      "pokerkit.lookups": "ab82def3592d51c2c4a644ccd8610634e14f823f13c714d0d54f5009c19fac66",
+      "pokerkit.utilities": "96a88973c7b90b820905a44955613bc82b4e2a065d91b26cb0bc4878c84d73e2",
+      "treys.card": "1c9fca60c83b43161787b46654158ea9053b518105fb7f8fbff0e50542f3deba",
+      "treys.evaluator": "c937a9bac94923b08b950fd148a259702faaba188952b151a1ee9552b535d166",
+      "treys.lookup": "10b3d5ae9f16de5f900443efaf77e32b87de0284f69e3fc6fb3dae1621a4cdc0"
+    },
+    "engines": {
+      "PokerKit": {
+        "repository": "https://github.com/uoftcprg/pokerkit",
+        "revision": "abf795299eaac41183495a0956ce7136ce38ed64"
+      },
+      "Treys": {
+        "repository": "https://github.com/ihendley/treys",
+        "revision": "70fbaade2f9b63ee3ea41b54aed7be2c921add7e"
+      }
+    },
+    "external_disagreements": 0,
+    "fixture_sha256": "5d5de8665184ee1948a8ff3d88d8910c809033d750981950bff0d3611fdb172c",
+    "python": "3.12.16",
+    "random_samples_per_size": 10000,
+    "schema": "solverpk-external-evaluator-v1",
+    "seed": 20261119,
+    "solverpk_verification": "passed: Rust external_evaluator_matches_treys_and_pokerkit",
+    "total_hands": 38806
+  },
+  "accounting_stress": {
+    "seed": 15118137620915687705,
+    "hands": 100000,
+    "fixed": 50000,
+    "heterogeneous": 50000,
+    "actions": 874267,
+    "showdowns": 94097,
+    "fold_wins": 5903,
+    "sidepot_hands": 41130,
+    "split_pot_hands": 5982,
+    "refunded_hands": 39878,
+    "uncalled_checks": 39878,
+    "raked_hands": 97943
+  },
+  "red_green_evidence": [
+    {
+      "case": "nine initial regression tests",
+      "red_run": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44608539310",
+      "green_run": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44609051377"
+    },
+    {
+      "case": "trailing duplicate monetary flag",
+      "red_run": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44609539981",
+      "green_run": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44613024568"
+    },
+    {
+      "case": "external comparator corrupted traces",
+      "red_source_commit": "67796ae2d3536599525b7a1e913f6e7cce6a4fa0",
+      "tests_git_blob": "8ba675e229c9a2e035245c5230ac6bbca9a4d416",
+      "red_assertion_failures": 21,
+      "red_test_methods": 9,
+      "red_log": "comparator-red-proof.log",
+      "red_log_sha256": "317415fb763de7655ca94a0171390ed951bb53f023e3c720a18d41652cf0cc42",
+      "green_run": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44613024568"
+    }
+  ],
+  "review": {
+    "production_changes": "independently reviewed; parser duplicate finding corrected",
+    "comparator": "independently reviewed; five corrupted histories rejected and legitimate tied side-pot history accepted exactly",
+    "documentation": "independently reviewed; reproduction command and quantitative summary added"
+  },
+  "limitations": [
+    "External six/seven-card verification is sampled, not exhaustive.",
+    "External full-hand corpus uses six-max Holdem and the declared 5% global-cap rake policy.",
+    "Known mask differences are recorded; chosen action rejections and unknown differences fail the audit.",
+    "This audit does not assess strength against human players or certify historical heads-up arenas.",
+    "No checkpoint was retrained or replaced; historical profit reports are not new results."
+  ],
+  "reproduction_workflow": ".github/workflows/external-engine-audit.yml"
+}

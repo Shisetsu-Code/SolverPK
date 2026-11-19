@@ -114,3 +114,7 @@ pub fn score7(cards: &[u8;7]) -> u64 {evaluate(cards)}
 #[cfg(test)]
 #[path = "evaluator_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "evaluator_external_tests.rs"]
+mod external_tests;
