@@ -63,3 +63,34 @@ The six-handed PHH imitation versus itself and trained-model versus itself are s
 6. Add exploitability/EV-loss evaluation against a validated multiplayer search approximation. Exact multiplayer GTO is not provided.
 
 Earlier Heads-Up datasets/checkpoints remain separate. Do not interpret these simulated bb/100 numbers as expected financial returns against human players.
+
+## PHH warm-start ablation (1 million hands per arm)
+
+The [matched 6-max PHH ablation](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44550178708) uses an identical seed and training-hand budget for two variants:
+
+- Scratch: six independent tabular actor-critic bots with default initial weights.
+- PHH warm-start: initialize policy logits in 10,008 of 19,440 coarse buckets from historical Pluribus imitation (`SPKIMT01`), then run identical-budget self-play.
+
+```bash
+cargo run --release -- --sixmax-train --hands 1000000 --seed 81122 --checkpoint scratch.bin
+cargo run --release -- --sixmax-train --hands 1000000 --seed 81122 --phh-init pluribus-imitation.bin --checkpoint warmstart.bin
+cargo run --release -- --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000 --seed 99122
+```
+
+All policies were **frozen** for evaluation. Each 6-max direct-duel deal was repeated with the two teams swapped and all six button positions, grouping 12 hands per statistical unit.
+
+| Test | Scratch | PHH warm-start |
+|---|---:|---:|
+| Against five fixed PHH imitators (120k hands) | +106.241 bb/100 (±15.288) | +87.056 bb/100 (±13.066) |
+| Direct 3-vs-3 mixed-table duel (120k hands) | **+46.604 bb/100 (±5.598)** | -46.604 bb/100 |
+| Same-policy vs same-policy null | 0.000 bb/100 | not applicable here |
+
+41 Rust tests passed in this run. The matched-deal scratch-vs-scratch control produced exactly zero bb/100 because policy, deal, RNG and seat/team assignment were identical under the mirror swap.
+
+**Interpretation:** supervised warm-start from this *coarse 10k-hand historical imitation* did not help and was inferior in the direct simulated six-max comparison. This is **not** evidence that genuine Pluribus-trained networks, richer features, or accurately labeled CFR data would fail. It demonstrates that naive projected historical action counts can bias self-play negatively.
+
+The PHH warm-start retains distinctions for active-player count and button but cannot recover the original rich betting sequence, size distributions, board texture or opponent ranges from the `SPKIMT01` counts; consequently the projection is lossy.
+
+### Safety of estimates
+
+Confidence intervals are approximate and account for grouped deal rotations. They do not fully account for uncertainty across independently trained model seeds, selection of candidate seat 0, or generalization to new opponents. Raw bb/100 values are for the no-rake abstract game only; they must not be treated as financial return expectations.
