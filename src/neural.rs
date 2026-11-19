@@ -83,6 +83,32 @@ impl Net {
         }
         self.steps+=1;
     }
+    /// Cross-entropy policy distillation from an established tabular teacher.
+    /// No opponent private cards or post-decision observations are provided.
+    pub fn imitate(&mut self,x:&[f32;INPUT],legal:[bool;ACTIONS],target:[f32;ACTIONS],lr:f32){
+        let fw=self.forward(x,legal);
+        let mut grad=[0f32;ACTIONS];
+        for a in 0..ACTIONS{
+            if legal[a]{grad[a]=target[a]-fw.prob[a];}
+        }
+        let mut hd=[0f32;HIDDEN];
+        for j in 0..HIDDEN{
+            let mut d=0.0f32;
+            for a in 0..ACTIONS{d+=self.w2[a][j]*grad[a];}
+            if fw.hidden[j]>0.0{hd[j]=d;}
+        }
+        for a in 0..ACTIONS{
+            for j in 0..HIDDEN{self.w2[a][j]=(self.w2[a][j]+lr*grad[a]*fw.hidden[j]).clamp(-8.0,8.0);}
+            self.b2[a]=(self.b2[a]+lr*grad[a]).clamp(-8.0,8.0);
+        }
+        for j in 0..HIDDEN{
+            for i in 0..INPUT{
+                self.w1[j][i]=(self.w1[j][i]+lr*hd[j]*x[i]).clamp(-8.0,8.0);
+            }
+            self.b1[j]=(self.b1[j]+lr*hd[j]).clamp(-8.0,8.0);
+        }
+        self.steps+=1;
+    }
     pub fn save(&self,path:&str)->io::Result<()>{
         let mut file=File::create(path)?;
         file.write_all(MAGIC)?;
@@ -129,6 +155,14 @@ mod tests{
         for _ in 0..200{net.reinforce(&x,legal,2,1.0,0.02);}
         let after=net.forward(&x,legal).prob;
         assert!(after[2]>before[2],"chosen action probability did not learn");
+    }
+    #[test]fn distillation_decreases_cross_entropy(){
+        let mut net=Net::new(37);
+        let x=[0.2;INPUT];let legal=[true;ACTIONS];
+        let target=[0.0,1.0,0.0,0.0,0.0,0.0];
+        let before=net.forward(&x,legal).prob[1];
+        for _ in 0..200 {net.imitate(&x,legal,target,0.01);}
+        assert!(net.forward(&x,legal).prob[1]>before);
     }
     #[test]fn save_load_reproduces_outputs(){
         let net=Net::new(23);
