@@ -1,4 +1,4 @@
-name: Sixmax PHH warmstart ablation
+name: Sixmax PHH warmstart ablation verified
 on:
   push:
     paths:
