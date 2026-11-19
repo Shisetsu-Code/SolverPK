@@ -225,6 +225,7 @@ fn main() {
         println!("solverpk --hands 10000 --seed 42 --samples 64 --verbose");
         println!("solverpk --sixmax-train --hands 100000 --checkpoint sixmax.bin");
         println!("solverpk --sixmax-neural-train --hands 20000 --checkpoint sixmax-neural.bin");
+        println!("solverpk --sixmax-neural-distill --teacher sixmax.bin --hands 100000 --checkpoint sixmax-neural.bin");
         println!("solverpk --sixmax-neural-eval --hands 6000 --checkpoint sixmax-neural.bin --tabular sixmax.bin");
         println!("solverpk --sixmax-eval --hands 60000 --checkpoint sixmax.bin");
         println!("solverpk --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000");
@@ -238,6 +239,10 @@ fn main() {
         println!("solverpk --baseline-test --checkpoint selfplay.bin --baseline random|mc|clone --hands 100000 --samples 16");
         println!("Bot0: tight/aggressive. Bot1: loose/aggressive with occasional bluffs.");
         println!("Heads-up cash simulation, 100 BB stacks, no rake. Every hand resets stacks.");
+        return;
+    }
+    if args.iter().any(|a| a=="--sixmax-neural-distill") {
+        if let Err(e)=sixmax::neural_distill(&args) {eprintln!("Distillation error: {e}");std::process::exit(2);}
         return;
     }
     if args.iter().any(|a| a=="--sixmax-neural-train") {
