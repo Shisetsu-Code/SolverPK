@@ -1,4 +1,4 @@
-name: Optimized fresh self-play 10M
+name: Optimized fresh self-play 10M rerun
 on:
   push:
     paths:
@@ -27,19 +27,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --self-play --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 16 --seed 2026111901 --checkpoint selfplay.bin | tee train-5m.log
+          ./target/release/solverpk --self-play --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 16 --seed 2026111911 --checkpoint selfplay.bin | tee train-5m.log
           cp selfplay.bin checkpoint-5m.bin
       - name: Train second 5M from 5M checkpoint
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --self-play --resume --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 16 --seed 2026111902 --checkpoint selfplay.bin | tee train-10m.log
+          ./target/release/solverpk --self-play --resume --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 16 --seed 2026111912 --checkpoint selfplay.bin | tee train-10m.log
           sha256sum checkpoint-5m.bin selfplay.bin | tee checkpoints.sha256
       - name: Publish complete training outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: solverpk-optimized-fresh-10m
+          name: solverpk-optimized-fresh-10m-rerun
           path: |
             benchmark4.log
             benchmark16.log
