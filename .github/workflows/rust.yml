@@ -14,8 +14,8 @@ jobs:
         run: cargo run --release -- --hands 100 --samples 8 --seed 42
       - name: Self-play stress test 5000 hands
         run: |
-          cargo run --release -- --self-play --hands 4000 --rooms 64 --agents 8 --samples 4 --seed 42 --checkpoint selfplay.bin | tee selfplay-first.log
-          cargo run --release -- --self-play --resume --hands 1000 --rooms 64 --agents 8 --samples 4 --seed 4242 --checkpoint selfplay.bin | tee selfplay-resume.log
+          cargo run --release -- --self-play --hands 4000 --eval-hands 1000 --rooms 64 --agents 8 --samples 4 --seed 42 --checkpoint selfplay.bin | tee selfplay-first.log
+          cargo run --release -- --self-play --resume --hands 1000 --eval-hands 1000 --rooms 64 --agents 8 --samples 4 --seed 4242 --checkpoint selfplay.bin | tee selfplay-resume.log
       - name: Upload self-play metrics and checkpoint
         uses: actions/upload-artifact@v4
         with:
