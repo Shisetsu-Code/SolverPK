@@ -24,16 +24,20 @@ jobs:
           curl --fail --location --retry 3 https://raw.githubusercontent.com/uoftcprg/phh-dataset/main/data/pluribus/100/11.phh -o fixtures/pluribus/11.phh
           test -s fixtures/pluribus/0.phh
           test -s fixtures/pluribus/11.phh
-      - name: Import PHH files
+      - name: Import and supervised baseline
         run: |
-          ./target/release/solverpk --import-phh --source fixtures/pluribus --output decisions.bin | tee import.log
-          test -s decisions.bin
-          wc -c decisions.bin
+          ./target/release/solverpk --import-phh --source fixtures/pluribus --output observations.bin | tee import.log
+          test -s observations.bin
+          ./target/release/solverpk --train-phh --source observations.bin --output imitation.bin | tee training.log
+          test -s imitation.bin
+          wc -c observations.bin imitation.bin
       - name: Upload sample importer results
         uses: actions/upload-artifact@v4
         with:
           name: phh-import-sample
           path: |
-            decisions.bin
+            observations.bin
+            imitation.bin
             import.log
+            training.log
           retention-days: 14
