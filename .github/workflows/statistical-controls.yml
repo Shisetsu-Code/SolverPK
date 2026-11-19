@@ -29,9 +29,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --baseline-test --checkpoint old/selfplay.bin --baseline random --hands 100000 --samples 16 --seed 711 | tee random.log
-          ./target/release/solverpk --baseline-test --checkpoint old/selfplay.bin --baseline mc --hands 100000 --samples 16 --seed 722 | tee mc.log
-          ./target/release/solverpk --baseline-test --checkpoint old/selfplay.bin --baseline clone --hands 100000 --samples 16 --seed 733 | tee clone.log
+          ./target/release/solverpk --baseline-test --checkpoint fresh/selfplay.bin --baseline random --hands 100000 --samples 16 --seed 711 | tee random.log
+          ./target/release/solverpk --baseline-test --checkpoint fresh/selfplay.bin --baseline mc --hands 100000 --samples 16 --seed 722 | tee mc.log
+          ./target/release/solverpk --baseline-test --checkpoint fresh/selfplay.bin --baseline clone --hands 100000 --samples 16 --seed 733 | tee clone.log
       - name: Upload statistical controls
         if: always()
         uses: actions/upload-artifact@v4
