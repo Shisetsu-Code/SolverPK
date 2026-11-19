@@ -1,7 +1,6 @@
 name: Rust CI / 10M self-play
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
   actions: read
