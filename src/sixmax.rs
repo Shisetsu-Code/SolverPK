@@ -271,6 +271,35 @@ fn print_neural_model(net:&Net){
     println!("SIXMAX_NEURAL_MODEL format={} encoder={} inputs={} hidden=32 actions=6 provenance_complete={} steps={} updates={}",
         format,encoder,inputs,net.provenance_complete(),net.steps,net.updates);
 }
+fn neural_option<'a>(args:&'a [String],flag:&str)->io::Result<Option<&'a str>>{
+    let mut value=None;
+    for (index,argument) in args.iter().enumerate(){
+        if argument==flag {
+            if value.is_some(){return Err(io::Error::new(io::ErrorKind::InvalidInput,format!("duplicate {flag}")));}
+            value=Some(args.get(index+1).filter(|s|!s.starts_with("--"))
+                .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,format!("missing {flag} value")))?.as_str());
+        }
+    }
+    Ok(value)
+}
+fn neural_arg<T:std::str::FromStr>(args:&[String],flag:&str,default:T)->io::Result<T>{
+    match neural_option(args,flag)? {
+        Some(value)=>value.parse().map_err(|_|io::Error::new(io::ErrorKind::InvalidInput,format!("invalid {flag} value: {value}"))),
+        None=>Ok(default),
+    }
+}
+fn training_model(path:&str,seed:u64,resume:bool)->io::Result<Net>{
+    if resume{return Net::load_for_training(path);}
+    match std::fs::symlink_metadata(path){
+        Ok(_)=>Err(io::Error::new(io::ErrorKind::AlreadyExists,
+            "checkpoint exists; use --resume for SPKNN002 or select a new --checkpoint path")),
+        Err(e) if e.kind()==io::ErrorKind::NotFound=>Ok(Net::new(seed)),
+        Err(e)=>Err(e),
+    }
+}
+fn save_training_model(net:&Net,path:&str,resume:bool)->io::Result<()>{
+    if resume {net.save(path)}else{net.save_new(path)}
+}
 #[derive(Clone)]
 struct NeuralVisit {features:[f32;NN_INPUT],legal:[bool;ACTIONS],action:usize}
 fn neural_reward(net_units:i64)->f32{
@@ -344,18 +373,18 @@ fn play_neural(
 pub fn neural_distill(args:&[String])->io::Result<()>{
     let rake=RakeConfig::from_args(args)?;
     print_rules(rake);
-    let teacher_path=args.windows(2).find(|w|w[0]=="--teacher").map(|w|w[1].as_str())
+    let teacher_path=neural_option(args,"--teacher")?
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --teacher"))?;
-    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
-        .unwrap_or("sixmax-neural.bin");
-    let hands:usize=super::arg(args,"--hands",100000);
-    let seed:u64=super::arg(args,"--seed",52);
-    let lr:f32=super::arg(args,"--learning-rate",0.004);
+    let path=neural_option(args,"--checkpoint")?.unwrap_or("sixmax-neural.bin");
+    let hands:usize=neural_arg(args,"--hands",100000)?;
+    let seed:u64=neural_arg(args,"--seed",52)?;
+    let lr:f32=neural_arg(args,"--learning-rate",0.004)?;
     if hands==0 || !lr.is_finite() || !(0.0..=0.05).contains(&lr) {
         return Err(io::Error::new(io::ErrorKind::InvalidInput,"invalid distillation configuration"));
     }
     let teachers=load(teacher_path)?;
-    let mut nn=if args.iter().any(|v|v=="--resume"){Net::load_for_training(path)?}else{Net::new(seed)};
+    let resume=args.iter().any(|v|v=="--resume");
+    let mut nn=training_model(path,seed,resume)?;
     let start_hand=nn.next_training_hand(seed)?;
     let count=u64::try_from(hands).map_err(|_|io::Error::new(io::ErrorKind::InvalidInput,"too many hands"))?;
     let end_hand=start_hand.checked_add(count).ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"training hand index overflow"))?;
@@ -403,7 +432,7 @@ pub fn neural_distill(args:&[String])->io::Result<()>{
         let settlement=table.settle(rake);
         assert_eq!(settlement.net.iter().sum::<i64>(),-settlement.rake);
     }
-    nn.save(path)?;
+    save_training_model(&nn,path,resume)?;
     println!("SIXMAX_NEURAL_DISTILL hands={} steps={} updates={} start_hand={} end_hand={} train_seed={} provenance=unverified_teacher mean_kl_sum_per_hand={:.5} elapsed={:.3}s model={}",
         hands,nn.steps,nn.updates,start_hand,end_hand,seed,sums.iter().sum::<f64>()/hands as f64,
         start.elapsed().as_secs_f64(),path);
@@ -413,14 +442,15 @@ pub fn neural_distill(args:&[String])->io::Result<()>{
 pub fn neural_train(args:&[String])->io::Result<()>{
     let rake=RakeConfig::from_args(args)?;
     print_rules(rake);
-    let hands:usize=super::arg(args,"--hands",20000);
-    let seed:u64=super::arg(args,"--seed",4101);
-    let lr:f32=super::arg(args,"--learning-rate",0.0005);
-    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str()).unwrap_or("sixmax-neural.bin");
+    let hands:usize=neural_arg(args,"--hands",20000)?;
+    let seed:u64=neural_arg(args,"--seed",4101)?;
+    let lr:f32=neural_arg(args,"--learning-rate",0.0005)?;
+    let path=neural_option(args,"--checkpoint")?.unwrap_or("sixmax-neural.bin");
     if hands==0 || !lr.is_finite() || !(0.0..=0.05).contains(&lr){
         return Err(io::Error::new(io::ErrorKind::InvalidInput,"invalid hands / neural learning rate"));
     }
-    let mut net=if args.iter().any(|v|v=="--resume"){Net::load_for_training(path)?}else{Net::new(seed)};
+    let resume=args.iter().any(|v|v=="--resume");
+    let mut net=training_model(path,seed,resume)?;
     let start_hand=net.next_training_hand(seed)?;
     let count=u64::try_from(hands).map_err(|_|io::Error::new(io::ErrorKind::InvalidInput,"too many hands"))?;
     let end_hand=start_hand.checked_add(count).ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"training hand index overflow"))?;
@@ -434,7 +464,7 @@ pub fn neural_train(args:&[String])->io::Result<()>{
         let result=play_neural(&mut net,deal_seed,(hand%N as u64) as usize,lr,None,rake);
         total_rake+=result.rake;
     }
-    net.save(path)?;
+    save_training_model(&net,path,resume)?;
     println!("SIXMAX_HOUSE rake_bb={:.5}",total_rake as f64/BB_UNITS as f64);
     println!("SIXMAX_NEURAL_TRAIN hands={} steps={} updates={} start_hand={} end_hand={} train_seed={} learning_rate={} reward_scale_bb=100 objective=net_after_rake update=one_frozen_hand elapsed={:.3}s hands_per_sec={:.2} checkpoint={}",
         hands,net.steps,net.updates,start_hand,end_hand,seed,lr,started.elapsed().as_secs_f64(),
@@ -444,13 +474,13 @@ pub fn neural_train(args:&[String])->io::Result<()>{
 pub fn neural_eval(args:&[String])->io::Result<()>{
     let rake=RakeConfig::from_args(args)?;
     print_rules(rake);
-    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
+    let path=neural_option(args,"--checkpoint")?
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --checkpoint"))?;
-    let tab_path=args.windows(2).find(|w|w[0]=="--tabular").map(|w|w[1].as_str())
+    let tab_path=neural_option(args,"--tabular")?
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --tabular"))?;
-    let phh_path=args.windows(2).find(|w|w[0]=="--phh-model").map(|w|w[1].as_str());
-    let hands:usize=super::arg(args,"--hands",6000);
-    let seed:u64=super::arg(args,"--seed",98722);
+    let phh_path=neural_option(args,"--phh-model")?;
+    let hands:usize=neural_arg(args,"--hands",6000)?;
+    let seed:u64=neural_arg(args,"--seed",98722)?;
     if hands<2*N || hands%N!=0 {
         return Err(io::Error::new(io::ErrorKind::InvalidInput,"--hands must be a multiple of six and at least 12 (two independent clusters)"));
     }

@@ -324,9 +324,7 @@ fn values<'a>(args: &'a [String], flag: &str) -> io::Result<Vec<&'a str>> {
 }
 
 fn single_value<'a>(args: &'a [String], flag: &str) -> io::Result<Option<&'a str>> {
-    let result = values(args, flag)?;
-    if result.len() > 1 { return Err(invalid(format!("duplicate {flag}"))); }
-    Ok(result.first().copied())
+    super::neural_option(args,flag)
 }
 
 fn fingerprint(path: &str) -> io::Result<u64> {

@@ -241,6 +241,13 @@ impl Net {
         Ok(())
     }
     pub fn save(&self,path:&str)->io::Result<()>{
+        self.save_with_mode(path,false)
+    }
+    /// Atomically publish a fresh checkpoint without replacing an existing file.
+    pub fn save_new(&self,path:&str)->io::Result<()>{
+        self.save_with_mode(path,true)
+    }
+    fn save_with_mode(&self,path:&str,create_new:bool)->io::Result<()>{
         let mut bytes=Vec::new();
         let width=match self.observation_version {
             ObservationVersion::LegacyV1=>{
@@ -282,7 +289,7 @@ impl Net {
             let hash=checksum(&bytes);
             bytes.extend_from_slice(&hash.to_le_bytes());
         }
-        save_atomic(Path::new(path),&bytes)
+        save_atomic(Path::new(path),&bytes,create_new)
     }
     pub fn load(path:&str)->io::Result<Self>{
         let mut bytes=Vec::new();
@@ -441,7 +448,7 @@ fn read_weight<R:Read>(reader:&mut R)->io::Result<f32> {
     if !(-8.0..=8.0).contains(&value) {return Err(invalid_data("neural weight outside optimizer bounds"));}
     Ok(value)
 }
-fn save_atomic(path:&Path,bytes:&[u8])->io::Result<()> {
+fn save_atomic(path:&Path,bytes:&[u8],create_new:bool)->io::Result<()> {
     let parent=path.parent().filter(|p|!p.as_os_str().is_empty()).unwrap_or_else(||Path::new("."));
     let filename=path.file_name().ok_or_else(||invalid_input("checkpoint path has no filename"))?;
     for _ in 0..32 {
@@ -458,7 +465,14 @@ fn save_atomic(path:&Path,bytes:&[u8])->io::Result<()> {
             file.write_all(bytes)?;
             file.sync_all()?;
             drop(file);
-            fs::rename(&temporary,path)?;
+            if create_new {
+                // A hard link creates the final name only if absent, on the
+                // same filesystem as the fully written/synced temporary file.
+                fs::hard_link(&temporary,path)?;
+                fs::remove_file(&temporary)?;
+            }else{
+                fs::rename(&temporary,path)?;
+            }
             #[cfg(unix)]
             File::open(parent)?.sync_all()?;
             Ok(())
