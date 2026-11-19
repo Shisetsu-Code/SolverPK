@@ -592,7 +592,7 @@ mod tests{
         assert!(t.completed());
     }
     #[test]fn phh_warmstart_is_finite_and_preserves_dimensions(){
-        let mut bots=std::array::from_fn(|_|Bot::new());
+        let bots:[Bot;N]=std::array::from_fn(|_|Bot::new());
         assert_eq!(bots[0].table.len(),STATES);
         let visible=Table6::new(31,0).view(4);
         assert!(state(visible)<STATES);
