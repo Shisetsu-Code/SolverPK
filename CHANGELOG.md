@@ -1,5 +1,15 @@
 # Historial de cambios — SolverPK
 
+## 2026-11-19 — Neural V2 y evaluación ampliada
+
+- Encoder 128D: cartas propias y board visible exactos, incluidos rango/palo; entrada invariante al orden de cartas, sin filtración de cartas ocultas.
+- Retorno monetario lineal después de rake y una actualización por mano con política/baseline congelados. Acumulación f64 y gradientes contrastados por diferencias finitas.
+- SPKNN002 con esquema, segmentos de entrenamiento, checksum, reanudación exacta y publicación atómica. SPKNN001 conserva inferencia y pasa a ser exclusivamente evaluable.
+- CLI estricta y protección contra sobrescritura accidental de checkpoints; liga de cinco perfiles más rivales neuronales/tabular/PHH opcionales, con controles de solapamiento de repartos.
+- 140 pruebas aprobadas, incluido el estrés económico anterior. Piloto de tres inicializaciones, 100k manos cada una: mejora frente a uniforme y deterioro de medias ante otros siete rivales; no se selecciona campeón.
+- Receta original 100M archivada en `docs/history/workflows/neural-100m-v1.yml`; workflow nuevo manual para V2. Reporte y evidencia: [NEURAL_V2.md](NEURAL_V2.md).
+
+
 ## 2026-11-19 — auditoría económica posterior a los 100M
 
 - Corregidos reparto de empates/side pots, tamaños calculados después del call, reapertura acumulativa de all-ins cortos y runouts sin apuestas posibles.
@@ -16,7 +26,7 @@
 ## 2026-11-19 — entrenamiento neuronal 100M verificado
 
 - **Nuevo entrenamiento completado:** diez bloques de 10 millones de manos sintéticas 6-max cada uno, continuando la MLP previamente distilada. [Ejecución verificada](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44564068762).
-- **Reproducibilidad:** ejecución del commit `0bca3c95a31149d8cb246dd89afd92cc5ffc8170`, semillas y learning rates por bloque registrados en `.github/workflows/neural-100m.yml`; 44 tests aprobados, confirmación automática `CONFIRMED_100M_HANDS=100000000`.
+- **Reproducibilidad:** ejecución del commit `0bca3c95a31149d8cb246dd89afd92cc5ffc8170`, semillas y learning rates por bloque registrados en la [receta histórica](docs/history/workflows/neural-100m-v1.yml); 44 tests aprobados, confirmación automática `CONFIRMED_100M_HANDS=100000000`.
 - **Artefactos:** checkpoints al finalizar cada 10M, hitos 10/50/100M publicados como artefactos independientes y evidencia completa; SHA-256 del checkpoint final registrado en [PROJECT_STATUS.md](PROJECT_STATUS.md).
 - **Evaluación:** congelada contra profesor tabular y PHH simplificado, 120.000 manos por prueba. A 100M: +60,114 ±14,417 bb/100 y +47,346 ±8,090 bb/100, respectivamente.
 - **Regresión de generalización:** el rival PHH fue más explotable por la red inicial (+112,355 bb/100) que por el checkpoint 100M (+47,346). Conclusión: aumentar manos no garantiza mejor estrategia para todas las distribuciones.
@@ -55,4 +65,4 @@
 - [ROADMAP.md](ROADMAP.md): prioridades P0/P1/P2 con criterios de aceptación.
 - [NEURAL_SIXMAX.md](NEURAL_SIXMAX.md), [SIXMAX.md](SIXMAX.md), [PHH_INTEGRATION.md](PHH_INTEGRATION.md): especificaciones y limitaciones alineadas al estado actual.
 
-**Próxima decisión recomendada:** no ejecutar otra campaña masiva en la red de 2,3k parámetros sin primero auditar las reglas, construir una liga congelada multidistribución y fijar checkpoints realmente reproducibles. Esto está detallado en [ROADMAP.md](ROADMAP.md).
+**Próxima decisión recomendada:** después de las correcciones V2, mejorar generalización y validación de la política antes de otra campaña masiva; la liga y los checkpoints reproducibles básicos ya están implementados. Esto está detallado en [ROADMAP.md](ROADMAP.md).

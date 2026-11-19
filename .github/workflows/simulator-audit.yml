@@ -1,8 +1,8 @@
 name: Simulator accounting audit
 on:
   push:
-    branches: [main, 'audit/simulator-accounting-20261119']
-    paths: ['src/**', 'tests/**', 'scripts/audit_evaluate.py', 'Cargo.toml', '.github/workflows/simulator-audit.yml']
+    branches: [main, 'audit/simulator-accounting-20261119', 'fix/neural-v2-20261119']
+    paths: ['src/**', 'tests/**', 'scripts/audit_evaluate.py', 'scripts/neural_v2_experiment.py', 'Cargo.toml', '.github/workflows/simulator-audit.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
           cargo test --release audit_stress -- --ignored --nocapture 2>&1 | tee audit-stress.log
       - name: Restore immutable 100M checkpoint and frozen opponents
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/audit/')
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/audit/') || startsWith(github.ref, 'refs/heads/fix/neural-v2-')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,6 +48,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/audit_evaluate.py --hands 120000 2>&1 | tee audit-evaluation.log
+      - name: Neural v2 compatibility and bounded three-seed pilot
+        if: startsWith(github.ref, 'refs/heads/fix/neural-v2-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/neural_v2_experiment.py --train-hands 100000 --eval-hands 12000 2>&1 | tee audit-neural-v2.log
       - name: Save validation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -57,5 +63,6 @@ jobs:
             audit-*.log
             audit-evaluation.json
             target/release/solverpk
+            neural-v2-pilot/**
           retention-days: 90
           if-no-files-found: warn

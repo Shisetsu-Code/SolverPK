@@ -1,12 +1,13 @@
 # SolverPK
 
-Simuladores y agentes de investigación para **Texas Hold'em** en Rust, sin dependencias externas en el núcleo actual. Incluye Heads-Up tabular/Monte Carlo, arena no-limit 6-max, ingestión PHH y **una red neuronal real entrenada con 100 millones de manos sintéticas de self-play**.
+Simuladores y agentes de investigación para **Texas Hold'em** en Rust, sin dependencias externas en el núcleo actual. Incluye Heads-Up tabular/Monte Carlo, arena no-limit 6-max, ingestión PHH y una **política neuronal V2**. También conserva el modelo histórico V1 entrenado con **100 millones de manos sintéticas adicionales de self-play**.
 
-**Estado actual (2026-11-19):** motor 6-max corregido, con rake configurable y contabilidad verificada contra una referencia independiente. Los 100M de entrenamiento histórico están completados; sus pesos se conservaron y se reevaluaron con el motor corregido. La [auditoría completa](AUDIT_SIXMAX.md) documenta errores, pruebas, resultados y mejoras pendientes. El modelo sigue siendo un prototipo, con una limitación importante en la representación de palos.
+**Estado actual (2026-11-19):** V2 conserva la identidad de las cartas visibles, usa recompensa monetaria lineal y actualiza la política una vez por mano. La [validación de V2](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44594831850) pasó **140 pruebas**: 121 unitarias, 17 de CLI y dos auditorías amplias en release. El piloto de tres semillas, con 100.000 manos de entrenamiento cada una, **no produjo un campeón**: mejoró contra el rival uniforme y empeoró en promedio contra los otros siete rivales. No se lanzó otro entrenamiento de 100M. [NEURAL_V2.md](NEURAL_V2.md) reúne cambios, protocolo, resultados y evidencia; [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) conserva la auditoría económica anterior.
 
 **Documentación principal:**
 
 - [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md): revisión actual de reglas, rake, ganancias, pruebas independientes y reevaluación del checkpoint 100M.
+- [NEURAL_V2.md](NEURAL_V2.md): correcciones V2, validación y piloto con controles iniciales y tres semillas de entrenamiento.
 - [PROJECT_STATUS.md](PROJECT_STATUS.md): inventario técnico, cronología, evidencia, parámetros, checkpoints, comandos, limitaciones y traspaso a otro desarrollador/LLM.
 - [CHANGELOG.md](CHANGELOG.md): historial cronológico de cambios y experimentos validados.
 - [ROADMAP.md](ROADMAP.md): mejoras propuestas en orden de prioridad, con criterios de aceptación.
@@ -29,28 +30,42 @@ cargo run --release -- --help
 
 Todos los comandos 6-max exigen `--rake-bps`: `500` equivale a 5%; `0` elige explícitamente comisión cero. Con rake positivo también se exige `--rake-cap-bb`. Los ejemplos usan 5% con cap de 3 BB y no-flop-no-drop; es un escenario configurable, no la tarifa de una sala específica.
 
-Red `64 → 32 ReLU → 6 softmax`, backpropagation con política REINFORCE y baseline móvil; observación parcial sin cartas ocultas, acciones fold/check-call/4 tamaños de subida. Checkpoint neuronal `SPKNN001`, **distinto de los formatos tabulares**.
+La red actual es `128 → 32 ReLU → 6 softmax`, con **4.326 pesos y sesgos**. Observa 52 indicadores de cartas propias, 52 del board visible y 24 valores públicos; conserva rango y palo, y no depende del orden de las cartas. Sus seis acciones son fold, check/call y cuatro tamaños abstractos de subida. En self-play, cada decisión usa el retorno neto de su propio jugador, dividido por 100 BB, sin recortar recompensa ni ventaja; todos los gradientes de una mano se calculan antes de actualizar pesos o baseline.
+
+El formato nuevo es **`SPKNN002`**. Guarda versiones de arquitectura/observación/optimizador, contadores, semillas e intervalos de entrenamiento, learning rate, rake y procedencia; valida una suma de integridad y usa guardado atómico. `SPKNN001` conserva exactamente su inferencia histórica de 64 entradas y es **solo evaluable**. Ninguno de los dos formatos es intercambiable con los checkpoints tabulares.
 
 ```bash
-# Entrenar política neuronal desde cero con manos sintéticas 6-max
-cargo run --release -- --sixmax-neural-train --rake-bps 500 --rake-cap-bb 3 --hands 20000 --seed 42 --checkpoint neural.bin
+# Crear V2 en un archivo nuevo
+cargo run --release -- --sixmax-neural-train --rake-bps 500 --rake-cap-bb 3 --hands 100000 --seed 73001 --learning-rate 0.0005 --checkpoint neural-v2.bin
 
-# Retomar una política ya entrenada
-cargo run --release -- --sixmax-neural-train --rake-bps 500 --rake-cap-bb 3 --resume --hands 100000 --seed 43 --learning-rate 0.0005 --checkpoint neural.bin
+# Reanudar V2: la misma semilla continúa desde el siguiente índice de mano
+cargo run --release -- --sixmax-neural-train --rake-bps 500 --rake-cap-bb 3 --resume --hands 100000 --seed 73001 --learning-rate 0.0005 --checkpoint neural-v2.bin
+
+# Liga congelada: cinco referencias heurísticas incluidas por defecto
+cargo run --release -- --sixmax-neural-league --rake-bps 500 --rake-cap-bb 3 --hands 12000 --seed 990071 --checkpoint neural-v2.bin
+
+# Añadir varios checkpoints congelados; --rival-checkpoint se puede repetir
+cargo run --release -- --sixmax-neural-league --rake-bps 500 --rake-cap-bb 3 --hands 12000 --seed 990073 --checkpoint neural-v2.bin \
+  --rival-checkpoint audit/2026-11-19/neural-v2/models/neural-v1-100m.bin \
+  --rival-checkpoint audit/2026-11-19/neural-v2/models/neural-v2-73001-initial.bin
 
 # Profesor tabular opcional, para una primera distilación supervisada
 cargo run --release -- --sixmax-train --rake-bps 500 --rake-cap-bb 3 --hands 100000 --seed 42 --checkpoint tabular.bin
-cargo run --release -- --sixmax-neural-distill --rake-bps 500 --rake-cap-bb 3 --teacher tabular.bin --hands 100000 --seed 43 --checkpoint distilled.bin
+cargo run --release -- --sixmax-neural-distill --rake-bps 500 --rake-cap-bb 3 --teacher tabular.bin --hands 100000 --seed 43 --checkpoint distilled-v2.bin
 
 # Evaluación: candidato neural vs 5 profesores tabulares
-cargo run --release -- --sixmax-neural-eval --rake-bps 500 --rake-cap-bb 3 --hands 120000 --seed 944104 --checkpoint neural.bin --tabular tabular.bin
+cargo run --release -- --sixmax-neural-eval --rake-bps 500 --rake-cap-bb 3 --hands 120000 --seed 990071 --checkpoint distilled-v2.bin --tabular tabular.bin
 ```
 
-**Checkpoint real de 100M:** descargar desde [run 44564068762](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44564068762), artifact `neural-100m-checkpoint-100m` o `neural-100m-full-evidence`. El archivo de pesos no está versionado dentro de Git; su SHA-256 está registrado en [PROJECT_STATUS.md](PROJECT_STATUS.md). Guardar una copia fuera de GitHub Actions, que actualmente usa retención de 30 días.
+Una ejecución nueva rechaza un archivo de destino existente. `--resume` acepta únicamente V2 y mantiene el índice de reparto de cada semilla; no convierte ni reentrena V1. El flujo manual actual es [neural-v2-train.yml](.github/workflows/neural-v2-train.yml).
 
-## Experimento histórico 100M, anterior a la auditoría
+La liga incluye uniforme legal, calling station, tight-aggressive, loose-aggressive y nit. Son referencias heurísticas sin calibración competitiva. `--hands` cuenta manos **por rival**; los intervalos se calculan sobre grupos de seis rotaciones del botón. Se rechaza el solapamiento con repartos de entrenamiento registrados, pero la procedencia incompleta de V1 y de profesores externos se informa explícitamente. La liga no selecciona automáticamente un campeón.
 
-**Las cifras de esta sección corresponden al motor anterior, sin rake.** Se conservan para trazabilidad; los resultados corregidos están en [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md).
+**Modelos conservados:** los seis controles/checkpoints V2 del piloto están en [audit/2026-11-19/neural-v2/models](audit/2026-11-19/neural-v2/models). El [checkpoint V1 de 100M](audit/2026-11-19/neural-v2/models/neural-v1-100m.bin) mantiene su SHA-256 `a712525d815872286eb960f330b5f585e4218fef627f7276b2e2e1adb08a8ac4`. En la comparación de compatibilidad con el motor corregido y rake del 5%, cap de 3 BB, reprodujo **+47,663 bb/100 contra el tabular** y **+41,943 contra PHH**; ese resultado corresponde a V1. Ver protocolo y evidencia en [NEURAL_V2.md](NEURAL_V2.md).
+
+## Experimento histórico V1 de 100M, anterior a la auditoría
+
+**Las cifras de esta sección corresponden a V1 y al motor anterior, sin rake.** Se conservan para trazabilidad; los resultados corregidos están en [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md). La [receta original](docs/history/workflows/neural-100m-v1.yml) está archivada y requiere el código del commit `0bca3c95a31149d8cb246dd89afd92cc5ffc8170` y sus archivos originales.
 
 | Punto de evaluación | Contra profesor tabular | Contra imitador PHH |
 |---|---:|---:|
@@ -86,8 +101,8 @@ El Heads-Up usa política **tabular de 640 buckets y 3 acciones**, con Monte Car
 
 ## Límites y orden de próximas mejoras
 
-El motor conserva cuatro tamaños abstractos de raise. El rake ahora se configura explícitamente; su liquidación pasó 100.000 manos contra otra implementación y el evaluador pasó las 2.598.960 manos de cinco cartas. Esto no certifica todas las variantes NLHE. La política de ~2.278 parámetros pierde la identidad de los palos propios, recorta recompensas y no modela el historial completo ni rangos de 1.326 combinaciones. Los rivales de evaluación siguen siendo limitados.
+El motor conserva cuatro tamaños abstractos de raise. Su liquidación pasó 100.000 manos contra otra implementación y el evaluador pasó las 2.598.960 manos de cinco cartas; esto no certifica todas las variantes NLHE. V2 sigue siendo una política pequeña, sin historial completo, critic neuronal ni rangos de 1.326 combinaciones. La liga amplía la evaluación, pero sus rivales no demuestran calidad competitiva ni permiten medir explotabilidad.
 
-**Próxima prioridad:** versionar y corregir las observaciones de cartas/palos, conservar el objetivo monetario de aprendizaje, acumular gradientes coherentes, ampliar la liga de evaluación y hacer los checkpoints reproducibles. Ver [ROADMAP.md](ROADMAP.md).
+**Próxima prioridad:** investigar la degradación observada en el piloto, comparar modificaciones con controles y varias semillas, y exigir robustez frente a los distintos rivales antes de ampliar el entrenamiento o elegir un campeón. Ver [NEURAL_V2.md](NEURAL_V2.md) y [ROADMAP.md](ROADMAP.md).
 
 Uso previsto: simulación y evaluación de estrategias fuera de línea. Licencia MIT.

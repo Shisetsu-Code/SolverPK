@@ -1,0 +1,99 @@
+name: Neural v2 train and frozen league
+on:
+  workflow_dispatch:
+    inputs:
+      hands:
+        description: Additional self-play hands
+        required: true
+        default: '100000'
+        type: string
+      seed:
+        description: Training seed (resume continues its recorded hand indices)
+        required: true
+        default: '73001'
+        type: string
+      learning_rate:
+        description: Linear monetary policy-gradient learning rate
+        required: true
+        default: '0.0005'
+        type: string
+      rake_bps:
+        description: Rake basis points (500 means 5 percent)
+        required: true
+        default: '500'
+        type: string
+      rake_cap_bb:
+        description: Per-hand rake cap in big blinds
+        required: true
+        default: '3'
+        type: string
+      eval_seed:
+        description: Separate frozen evaluation seed
+        required: true
+        default: '990071'
+        type: string
+      eval_hands:
+        description: Evaluation hands per rival, multiple of six
+        required: true
+        default: '12000'
+        type: string
+      resume_checkpoint:
+        description: Optional tracked SPKNN002 file in this repository; blank starts fresh
+        required: false
+        default: ''
+        type: string
+permissions:
+  contents: read
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Validate and build current engine
+        run: |
+          cargo test --all-targets --no-fail-fast
+          cargo test --release exhaustive_five_card -- --ignored
+          cargo test --release audit_stress -- --ignored
+          cargo build --release
+      - name: Train a new v2 model or explicitly resume v2
+        shell: bash
+        env:
+          TRAIN_HANDS: ${{ inputs.hands }}
+          TRAIN_SEED: ${{ inputs.seed }}
+          TRAIN_RATE: ${{ inputs.learning_rate }}
+          RAKE_BPS: ${{ inputs.rake_bps }}
+          RAKE_CAP: ${{ inputs.rake_cap_bb }}
+          RESUME_CHECKPOINT: ${{ inputs.resume_checkpoint }}
+        run: |
+          set -euo pipefail
+          mkdir training-output
+          args=(--sixmax-neural-train --hands "$TRAIN_HANDS" --seed "$TRAIN_SEED" --learning-rate "$TRAIN_RATE" --rake-bps "$RAKE_BPS" --rake-cap-bb "$RAKE_CAP" --checkpoint training-output/neural-v2.bin)
+          if [[ -n "$RESUME_CHECKPOINT" ]]; then
+            git ls-files --error-unmatch -- "$RESUME_CHECKPOINT" >/dev/null
+            cp -- "$RESUME_CHECKPOINT" training-output/neural-v2.bin
+            args+=(--resume)
+          fi
+          ./target/release/solverpk "${args[@]}" | tee training-output/train.log
+      - name: Evaluate frozen model against five behavioral references
+        shell: bash
+        env:
+          EVAL_HANDS: ${{ inputs.eval_hands }}
+          EVAL_SEED: ${{ inputs.eval_seed }}
+          RAKE_BPS: ${{ inputs.rake_bps }}
+          RAKE_CAP: ${{ inputs.rake_cap_bb }}
+        run: |
+          set -euo pipefail
+          sha256sum training-output/neural-v2.bin > training-output/before.sha256
+          ./target/release/solverpk --sixmax-neural-league --checkpoint training-output/neural-v2.bin --hands "$EVAL_HANDS" --seed "$EVAL_SEED" --rake-bps "$RAKE_BPS" --rake-cap-bb "$RAKE_CAP" | tee training-output/league.log
+          sha256sum -c training-output/before.sha256
+          git rev-parse HEAD > training-output/source-commit.txt
+      - name: Save model and reproducible evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neural-v2-training-${{ github.run_id }}
+          path: training-output/**
+          retention-days: 90
+          if-no-files-found: warn

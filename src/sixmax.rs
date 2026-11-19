@@ -3,7 +3,7 @@
 use crate::{deck, score7, Rng};
 use crate::accounting::{self, RakeConfig, Settlement, MONEY_SCALE, BB_UNITS};
 use crate::imitation::FrozenPolicy;
-use crate::neural::{Net, INPUT as NN_INPUT};
+use crate::neural::{Net, ObservationVersion, PolicySample, TrainingKind, TrainingSegment, INPUT as NN_INPUT};
 use std::fs::File;
 use std::io::{self,Read,Write};
 use std::time::Instant;
@@ -37,6 +37,21 @@ mod audit_tests;
 #[cfg(test)]
 #[path = "sixmax_stress_tests.rs"]
 mod stress_tests;
+
+#[cfg(test)]
+#[path = "sixmax_observation_tests.rs"]
+mod observation_tests;
+
+#[cfg(test)]
+#[path = "sixmax_neural_tests.rs"]
+mod neural_tests;
+
+#[path = "sixmax_observation.rs"]
+mod observation;
+
+#[path = "sixmax_league.rs"]
+mod league;
+pub use league::neural_league;
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 enum Action {Fold,Call,Raise(i64)} // Raise to street-total
@@ -240,49 +255,56 @@ struct View{
     street:u8,on_button:bool,active:usize,legal:[bool;ACTIONS],
     pressure:u8,texture:usize,range_bucket:usize,
 }
-/// Numerical 64D neural observation, using only player's known cards
-/// and public quantities. Future board cards are excluded by visible.
-fn neural_input(t:&Table6,p:usize)->[f32;NN_INPUT]{
-    let v=t.view(p);
-    let mut x=[0f32;NN_INPUT];
-    x[(v.hole[0]%13) as usize]=1.0;
-    x[13+(v.hole[1]%13) as usize]=1.0;
-    x[26]=f32::from(v.hole[0]/13==v.hole[1]/13);
-    x[27]=f32::from(v.hole[0]%13==v.hole[1]%13);
-    for &card in &v.board[..v.visible] {
-        x[28+(card%13) as usize]+=0.25;
-        x[41+(card/13) as usize]+=0.20;
-    }
-    x[45]=v.street as f32/3.0;
-    x[46]=v.active as f32/6.0;
-    x[47]=(v.pot as f32/240.0).min(3.0);
-    x[48]=(v.call as f32/200.0).min(1.0);
-    x[49]=v.stack as f32/200.0;
-    x[50]=f32::from(v.on_button);
-    x[51]=v.texture as f32/3.0;
-    x[52]=v.pressure as f32/2.0;
-    x[53]=v.range_bucket as f32/2.0;
-    x[54]=t.raise_per_seat[p] as f32/5.0;
-    x[55]=(t.high as f32/200.0).min(3.0);
-    // Opponent public strength beliefs, no opponent hole cards.
-    let mut n=0f32;
-    let mut posterior=[0f32;3];
-    for q in 0..N {
-        if q!=p && !t.folded[q] {
-            n+=1.0;
-            for k in 0..3 {posterior[k]+=t.estimated_ranges[q][k];}
+/// The checkpoint chooses its observation schema explicitly. Legacy models
+/// retain their original 64 values; new models preserve each visible card.
+fn neural_input(t:&Table6,p:usize,version:ObservationVersion)->[f32;NN_INPUT]{
+    observation::input(t,p,version)
+}
+fn neural_prob(net:&Net,t:&Table6,p:usize)->[f32;ACTIONS]{
+    net.forward(&neural_input(t,p,net.observation_version()),t.legal(p)).prob
+}
+fn print_neural_model(net:&Net){
+    let (format,encoder,inputs)=match net.observation_version(){
+        ObservationVersion::LegacyV1=>("SPKNN001","legacy64",64),
+        ObservationVersion::SuitAwareV2=>("SPKNN002","cards128_v2",128),
+    };
+    println!("SIXMAX_NEURAL_MODEL format={} encoder={} inputs={} hidden=32 actions=6 provenance_complete={} steps={} updates={}",
+        format,encoder,inputs,net.provenance_complete(),net.steps,net.updates);
+}
+fn neural_option<'a>(args:&'a [String],flag:&str)->io::Result<Option<&'a str>>{
+    let mut value=None;
+    for (index,argument) in args.iter().enumerate(){
+        if argument==flag {
+            if value.is_some(){return Err(io::Error::new(io::ErrorKind::InvalidInput,format!("duplicate {flag}")));}
+            value=Some(args.get(index+1).filter(|s|!s.starts_with("--"))
+                .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,format!("missing {flag} value")))?.as_str());
         }
     }
-    if n>0.0{for k in 0..3 {x[56+k]=posterior[k]/n;}}
-    x[59]=t.folded.iter().filter(|&&f|f).count() as f32/6.0;
-    x[60]=t.total[p] as f32/200.0;
-    x[61]=t.street[p] as f32/200.0;
-    x[62]=v.visible as f32/5.0;
-    x[63]=t.min_raise as f32/200.0;
-    x
+    Ok(value)
+}
+fn neural_arg<T:std::str::FromStr>(args:&[String],flag:&str,default:T)->io::Result<T>{
+    match neural_option(args,flag)? {
+        Some(value)=>value.parse().map_err(|_|io::Error::new(io::ErrorKind::InvalidInput,format!("invalid {flag} value: {value}"))),
+        None=>Ok(default),
+    }
+}
+fn training_model(path:&str,seed:u64,resume:bool)->io::Result<Net>{
+    if resume{return Net::load_for_training(path);}
+    match std::fs::symlink_metadata(path){
+        Ok(_)=>Err(io::Error::new(io::ErrorKind::AlreadyExists,
+            "checkpoint exists; use --resume for SPKNN002 or select a new --checkpoint path")),
+        Err(e) if e.kind()==io::ErrorKind::NotFound=>Ok(Net::new(seed)),
+        Err(e)=>Err(e),
+    }
+}
+fn save_training_model(net:&Net,path:&str,resume:bool)->io::Result<()>{
+    if resume {net.save(path)}else{net.save_new(path)}
 }
 #[derive(Clone)]
 struct NeuralVisit {features:[f32;NN_INPUT],legal:[bool;ACTIONS],action:usize}
+fn neural_reward(net_units:i64)->f32{
+    net_units as f32/(BB_UNITS as f32*100.0)
+}
 fn play_neural(
     net:&mut Net,seed:u64,button:usize,rate:f32,
     baseline:Option<(&Bot,Option<&FrozenPolicy>)>,rake:RakeConfig,
@@ -301,7 +323,7 @@ fn play_neural(
             assert!(iterations<=200,"neural betting loop");
             let p=t.actor;
             let view=t.view(p);
-            let x=neural_input(&t,p);
+            let x=neural_input(&t,p,net.observation_version());
             let legal=view.legal;
             let distribution=if let Some((tabular,phh))=baseline{
                 if p==0 {net.forward(&x,legal).prob}
@@ -332,12 +354,17 @@ fn play_neural(
     let settlement=t.settle(rake);
     let net_chips=settlement.net;
     if rate>0.0 && baseline.is_none(){
-        for p in 0..N{
-            let reward=(net_chips[p] as f32/(BB_UNITS as f32*20.0)).clamp(-4.0,4.0);
-            for visit in &trajectory[p] {
-                net.reinforce(&visit.features,visit.legal,visit.action,reward,rate);
+        let rewards=net_chips.map(neural_reward);
+        let mut samples=Vec::new();
+        for (p,visits) in trajectory.iter().enumerate(){
+            for visit in visits {
+                samples.push(PolicySample{features:&visit.features,legal:visit.legal,
+                    action:visit.action,reward:rewards[p]});
             }
         }
+        // Every observation/action was generated by this still-frozen policy.
+        // Use each seat's own terminal return and apply one update for the hand.
+        net.reinforce_hand(&samples,&rewards,rate).expect("valid on-policy neural hand");
     }
     settlement
 }
@@ -346,23 +373,31 @@ fn play_neural(
 pub fn neural_distill(args:&[String])->io::Result<()>{
     let rake=RakeConfig::from_args(args)?;
     print_rules(rake);
-    let teacher_path=args.windows(2).find(|w|w[0]=="--teacher").map(|w|w[1].as_str())
+    let teacher_path=neural_option(args,"--teacher")?
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --teacher"))?;
-    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
-        .unwrap_or("sixmax-neural.bin");
-    let hands:usize=super::arg(args,"--hands",100000);
-    let seed:u64=super::arg(args,"--seed",52);
-    let lr:f32=super::arg(args,"--learning-rate",0.004);
+    let path=neural_option(args,"--checkpoint")?.unwrap_or("sixmax-neural.bin");
+    let hands:usize=neural_arg(args,"--hands",100000)?;
+    let seed:u64=neural_arg(args,"--seed",52)?;
+    let lr:f32=neural_arg(args,"--learning-rate",0.004)?;
     if hands==0 || !lr.is_finite() || !(0.0..=0.05).contains(&lr) {
         return Err(io::Error::new(io::ErrorKind::InvalidInput,"invalid distillation configuration"));
     }
     let teachers=load(teacher_path)?;
-    let mut nn=if args.iter().any(|v|v=="--resume"){Net::load(path)?}else{Net::new(seed)};
+    let resume=args.iter().any(|v|v=="--resume");
+    let mut nn=training_model(path,seed,resume)?;
+    let start_hand=nn.next_training_hand(seed)?;
+    let count=u64::try_from(hands).map_err(|_|io::Error::new(io::ErrorKind::InvalidInput,"too many hands"))?;
+    let end_hand=start_hand.checked_add(count).ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"training hand index overflow"))?;
+    nn.record_training(TrainingSegment{kind:TrainingKind::Distillation,seed,start_hand,hands:count,
+        learning_rate:lr,rake_bps:rake.basis_points,rake_cap_units:rake.cap_units,no_flop_no_drop:rake.no_flop_no_drop})?;
+    // The tabular format does not retain all teacher training exposures.
+    nn.mark_provenance_incomplete();
+    print_neural_model(&nn);
     let start=Instant::now();
     let mut sums=[0f64;N];
-    for h in 0..hands {
-        let hand_seed=seed ^ (h as u64).wrapping_mul(0x9e3779b97f4a7c15);
-        let mut table=Table6::new(hand_seed,h%N);
+    for h in start_hand..end_hand {
+        let hand_seed=seed ^ h.wrapping_mul(0x9e3779b97f4a7c15);
+        let mut table=Table6::new(hand_seed,(h%N as u64) as usize);
         let mut rng=Rng::new(hand_seed^0x4d7f291ca0b8f11d);
         for street in 0..4 {
             if street>0 {
@@ -375,7 +410,7 @@ pub fn neural_distill(args:&[String])->io::Result<()>{
                 assert!(steps<=200,"teacher exceeded betting limit");
                 let p=table.actor;
                 let view=table.view(p);
-                let x=neural_input(&table,p);
+                let x=neural_input(&table,p,nn.observation_version());
                 let teacher_prob=probs(&teachers[p].table[state(view)],view.legal);
                 let nn_prob=nn.forward(&x,view.legal).prob;
                 let mut kl=0f64;
@@ -386,7 +421,7 @@ pub fn neural_distill(args:&[String])->io::Result<()>{
                     }
                 }
                 sums[p]+=kl;
-                nn.imitate(&x,view.legal,teacher_prob,lr);
+                nn.imitate(&x,view.legal,teacher_prob,lr)?;
                 let choice=draw(teacher_prob,&mut rng);
                 let act=if choice==0{Action::Fold}else if choice==1{Action::Call}
                     else{Action::Raise(table.raise_to(p,choice))};
@@ -397,9 +432,9 @@ pub fn neural_distill(args:&[String])->io::Result<()>{
         let settlement=table.settle(rake);
         assert_eq!(settlement.net.iter().sum::<i64>(),-settlement.rake);
     }
-    nn.save(path)?;
-    println!("SIXMAX_NEURAL_DISTILL hands={} steps={} mean_kl_sum_per_hand={:.5} elapsed={:.3}s model={}",
-        hands,nn.steps,sums.iter().sum::<f64>()/hands as f64,
+    save_training_model(&nn,path,resume)?;
+    println!("SIXMAX_NEURAL_DISTILL hands={} steps={} updates={} start_hand={} end_hand={} train_seed={} provenance=unverified_teacher mean_kl_sum_per_hand={:.5} elapsed={:.3}s model={}",
+        hands,nn.steps,nn.updates,start_hand,end_hand,seed,sums.iter().sum::<f64>()/hands as f64,
         start.elapsed().as_secs_f64(),path);
     Ok(())
 }
@@ -407,38 +442,45 @@ pub fn neural_distill(args:&[String])->io::Result<()>{
 pub fn neural_train(args:&[String])->io::Result<()>{
     let rake=RakeConfig::from_args(args)?;
     print_rules(rake);
-    let hands:usize=super::arg(args,"--hands",20000);
-    let seed:u64=super::arg(args,"--seed",4101);
-    let lr:f32=super::arg(args,"--learning-rate",0.002);
-    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str()).unwrap_or("sixmax-neural.bin");
+    let hands:usize=neural_arg(args,"--hands",20000)?;
+    let seed:u64=neural_arg(args,"--seed",4101)?;
+    let lr:f32=neural_arg(args,"--learning-rate",0.0005)?;
+    let path=neural_option(args,"--checkpoint")?.unwrap_or("sixmax-neural.bin");
     if hands==0 || !lr.is_finite() || !(0.0..=0.05).contains(&lr){
         return Err(io::Error::new(io::ErrorKind::InvalidInput,"invalid hands / neural learning rate"));
     }
-    let mut net=if args.iter().any(|v|v=="--resume"){Net::load(path)?}else{Net::new(seed)};
+    let resume=args.iter().any(|v|v=="--resume");
+    let mut net=training_model(path,seed,resume)?;
+    let start_hand=net.next_training_hand(seed)?;
+    let count=u64::try_from(hands).map_err(|_|io::Error::new(io::ErrorKind::InvalidInput,"too many hands"))?;
+    let end_hand=start_hand.checked_add(count).ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"training hand index overflow"))?;
+    net.record_training(TrainingSegment{kind:TrainingKind::SelfPlay,seed,start_hand,hands:count,
+        learning_rate:lr,rake_bps:rake.basis_points,rake_cap_units:rake.cap_units,no_flop_no_drop:rake.no_flop_no_drop})?;
+    print_neural_model(&net);
     let started=Instant::now();
     let mut total_rake=0i64;
-    for hand in 0..hands{
-        let deal_seed=seed ^ (hand as u64).wrapping_mul(0x9e3779b97f4a7c15);
-        let result=play_neural(&mut net,deal_seed,hand%N,lr,None,rake);
+    for hand in start_hand..end_hand{
+        let deal_seed=seed ^ hand.wrapping_mul(0x9e3779b97f4a7c15);
+        let result=play_neural(&mut net,deal_seed,(hand%N as u64) as usize,lr,None,rake);
         total_rake+=result.rake;
     }
-    net.save(path)?;
+    save_training_model(&net,path,resume)?;
     println!("SIXMAX_HOUSE rake_bb={:.5}",total_rake as f64/BB_UNITS as f64);
-    println!("SIXMAX_NEURAL_TRAIN hands={} steps={} elapsed={:.3}s hands_per_sec={:.2} checkpoint={}",
-        hands,net.steps,started.elapsed().as_secs_f64(),
+    println!("SIXMAX_NEURAL_TRAIN hands={} steps={} updates={} start_hand={} end_hand={} train_seed={} learning_rate={} reward_scale_bb=100 objective=net_after_rake update=one_frozen_hand elapsed={:.3}s hands_per_sec={:.2} checkpoint={}",
+        hands,net.steps,net.updates,start_hand,end_hand,seed,lr,started.elapsed().as_secs_f64(),
         hands as f64/started.elapsed().as_secs_f64().max(1e-9),path);
     Ok(())
 }
 pub fn neural_eval(args:&[String])->io::Result<()>{
     let rake=RakeConfig::from_args(args)?;
     print_rules(rake);
-    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
+    let path=neural_option(args,"--checkpoint")?
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --checkpoint"))?;
-    let tab_path=args.windows(2).find(|w|w[0]=="--tabular").map(|w|w[1].as_str())
+    let tab_path=neural_option(args,"--tabular")?
         .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --tabular"))?;
-    let phh_path=args.windows(2).find(|w|w[0]=="--phh-model").map(|w|w[1].as_str());
-    let hands:usize=super::arg(args,"--hands",6000);
-    let seed:u64=super::arg(args,"--seed",98722);
+    let phh_path=neural_option(args,"--phh-model")?;
+    let hands:usize=neural_arg(args,"--hands",6000)?;
+    let seed:u64=neural_arg(args,"--seed",98722)?;
     if hands<2*N || hands%N!=0 {
         return Err(io::Error::new(io::ErrorKind::InvalidInput,"--hands must be a multiple of six and at least 12 (two independent clusters)"));
     }
@@ -446,6 +488,9 @@ pub fn neural_eval(args:&[String])->io::Result<()>{
     let base=load(tab_path)?[0].clone();
     let mut net=Net::load(path)?;
     let groups=hands/N;
+    league::validate_neural_eval_split(&net,seed,groups)?;
+    print_neural_model(&net);
+    let split=if net.observation_version()==ObservationVersion::LegacyV1 {"unverified_legacy"}else{"unverified_external"};
     let started=Instant::now();
     let mut sum=0f64;
     let mut sumsq=0f64;
@@ -462,9 +507,9 @@ pub fn neural_eval(args:&[String])->io::Result<()>{
         sumsq+=group_value*group_value;
     }
     let (avg,ci)=cluster_result(sum,sumsq,groups,N as f64);
-    println!("SIXMAX_NEURAL_EVAL hands={} clusters={} candidate=neural opponent={} bb100={:+.3} ci95_cluster_half={:.3} table_rake_bb100={:.5} eval_seed={} elapsed={:.3}s",
+    println!("SIXMAX_NEURAL_EVAL hands={} clusters={} candidate=neural opponent={} bb100={:+.3} ci95_cluster_half={:.3} table_rake_bb100={:.5} eval_seed={} split={} elapsed={:.3}s",
         hands,groups,if phh.is_some(){"phh_imitation"}else{"tabular"},avg,ci,
-        total_rake as f64/BB_UNITS as f64*100.0/hands as f64,seed,started.elapsed().as_secs_f64());
+        total_rake as f64/BB_UNITS as f64*100.0/hands as f64,seed,split,started.elapsed().as_secs_f64());
     Ok(())
 }
 

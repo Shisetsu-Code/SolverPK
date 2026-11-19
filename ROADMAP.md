@@ -4,13 +4,15 @@
 
 Ver [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) para evidencia y resultados. Ya se corrigieron y probaron el reparto, rake configurable, resubidas cortas acumuladas, tamaños del bote, intervalos 6-max y validaciones de PHH/checkpoints. La referencia independiente de liquidación cubre 100.000 manos; el evaluador cubre exhaustivamente las manos de cinco cartas. Esto es un avance de P0.1; la conformidad completa contra otro motor sigue pendiente.
 
-**Prioridad previa al próximo entrenamiento masivo:**
+**Correcciones V2 implementadas:** identidad exacta de cartas, recompensa lineal neta, actualización congelada por mano, liga con cinco heurísticas y checkpoints opcionales, registro de repartos, resume exacto y guardado atómico. Ver [NEURAL_V2.md](NEURAL_V2.md) para pruebas y resultados.
 
-1. Nueva versión de observaciones que conserve palos propios y su relación con el board; fixtures de color/proyectos y separación de checkpoints anteriores.
-2. Objetivo de aprendizaje que preserve EV monetario y gradientes consistentes con la política que generó la trayectoria. El recorte actual puede invertir preferencias por EV.
-3. Liga congelada más exigente, semillas nuevas y selección independiente de test; PHH actual usa 960 estados/3 acciones y mezcla actores.
-4. Guardado atómico, metadatos de motor/rake/observaciones, estado reproducible y conservación de checkpoints.
-5. Corregir intervalos emparejados y reglas restantes de las arenas HU antiguas, o retirarlas para evitar confusión con el motor 6-max.
+**Prioridad vigente antes de otro entrenamiento masivo:**
+
+1. Mejorar generalización: entrenar contra una población diversa y conservar validación/test separados. El piloto mejoró contra uniforme y empeoró sus medias ante los otros siete rivales; no se promueve ese checkpoint.
+2. Reducir varianza mediante baseline por estado/critic y estudiar estabilidad del self-play, con presupuesto comparable y varias inicializaciones.
+3. Ampliar historial público y rangos; evaluar si la red necesita más capacidad mediante ablaciones.
+4. Completar procedencia de profesores/datasets, calendario del optimizador y selección reproducible de modelos.
+5. Conformidad completa del motor y corrección/consolidación de las utilidades HU antiguas.
 
 El resto de este plan conserva propuestas y antecedentes históricos; las cifras anteriores a la auditoría no acreditan el motor corregido ni resultados después de rake.
 
@@ -51,6 +53,8 @@ La red actual aprende y gana contra el bot tabular en la simulación, pero todav
 
 ### P0.2 Liga de evaluación verdaderamente fuera de entrenamiento
 
+**Avance V2:** liga implementada con cinco perfiles, múltiples checkpoints neuronales y tabular/PHH; índices de reparto contrastados con segmentos conocidos, CIs por clusters y peor rival observado. Falta el criterio completo de ≥5 inicializaciones, mayor volumen por emparejamiento, procedencia histórica completa y referencias competitivas.
+
 **Problema:** solo se midió contra profesor tabular y un imitador PHH simplificado, con la política neuronal usando la misma red en los seis asientos de self-play.
 
 **Cambios:**
@@ -64,7 +68,9 @@ La red actual aprende y gana contra el bot tabular en la simulación, pero todav
 
 ### P0.3 Checkpoints y trazabilidad a prueba de interrupciones
 
-**Problema:** `SPKNN001` guarda pesos, baseline y contador de steps, pero **no** el estado del RNG ni un manifiesto de entrenamiento completo; el guardado es directo al archivo y los artifacts de Actions expiran.
+**Avance V2:** SPKNN002 incorpora esquema, segmentos, contador de manos/decisiones/actualizaciones, LR/rake y checksum; guardado atómico y resume N+M idéntico al continuo. Los checkpoints del piloto y V1 final se archivan en Git. Quedan procedencia de profesores, scheduler general y selección robusta; el manifiesto externo registra commit/SHA-256.
+
+**Antecedente V1:** `SPKNN001` guarda pesos, baseline y contador de steps, pero **no** el estado del RNG ni un manifiesto de entrenamiento completo; el guardado es directo al archivo y los artifacts de Actions expiran.
 
 **Cambios:**
 - `SPKNN002`: versionado formal de arquitectura, dimensiones, pesos, baseline/value state, RNG, scheduler de learning rate, total de manos, seed original, hash del código y sumas de verificación.
@@ -104,7 +110,7 @@ La red actual aprende y gana contra el bot tabular en la simulación, pero todav
 
 ### P1.3 Evolución neuronal con value head
 
-**Diseño recomendado:** arquitectura v2 con 128–256 dimensiones y 2–3 capas iniciales, embeddings de cartas/posición, codificador de secuencia o agregador de acciones, dos salidas separadas (**policy + value**). Entrenar con actor–critic/A2C o PPO con mini-batches, normalización de ventajas, clipping de gradiente y bonificación entrópica; probar primero en CPU. La abstracción de acciones permanece estable hasta auditar el motor.
+**Evolución propuesta después de V2:** arquitectura con 128–256 dimensiones y 2–3 capas iniciales, embeddings de cartas/posición, codificador de secuencia o agregador de acciones, dos salidas separadas (**policy + value**). Entrenar con actor–critic/A2C o PPO con mini-batches, normalización de ventajas, clipping de gradiente y bonificación entrópica; probar primero en CPU. La abstracción de acciones permanece estable hasta auditar el motor.
 
 **Aceptación:** superar un baseline idéntico en datos/compute; estabilidad en al menos 5 semillas de entrenamiento; latencia, memoria y throughput registrados; métricas contra toda la liga. Un aumento de parámetros sin mejora validada no se considera éxito.
 
@@ -150,12 +156,12 @@ Implementar capacidades 0,5–2M parámetros **solo después** de P1.1–P1.3, d
 
 **Sprint de fiabilidad (primero):**
 1. Refactor mínimo para aislar apuestas/liquidación y añadir corpus de conformidad independiente.
-2. Construir la liga congelada (al menos 8 perfiles/oponentes) y medir checkpoints 0M/10M/50M/100M.
-3. Agregar manifiesto/restore exacto y selector de checkpoint campeón.
+2. Ampliar la liga ya implementada, medir los checkpoints históricos adicionales y usar al menos cinco inicializaciones nuevas con rivales competitivos.
+3. Completar procedencia y selección de campeón; el restore exacto y manifiesto básico ya están implementados.
 
 **Sprint de aprendizaje:**
 4. Rango de 1.326 combos y codificación completa de apuestas, con tests de visibilidad.
-5. Modelo actor–critic v2; comparar con MLP 64→32→6 bajo mismo presupuesto.
+5. Probar un actor–critic posterior; comparar con MLP V2 128→32→6 bajo el mismo presupuesto.
 6. Ingestar HandHQ y agregar oponentes externos/solver según la variante.
 
 **Sprint de escalado:** paralelización, batching y GPU cuando la matemática y la evaluación sean confiables.
