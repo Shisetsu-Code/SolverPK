@@ -218,6 +218,49 @@ fn evaluate(candidate: &Agent, hands: usize, samples: usize, seed: u64) -> (f64,
     (100.0*mean, 196.0*stderr)
 }
 
+/// Frozen checkpoint-versus-checkpoint evaluation. No policies are updated.
+pub fn duel(args: &[String]) -> io::Result<()> {
+    let left_path = args.windows(2).find(|w| w[0]=="--left").map(|w|w[1].as_str())
+        .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --left"))?;
+    let right_path = args.windows(2).find(|w| w[0]=="--right").map(|w|w[1].as_str())
+        .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --right"))?;
+    let hands: usize = super::arg(args,"--hands",100000);
+    let samples: usize = super::arg(args,"--samples",8);
+    let seed: u64 = super::arg(args,"--seed",123456);
+    if hands < 2 || hands%2 != 0 || samples == 0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"--hands must be even and >=2; --samples >=1"));
+    }
+    let left = restore(left_path)?;
+    let right = restore(right_path)?;
+    let mut agents = [left[0].clone(),right[0].clone()];
+    let mut win_sum = 0i64;
+    let mut sq = 0f64;
+    let mut showdown_count=0u64;
+    let start=Instant::now();
+    for hand in 0..hands {
+        // Every pair uses same starting RNG seed, opposite seats. Policy decisions
+        // alter RNG consumption so these are NOT perfectly paired trajectories.
+        let mut rng=Rng::new(seed.wrapping_add((hand/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
+        let (chips,shown) = if hand%2==0 {
+            play(&mut agents,0,1,hand,&mut rng,samples,0.0,false)
+        } else {
+            let (n,s)=play(&mut agents,1,0,hand,&mut rng,samples,0.0,false);
+            (-n,s)
+        };
+        win_sum+=chips;
+        sq+=(chips as f64 / BIG_BLIND as f64).powi(2);
+        showdown_count+=shown as u64;
+    }
+    let n=hands as f64;
+    let mean=win_sum as f64/BIG_BLIND as f64/n;
+    let ci=196.0*((sq/n-mean*mean).max(0.0)/n).sqrt();
+    println!("DUEL left={} right={} agents=0,0 hands={} samples={} seed={}",left_path,right_path,hands,samples,seed);
+    println!("DUEL result_left={:+.3} bb/100 confidence_approx_95=+/-{:.3} bb/100 total_chips={} showdowns={} elapsed={:.3}s hands_per_sec={:.1}",
+        mean*100.0,ci,win_sum,showdown_count,start.elapsed().as_secs_f64(),n/start.elapsed().as_secs_f64().max(1e-9));
+    println!("DUEL NOTE: both policies frozen; outcomes stochastic and imperfectly paired; result is strength versus this particular opponent, not general GTO quality");
+    Ok(())
+}
+
 pub fn run(args: &[String]) -> io::Result<()> {
     let hands: usize = super::arg(args,"--hands",10000);
     let rooms: usize = super::arg(args,"--rooms",64);
