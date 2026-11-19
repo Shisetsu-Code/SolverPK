@@ -292,7 +292,7 @@ fn reinforce(bot:&mut Bot,history:&[Visit],net:i64,rate:f32){
         row.visits=row.visits.saturating_add(1);
     }
 }
-fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool)->[i64;N]{
+fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool,action_counts:&mut [u64;ACTIONS])->[i64;N]{
     let mut t=Table6::new(seed,button);
     let mut rng=Rng::new(seed^0xbeecafefeed55eed);
     let mut history:[Vec<Visit>;N]=std::array::from_fn(|_|Vec::new());
@@ -327,6 +327,7 @@ fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,ph
                 std::array::from_fn(|a|if v.legal[a]{1.0/n}else{0.0})
             }else{probs(&bots[p].table[key],v.legal)};
             let choice=draw(values,&mut rng);
+            action_counts[choice]+=1;
             let action=match choice{
                 0=>Action::Fold,
                 1=>Action::Call,
@@ -383,12 +384,16 @@ pub fn run(args:&[String])->io::Result<()>{
     let mut bots=if resume{load(path)?}else{std::array::from_fn(|_|Bot::new())};
     let start=Instant::now();
     let mut totals=[0i64;N];
+    let mut action_counts=[0u64;ACTIONS];
     for i in 0..hands{
         let s=seed^((i as u64).wrapping_mul(0x9e3779b97f4a7c15));
-        let result=play(&mut bots,s,i%N,rate,false,None,false);
+        let result=play(&mut bots,s,i%N,rate,false,None,false,&mut action_counts);
         for p in 0..N{totals[p]+=result[p];}
     }
     save(path,&bots)?;
+    println!("SIXMAX_ACTIONS total={} fold={} call={} bet33={} bet75={} pot={} allin={}",
+        action_counts.iter().sum::<u64>(),action_counts[0],action_counts[1],
+        action_counts[2],action_counts[3],action_counts[4],action_counts[5]);
     println!("SIXMAX hands={} time={:.3}s hands_per_sec={:.1} checkpoint={}",hands,
         start.elapsed().as_secs_f64(),hands as f64/start.elapsed().as_secs_f64().max(1e-9),path);
     for p in 0..N {println!("SIXMAX player={} net={} bb100={:+.3} visited_states={}",p,totals[p],
@@ -423,11 +428,12 @@ pub fn evaluate(args:&[String])->io::Result<()>{
     let groups=hands/N;
     let mut totals=0f64;
     let mut group_sq=0f64;
+    let mut action_counts=[0u64;ACTIONS];
     for group in 0..groups {
         let pair_seed=seed ^ (group as u64).wrapping_mul(0x9e3779b97f4a7c15);
         let mut group_result=0f64;
         for position in 0..N {
-            let net=play(&mut bots,pair_seed,position,0.0,opponent=="random",phh.as_ref(),candidate_phh)[0] as f64/BB as f64;
+            let net=play(&mut bots,pair_seed,position,0.0,opponent=="random",phh.as_ref(),candidate_phh,&mut action_counts)[0] as f64/BB as f64;
             group_result+=net;
         }
         totals+=group_result;
@@ -437,6 +443,9 @@ pub fn evaluate(args:&[String])->io::Result<()>{
     let group_mean=totals/groups as f64;
     let group_var=(group_sq/groups as f64-group_mean*group_mean).max(0.0);
     let half=1.96*(group_var/groups as f64).sqrt()*100.0/N as f64;
+    println!("SIXMAX_EVAL_ACTIONS total={} fold={} call={} bet33={} bet75={} pot={} allin={}",
+        action_counts.iter().sum::<u64>(),action_counts[0],action_counts[1],
+        action_counts[2],action_counts[3],action_counts[4],action_counts[5]);
     println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_six_hand_cluster_half={:.3} opponent={} candidate={} eval_seed={}",hands,mean*100.0,half,opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
     Ok(())
 }
@@ -523,8 +532,9 @@ mod tests{
     }
     #[test]fn seeded_games_conserve(){
         let mut bots=std::array::from_fn(|_|Bot::new());
+        let mut counts=[0u64;ACTIONS];
         for i in 0..500 {
-            let result=play(&mut bots,i*137+4,(i as usize)%N,0.03,false,None,false);
+            let result=play(&mut bots,i*137+4,(i as usize)%N,0.03,false,None,false,&mut counts);
             assert_eq!(result.iter().sum::<i64>(),0);
         }
     }
