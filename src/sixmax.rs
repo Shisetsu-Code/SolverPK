@@ -9,9 +9,9 @@ use std::time::Instant;
 const N:usize=6;
 const STACK:i64=200;
 const BB:i64=2;
-const STATES:usize=4*5*3*3*3*4*3;
+const STATES:usize=4*5*3*3*3*4*3*3;
 const ACTIONS:usize=6;
-const MAGIC:&[u8;8]=b"SPK6MAX2";
+const MAGIC:&[u8;8]=b"SPK6MAX3";
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 enum Action {Fold,Call,Raise(i64)} // Raise to street-total
@@ -23,6 +23,7 @@ struct Table6 {
     button:usize,sb:usize,bb:usize,actor:usize,
     high:i64,min_raise:i64,pot:i64,round:u8,
     raise_count:u8,raise_per_seat:[u8;N],
+    estimated_ranges:[[f32;3];N],
 }
 impl Table6 {
     fn new(seed:u64,button:usize)->Self{
@@ -36,9 +37,37 @@ impl Table6 {
             pending:[true;N],acted:[false;N],button,sb,bb,actor:(bb+1)%N,
             high:0,min_raise:BB,pot:0,round:0,
             raise_count:0,raise_per_seat:[0;N],
+            estimated_ranges:[[0.15,0.35,0.50];N],
         };
         t.pay(sb,1);t.pay(bb,BB);t.high=BB;
         t
+    }
+    fn update_public_range(&mut self,p:usize,kind:usize){
+        // Three hand-strength classes: premium, medium, weak.
+        // Fixed public-action likelihoods are a heuristic Bayesian prior,
+        // not an oracle or a learned 169-combo posterior.
+        let likelihood=match kind{
+            0=>[0.08f32,0.20,0.60], // fold
+            1=>[0.25f32,0.52,0.32], // call/check
+            _=>[0.69f32,0.30,0.09], // bet/raise
+        };
+        let mut posterior=[0f32;3];
+        for i in 0..3{
+            posterior[i]=self.estimated_ranges[p][i]*likelihood[i];
+        }
+        let sum=posterior.iter().sum::<f32>();
+        if sum>0.0 {
+            for i in 0..3{self.estimated_ranges[p][i]=posterior[i]/sum;}
+        }
+    }
+    fn opponent_range_bucket(&self,p:usize)->usize{
+        let mut strongest=0f32;
+        for i in 0..N {
+            if i!=p && !self.folded[i] {
+                strongest=strongest.max(self.estimated_ranges[i][0]);
+            }
+        }
+        if strongest<0.25{0}else if strongest<0.55{1}else{2}
     }
     fn pay(&mut self,p:usize,amount:i64){
         assert!((0..=self.stack[p]).contains(&amount));
@@ -93,6 +122,7 @@ impl Table6 {
                 self.pay(p,call);
                 self.pending[p]=false;
                 self.acted[p]=true;
+                self.update_public_range(p,1);
             }
             Action::Raise(to) if legal[2..].iter().any(|&v|v) =>{
                 let delta=to-self.street[p];
@@ -105,6 +135,7 @@ impl Table6 {
                 self.raise_count=self.raise_count.saturating_add(1);
                 self.raise_per_seat[p]=self.raise_per_seat[p].saturating_add(1);
                 self.pending[p]=false;
+                self.update_public_range(p,2);
                 if increment>=self.min_raise {
                     self.min_raise=increment;
                     self.acted=[false;N];
@@ -195,14 +226,15 @@ impl Table6 {
         View{hole:self.hole[p],board:self.board,visible:self.visible,
             pot:self.pot,call:self.call(p),stack:self.stack[p],street:self.round,
             on_button:p==self.button,active:self.alive(),legal:self.legal(p),
-            pressure:self.raise_count.min(2),texture:self.texture()}
+            pressure:self.raise_count.min(2),texture:self.texture(),
+            range_bucket:self.opponent_range_bucket(p)}
     }
 }
 #[derive(Clone,Copy)]
 struct View{
     hole:[u8;2],board:[u8;5],visible:usize,pot:i64,call:i64,stack:i64,
     street:u8,on_button:bool,active:usize,legal:[bool;ACTIONS],
-    pressure:u8,texture:usize,
+    pressure:u8,texture:usize,range_bucket:usize,
 }
 fn state(v:View)->usize{
     let a=v.hole[0]%13;
@@ -212,7 +244,7 @@ fn state(v:View)->usize{
     let ratio=v.call as f64/(v.pot+v.call).max(1) as f64;
     let price=if v.call==0{0}else if ratio<0.28{1}else{2};
     let pos=if v.on_button{0}else if v.street==0{1}else{2};
-    (((((v.street as usize*5+strength)*3+players)*3+price)*3+pos)*4+v.texture)*3+v.pressure as usize
+    (((((v.street as usize*5+strength)*3+players)*3+price)*3+pos)*4+v.texture)*3+v.pressure as usize)*3+v.range_bucket
 }
 #[derive(Clone,Copy)]
 struct PolicyRow{weights:[f32;ACTIONS],baseline:f32,visits:u32}
