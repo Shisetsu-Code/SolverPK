@@ -223,7 +223,9 @@ impl Table6 {
         else{3}
     }
     fn view(&self,p:usize)->View{
-        View{hole:self.hole[p],board:self.board,visible:self.visible,
+        let mut visible_board=[255u8;5];
+        visible_board[..self.visible].copy_from_slice(&self.board[..self.visible]);
+        View{hole:self.hole[p],board:visible_board,visible:self.visible,
             pot:self.pot,call:self.call(p),stack:self.stack[p],street:self.round,
             on_button:p==self.button,active:self.alive(),legal:self.legal(p),
             pressure:self.raise_count.min(2),texture:self.texture(),
@@ -489,6 +491,15 @@ mod tests{
         let mut t=Table6::new(5,1);
         assert_eq!(t.hole.iter().flatten().copied().collect::<std::collections::HashSet<_>>().len(),12);
         let _=t.view(0);
+    }
+    #[test]fn future_board_is_hidden_in_observations(){
+        let mut t=Table6::new(13,0);
+        let before=t.view(3);
+        assert_eq!(before.board,[255;5]);
+        t.visible=3;
+        let flop=t.view(3);
+        assert_eq!(flop.board[3..],[255,255]);
+        assert_eq!(flop.board[..3],t.board[..3]);
     }
     #[test]fn public_range_update_normalized(){
         let mut t=Table6::new(9,0);
