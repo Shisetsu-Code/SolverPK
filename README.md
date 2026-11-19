@@ -59,3 +59,7 @@ This is an operational **learning baseline**, not a neural-network model, a GTO 
 **Important:** `--rooms` interleaves independent logical tables in one process; it does not yet parallelize execution across CPU cores. All learning currently runs on CPU; GPU training can follow after the simulator and benchmarks have been verified. The present self-play arena remains heads-up; 6-max/9-max will require a separate, validated multi-player betting engine with side pots.
 
 No third-party runtime or ML crates are required.
+
+## Measuring actual learning
+
+The self-play command also evaluates agent 0 **before and after training** against a frozen copy of the initial policy. It runs these evaluations without policy updates and reports estimated bb/100 with approximate 95% uncertainty bands. Use `--eval-hands 10000` for more evaluation hands (or `--eval-hands 0` to skip). This is an initial regression indicator, not a rigorous proof of generalization or GTO quality; trajectories are not fully paired because players sample different randomized decisions. Evaluation against multiple held-out opponents is still required.
