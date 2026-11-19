@@ -9,9 +9,9 @@ use std::time::Instant;
 const N:usize=6;
 const STACK:i64=200;
 const BB:i64=2;
-const STATES:usize=4*5*3*3*3;
-const ACTIONS:usize=3;
-const MAGIC:&[u8;8]=b"SPK6MAX1";
+const STATES:usize=4*5*3*3*3*4*3;
+const ACTIONS:usize=6;
+const MAGIC:&[u8;8]=b"SPK6MAX2";
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 enum Action {Fold,Call,Raise(i64)} // Raise to street-total
@@ -22,6 +22,7 @@ struct Table6 {
     folded:[bool;N],pending:[bool;N],acted:[bool;N],
     button:usize,sb:usize,bb:usize,actor:usize,
     high:i64,min_raise:i64,pot:i64,round:u8,
+    raise_count:u8,raise_per_seat:[u8;N],
 }
 impl Table6 {
     fn new(seed:u64,button:usize)->Self{
@@ -34,6 +35,7 @@ impl Table6 {
             stack:[STACK;N],street:[0;N],total:[0;N],folded:[false;N],
             pending:[true;N],acted:[false;N],button,sb,bb,actor:(bb+1)%N,
             high:0,min_raise:BB,pot:0,round:0,
+            raise_count:0,raise_per_seat:[0;N],
         };
         t.pay(sb,1);t.pay(bb,BB);t.high=BB;
         t
@@ -46,10 +48,32 @@ impl Table6 {
     fn alive(&self)->usize{(0..N).filter(|&p|!self.folded[p]).count()}
     fn live_bettors(&self)->usize{(0..N).filter(|&p|!self.folded[p] && self.stack[p]>0).count()}
     fn call(&self,p:usize)->i64{(self.high-self.street[p]).max(0).min(self.stack[p])}
-    fn legal(&self,p:usize)->[bool;3]{
+    fn raise_to(&self,p:usize,action:usize)->i64{
+        let max_to=self.street[p]+self.stack[p];
+        let desired=match action{
+            2=>self.high+(self.pot/3).max(self.min_raise),
+            3=>self.high+((self.pot*3)/4).max(self.min_raise),
+            4=>self.high+self.pot.max(self.min_raise),
+            5=>max_to,
+            _=>panic!("invalid bet-size action"),
+        };
+        desired.min(max_to)
+    }
+    fn legal(&self,p:usize)->[bool;ACTIONS]{
         let due=self.high-self.street[p];
         let opponent_live=(0..N).any(|q|q!=p && !self.folded[q] && self.stack[q]>0);
-        [due>0,true,!self.acted[p] && opponent_live && self.stack[p]>due && self.street[p]+self.stack[p]>self.high]
+        let possible=!self.acted[p] && opponent_live && self.stack[p]>due;
+        let mut result=[false;ACTIONS];
+        result[0]=due>0;
+        result[1]=true;
+        for action in 2..ACTIONS {
+            if possible {
+                let to=self.raise_to(p,action);
+                let incr=to-self.high;
+                result[action]=incr>0 && (incr>=self.min_raise || to==self.street[p]+self.stack[p]);
+            }
+        }
+        result
     }
     fn first_pending_after(&self,after:usize)->Option<usize>{
         (1..=N).map(|k|(after+k)%N).find(|&p|self.pending[p] && !self.folded[p] && self.stack[p]>0)
@@ -70,7 +94,7 @@ impl Table6 {
                 self.pending[p]=false;
                 self.acted[p]=true;
             }
-            Action::Raise(to) if legal[2] =>{
+            Action::Raise(to) if legal[2..].iter().any(|&v|v) =>{
                 let delta=to-self.street[p];
                 if delta<=call || delta>self.stack[p] || to<=self.high {return Err("invalid raise amount".into());}
                 let increment=to-self.high;
@@ -78,6 +102,8 @@ impl Table6 {
                 if increment<self.min_raise && !allin{return Err("short raise not all-in".into());}
                 self.pay(p,delta);
                 self.high=to;
+                self.raise_count=self.raise_count.saturating_add(1);
+                self.raise_per_seat[p]=self.raise_per_seat[p].saturating_add(1);
                 self.pending[p]=false;
                 if increment>=self.min_raise {
                     self.min_raise=increment;
@@ -155,16 +181,28 @@ impl Table6 {
         let w=self.settle();
         std::array::from_fn(|p|w[p]-self.total[p])
     }
+    fn texture(&self)->usize{
+        if self.visible<3{return 0;}
+        let mut ranks=[0u8;13];let mut suits=[0u8;4];
+        for &card in &self.board[..self.visible]{
+            ranks[(card%13) as usize]+=1;suits[(card/13) as usize]+=1;
+        }
+        if ranks.iter().any(|&n|n>=2){1}
+        else if suits.iter().any(|&n|n>=3){2}
+        else{3}
+    }
     fn view(&self,p:usize)->View{
         View{hole:self.hole[p],board:self.board,visible:self.visible,
             pot:self.pot,call:self.call(p),stack:self.stack[p],street:self.round,
-            on_button:p==self.button,active:self.alive(),legal:self.legal(p)}
+            on_button:p==self.button,active:self.alive(),legal:self.legal(p),
+            pressure:self.raise_count.min(2),texture:self.texture()}
     }
 }
 #[derive(Clone,Copy)]
 struct View{
     hole:[u8;2],board:[u8;5],visible:usize,pot:i64,call:i64,stack:i64,
-    street:u8,on_button:bool,active:usize,legal:[bool;3],
+    street:u8,on_button:bool,active:usize,legal:[bool;ACTIONS],
+    pressure:u8,texture:usize,
 }
 fn state(v:View)->usize{
     let a=v.hole[0]%13;
@@ -174,38 +212,38 @@ fn state(v:View)->usize{
     let ratio=v.call as f64/(v.pot+v.call).max(1) as f64;
     let price=if v.call==0{0}else if ratio<0.28{1}else{2};
     let pos=if v.on_button{0}else if v.street==0{1}else{2};
-    (((v.street as usize*5+strength)*3+players)*3+price)*3+pos
+    (((((v.street as usize*5+strength)*3+players)*3+price)*3+pos)*4+v.texture)*3+v.pressure as usize
 }
 #[derive(Clone,Copy)]
-struct PolicyRow{weights:[f32;3],baseline:f32,visits:u32}
+struct PolicyRow{weights:[f32;ACTIONS],baseline:f32,visits:u32}
 impl Default for PolicyRow{
-    fn default()->Self{Self{weights:[-0.8,0.5,0.0],baseline:0.0,visits:0}}
+    fn default()->Self{Self{weights:[-0.8,0.5,-0.3,-0.5,-0.7,-1.2],baseline:0.0,visits:0}}
 }
 #[derive(Clone)]
 struct Bot{table:[PolicyRow;STATES]}
 impl Bot {fn new()->Self{Self{table:[PolicyRow::default();STATES]}}}
-fn probs(row:&PolicyRow,legal:[bool;3])->[f32;3]{
-    let max=(0..3).filter(|&i|legal[i]).map(|i|row.weights[i]).fold(f32::NEG_INFINITY,f32::max);
-    let mut out=[0f32;3];let mut total=0f32;
-    for i in 0..3{if legal[i]{out[i]=(row.weights[i]-max).exp();total+=out[i];}}
+fn probs(row:&PolicyRow,legal:[bool;ACTIONS])->[f32;ACTIONS]{
+    let max=(0..ACTIONS).filter(|&i|legal[i]).map(|i|row.weights[i]).fold(f32::NEG_INFINITY,f32::max);
+    let mut out=[0f32;ACTIONS];let mut total=0f32;
+    for i in 0..ACTIONS{if legal[i]{out[i]=(row.weights[i]-max).exp();total+=out[i];}}
     for x in &mut out{*x/=total;}
     out
 }
-fn draw(prob:[f32;3],rng:&mut Rng)->usize{
+fn draw(prob:[f32;ACTIONS],rng:&mut Rng)->usize{
     let x=rng.next() as f64/u64::MAX as f64;
     let mut sum=0f64;
     for (a,p) in prob.iter().enumerate(){sum+=*p as f64;if x<sum{return a;}}
-    (0..3).rev().find(|&i|prob[i]>0.0).unwrap_or(1)
+    (0..ACTIONS).rev().find(|&i|prob[i]>0.0).unwrap_or(1)
 }
 #[derive(Clone)]
-struct Visit{key:usize,action:usize,probs:[f32;3]}
+struct Visit{key:usize,action:usize,probs:[f32;ACTIONS]}
 fn reinforce(bot:&mut Bot,history:&[Visit],net:i64,rate:f32){
     if rate<=0.0{return;}
     let reward=(net as f32/(BB as f32*20.0)).clamp(-5.0,5.0);
     for visit in history{
         let row=&mut bot.table[visit.key];
         let adv=(reward-row.baseline).clamp(-5.0,5.0);
-        for a in 0..3{
+        for a in 0..ACTIONS{
             let chosen=if a==visit.action{1.0}else{0.0};
             row.weights[a]=(row.weights[a]+rate*adv*(chosen-visit.probs[a])).clamp(-10.0,10.0);
         }
@@ -231,7 +269,17 @@ fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,ph
             let key=state(v);
             let values=if let Some(model)=phh_opponent {
                 if p!=0 || phh_candidate {
-                    model.predict_multi(v.street as usize,v.hole,v.pot,v.call,v.on_button,v.active,v.legal).0
+                    let coarse=[v.legal[0],v.legal[1],v.legal[2..].iter().any(|&x|x)];
+                    let raw=model.predict_multi(v.street as usize,v.hole,v.pot,v.call,v.on_button,v.active,coarse).0;
+                    let mut spread=[0.0f32;ACTIONS];
+                    spread[0]=raw[0];spread[1]=raw[1];
+                    let weights=[0.30f32,0.35,0.25,0.10];
+                    let normalizer=(2..ACTIONS).filter(|&a|v.legal[a])
+                        .map(|a|weights[a-2]).sum::<f32>();
+                    for a in 2..ACTIONS {
+                        if v.legal[a] && normalizer>0.0 {spread[a]=raw[2]*weights[a-2]/normalizer;}
+                    }
+                    spread
                 }else{probs(&bots[p].table[key],v.legal)}
             }else if random_opponent && p!=0 {
                 let n=v.legal.iter().filter(|&&x|x).count() as f32;
@@ -241,12 +289,7 @@ fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,ph
             let action=match choice{
                 0=>Action::Fold,
                 1=>Action::Call,
-                _=>{
-                    let min_to=t.high+t.min_raise;
-                    let target=(t.high+v.call+(t.pot/2).max(t.min_raise))
-                        .max(min_to).min(t.street[p]+t.stack[p]);
-                    Action::Raise(target)
-                }
+                a=>Action::Raise(t.raise_to(p,a)),
             };
             t.act(action).expect("policy proposed legal action");
             history[p].push(Visit{key,action:choice,probs:values});
