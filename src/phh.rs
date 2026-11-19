@@ -341,7 +341,7 @@ mod tests{
         assert_eq!(o.len(),12);
         assert_eq!(o[0][10],2);
         assert_eq!(i64::from_le_bytes(o[0][24..32].try_into().unwrap()),15000);
-        assert_eq!(o[0][16],9); // player 3 has 9c
+        assert_eq!(o[0][16],7); // 9c is rank index 7
     }
     #[test] fn incomplete_hand_rejected(){
         let t="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cc']";
