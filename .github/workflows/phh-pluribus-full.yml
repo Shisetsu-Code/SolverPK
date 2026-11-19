@@ -1,0 +1,53 @@
+name: PHH Pluribus full 10k import and imitation
+on:
+  push:
+    paths:
+      - '.github/workflows/phh-pluribus-full.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  import-and-train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test and compile
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Fetch only Pluribus PHH files (partial sparse clone)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/uoftcprg/phh-dataset.git upstream-phh
+          git -C upstream-phh sparse-checkout set data/pluribus
+          find upstream-phh/data/pluribus -type f -name '*.phh' | wc -l | tee source-file-count.txt
+      - name: Validate and import full Pluribus collection
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --import-phh --source upstream-phh/data/pluribus --output pluribus-observations.bin > import.log 2> rejected.log
+          cat import.log
+          wc -l rejected.log
+          test -s pluribus-observations.bin
+      - name: Train held-out behavioral imitation baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --train-phh --source pluribus-observations.bin --output pluribus-imitation.bin | tee training.log
+      - name: Store output and rejected cases
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluribus-full-import-training
+          path: |
+            import.log
+            rejected.log
+            training.log
+            source-file-count.txt
+            pluribus-observations.bin
+            pluribus-imitation.bin
+          retention-days: 30
+          if-no-files-found: warn
