@@ -1,0 +1,93 @@
+name: Tabular 6max corrected engine 20M continuation
+on:
+  push:
+    paths:
+      - '.github/workflows/tabular-20m-corrected.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  continue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify current corrected Rust simulator and build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --all-targets --no-fail-fast
+          cargo test --release exhaustive_five_card -- --ignored
+          cargo test --release audit_stress -- --ignored
+          cargo build --release
+          git rev-parse HEAD > source-commit.txt
+      - name: Restore immutable 10M checkpoint and historical opponents
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p references
+          gh run download 44601763525 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-10m --dir references
+          test -s references/tabular-corrected-10m.bin
+          test -s references/checkpoint-10m-sha256.txt
+          (cd references && sha256sum -c checkpoint-10m-sha256.txt)
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir references
+          gh run download 44550178708 --repo Shisetsu-Code/SolverPK --name sixmax-phh-ablation --dir references
+          test -s references/pluribus-imitation.bin
+          test -s references/scratch.bin
+          sha256sum references/tabular-corrected-10m.bin references/pluribus-imitation.bin references/scratch.bin > initial-sha256.txt
+          cp references/tabular-corrected-10m.bin tabular-corrected-20m.bin
+      - name: Train 10M additional hands under audited 5 percent rake
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-train --resume --hands 10000000 --seed 2026111903 --learning-rate 0.003 --rake-bps 500 --rake-cap-bb 3 --checkpoint tabular-corrected-20m.bin | tee train-additional-10m.log
+          grep -q 'SIXMAX hands=10000000' train-additional-10m.log
+          test -s tabular-corrected-20m.bin
+          sha256sum tabular-corrected-20m.bin > final-sha256.txt
+          echo 'CONFIRMED_ADDITIONAL_HANDS=10000000'
+          echo 'CONFIRMED_CUMULATIVE_HANDS=20000000'
+      - name: Frozen evaluation 10M vs 20M with identical held-out seeds
+        shell: bash
+        run: |
+          set -euo pipefail
+          for generation in 10 20; do
+            if [[ "$generation" == 10 ]]; then checkpoint=references/tabular-corrected-10m.bin; else checkpoint=tabular-corrected-20m.bin; fi
+            for eval_seed in 990071 990073 990079; do
+              for rival in random clone phh; do
+                args=(--sixmax-eval --hands 120000 --seed "$eval_seed" --rake-bps 500 --rake-cap-bb 3 --checkpoint "$checkpoint" --opponent "$rival")
+                if [[ "$rival" == phh ]]; then args+=(--phh-model references/pluribus-imitation.bin); fi
+                ./target/release/solverpk "${args[@]}" | tee "eval-${generation}m-${rival}-${eval_seed}.log"
+              done
+            done
+          done
+      - name: Direct frozen 20M vs 10M tabular duel
+        shell: bash
+        run: |
+          set -euo pipefail
+          for seed in 990071 990073 990079; do
+            ./target/release/solverpk --sixmax-duel --left tabular-corrected-20m.bin --right references/tabular-corrected-10m.bin --hands 120000 --seed "$seed" --rake-bps 500 --rake-cap-bb 3 | tee "duel-20m-vs-10m-${seed}.log"
+          done
+      - name: Verify frozen models unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum -c initial-sha256.txt
+          sha256sum -c final-sha256.txt
+      - name: Save final checkpoint and full evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sixmax-tabular-corrected-20m
+          path: |
+            tabular-corrected-20m.bin
+            train-additional-10m.log
+            eval-*.log
+            duel-*.log
+            *sha256.txt
+            source-commit.txt
+          retention-days: 90
+          if-no-files-found: warn
