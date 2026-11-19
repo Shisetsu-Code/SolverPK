@@ -1,0 +1,47 @@
+name: Frozen checkpoint duel 1M vs 11M
+on:
+  push:
+    paths:
+      - 'src/**'
+      - '.github/workflows/duel.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  duel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Validate and build
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Fetch historical policies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p old new
+          gh run download 44518694789 --repo Shisetsu-Code/SolverPK --name solverpk-selfplay --dir old
+          gh run download 44522869784 --repo Shisetsu-Code/SolverPK --name solverpk-10m-continuation --dir new
+          test -s old/selfplay.bin
+          test -s new/selfplay.bin
+          sha256sum old/selfplay.bin new/selfplay.bin | tee duel-policies.sha256
+      - name: Duel generation 1M versus 11M
+        run: |
+          set -o pipefail
+          ./target/release/solverpk --duel --left old/selfplay.bin --right new/selfplay.bin --hands 100000 --samples 8 --seed 77101 | tee duel-seed1.log
+          ./target/release/solverpk --duel --left old/selfplay.bin --right new/selfplay.bin --hands 100000 --samples 8 --seed 77102 | tee duel-seed2.log
+      - name: Upload evaluation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-generation-duel
+          path: |
+            duel-seed1.log
+            duel-seed2.log
+            duel-policies.sha256
+          retention-days: 30
+          if-no-files-found: warn
