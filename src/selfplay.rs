@@ -143,8 +143,10 @@ fn play(
     };
     let net = [win[0]-table.invested[0],win[1]-table.invested[1]];
     assert_eq!(net[0]+net[1],0,"chips not conserved");
-    learn(&mut agents[first],&history[0],net[0],alpha);
-    learn(&mut agents[second],&history[1],net[1],alpha);
+    if alpha > 0.0 {
+        learn(&mut agents[first],&history[0],net[0],alpha);
+        learn(&mut agents[second],&history[1],net[1],alpha);
+    }
     if verbose { println!("  terminal={} net={} / {}",street_name,net[0],net[1]); }
     (net[0],showdown)
 }
@@ -192,12 +194,37 @@ fn restore(path: &str) -> io::Result<Vec<Agent>> {
     }
     Ok(out)
 }
+/// Evaluates a frozen candidate against the initial untrained policy.
+fn evaluate(candidate: &Agent, hands: usize, samples: usize, seed: u64) -> (f64, f64) {
+    let mut net = 0i64;
+    let mut sum_sq = 0f64;
+    // Pair seats for every candidate. Evaluation never calls learn().
+    for i in 0..hands {
+        let mut agents = vec![candidate.clone(), Agent::new()];
+        let mut rng = Rng::new(seed.wrapping_add((i/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
+        let seat = i % 2;
+        let result = if seat == 0 {
+            play(&mut agents, 0, 1, i, &mut rng, samples, 0.0, false).0
+        } else {
+            -play(&mut agents, 1, 0, i, &mut rng, samples, 0.0, false).0
+        };
+        net += result;
+        let bb = result as f64 / BIG_BLIND as f64;
+        sum_sq += bb*bb;
+    }
+    let n = hands as f64;
+    let mean = net as f64 / BIG_BLIND as f64 / n;
+    let stderr = ((sum_sq/n - mean*mean).max(0.0)/n).sqrt();
+    (100.0*mean, 196.0*stderr)
+}
+
 pub fn run(args: &[String]) -> io::Result<()> {
     let hands: usize = super::arg(args,"--hands",10000);
     let rooms: usize = super::arg(args,"--rooms",64);
     let count: usize = super::arg(args,"--agents",8);
     let samples: usize = super::arg(args,"--samples",8);
     let seed: u64 = super::arg(args,"--seed",42);
+    let eval_hands: usize = super::arg(args,"--eval-hands",2000);
     let alpha: f32 = super::arg(args,"--learning-rate",0.06);
     let path = args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str()).unwrap_or("selfplay.bin");
     let resume = args.iter().any(|a|a=="--resume");
@@ -207,6 +234,7 @@ pub fn run(args: &[String]) -> io::Result<()> {
     }
     let mut agents=if resume {restore(path)?}else{vec![Agent::new();count]};
     if resume && agents.len()!=count {return Err(io::Error::new(io::ErrorKind::InvalidInput,"agent count differs from checkpoint"));}
+    let before = if eval_hands > 0 { Some(evaluate(&agents[0], eval_hands, samples, seed ^ 0x5a5a5a5a)) } else { None };
     let mut rng=Rng::new(seed);
     let start=Instant::now();
     let mut showdowns=0u64;
@@ -223,6 +251,11 @@ pub fn run(args: &[String]) -> io::Result<()> {
         if (hand+1)%10000==0 { println!("played={} hands/s={:.1} showdowns={}",hand+1,(hand+1)as f64/start.elapsed().as_secs_f64().max(1e-9),showdowns); }
     }
     persist(path,&agents)?;
+    if let Some((prior, prior_ci)) = before {
+        let (after, after_ci) = evaluate(&agents[0], eval_hands, samples, seed ^ 0x5a5a5a5a);
+        println!("EVALUATION frozen baseline={} hands={} samples={} before={:+.2} +/- {:.2} bb/100 after={:+.2} +/- {:.2} bb/100", "initial_policy", eval_hands, samples, prior, prior_ci, after, after_ci);
+        println!("EVALUATION WARNING: approximate unpaired RNG histories despite alternating seats; confidence intervals are descriptive, not proof of improvement");
+    }
     println!("SELF-PLAY hands={} logical_rooms={} agents={} samples={} seed={} time={:.2}s throughput={:.1} hands/s",
         hands,rooms,agents.len(),samples,seed,start.elapsed().as_secs_f64(),hands as f64/start.elapsed().as_secs_f64().max(1e-9));
     println!("showdowns={} net_sum_for_first_seat={} checkpoint={}",showdowns,net_sum,path);
@@ -236,6 +269,13 @@ pub fn run(args: &[String]) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn eval_does_not_change_policy() {
+        let agent=Agent::new();
+        let before=agent.rows[0].logits;
+        let (_, ci)=evaluate(&agent, 20, 2, 9);
+        assert!(ci.is_finite());
+        assert_eq!(agent.rows[0].logits,before);
+    }
     #[test] fn valid_softmax() {
         let p=probabilities(&Row::default(),[false,true,false]);
         assert_eq!(p,[0.0,1.0,0.0]);
