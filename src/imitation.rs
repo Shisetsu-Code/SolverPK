@@ -47,6 +47,7 @@ fn key(record:&[u8;ROW])->usize{
 /// for transfer to Heads-Up and track unseen-state fallback.
 pub(crate) struct FrozenPolicy {
     pooled: [[[u64; 3]; 2]; 4*5*2*4],
+    original: [[[[u64;3];2];3];4*5*2*4],
 }
 impl FrozenPolicy {
     pub(crate) fn load(path: &str) -> io::Result<Self> {
@@ -58,6 +59,7 @@ impl FrozenPolicy {
         file.read_exact(&mut count)?;
         if u32::from_le_bytes(count) as usize!=BUCKETS {return Err(invalid("wrong bucket count"));}
         let mut pooled=[[[0u64;3];2];4*5*2*4];
+        let mut original=[[[[0u64;3];2];3];4*5*2*4];
         for street_rank_suit_price in 0..4*5*2*4 {
             for multi in 0..3 {
                 for pos in 0..2 {
@@ -65,6 +67,7 @@ impl FrozenPolicy {
                         let mut bytes=[0u8;8];
                         file.read_exact(&mut bytes)?;
                         let value=u64::from_le_bytes(bytes);
+                        original[street_rank_suit_price][multi][pos][action]=value;
                         pooled[street_rank_suit_price][pos][action]
                             =pooled[street_rank_suit_price][pos][action].saturating_add(value);
                     }
@@ -73,7 +76,28 @@ impl FrozenPolicy {
         }
         let mut trailing=[0u8;1];
         if file.read(&mut trailing)?!=0 {return Err(invalid("trailing model bytes"));}
-        Ok(Self{pooled})
+        Ok(Self{pooled,original})
+    }
+    pub(crate) fn predict_multi(
+        &self, street: usize, hole:[u8;2], pot:i64, call:i64,
+        on_button:bool, active:usize, legal:[bool;3]
+    )->([f32;3],bool) {
+        let a=hole[0];let b=hole[1];
+        let ranks=if a==255 || b==255 {4} else if a%13==b%13 {0} else {
+            let high=(a%13).max(b%13);
+            if high>=11{1}else if high>=8{2}else{3}
+        };
+        let suited=usize::from(a!=255 && b!=255 && a/13==b/13);
+        let odds=call as f64/(pot+call).max(1) as f64;
+        let price=if call==0{0}else if odds<0.2{1}else if odds<0.4{2}else{3};
+        let group=(((street.min(3)*5+ranks)*2+suited)*4)+price;
+        let multi=if active<=2{0}else if active<=4{1}else{2};
+        let counts=&self.original[group][multi][usize::from(on_button)];
+        let seen=counts.iter().sum::<u64>()>0;
+        let mut probs=[0f32;3];let mut total=0f32;
+        for i in 0..3{if legal[i]{probs[i]=(counts[i] as f32)+1.0;total+=probs[i];}}
+        for p in &mut probs{*p/=total;}
+        (probs,seen)
     }
     pub(crate) fn predict(
         &self, street: usize, hole:[u8;2], pot:i64, call:i64,
@@ -160,7 +184,7 @@ pub fn run(args:&[String])->io::Result<()>{
 mod tests{
     use super::*;
     #[test] fn transfer_respects_legal_actions(){
-        let model=FrozenPolicy{pooled:[[[0u64;3];2];4*5*2*4]};
+        let model=FrozenPolicy{pooled:[[[0u64;3];2];4*5*2*4],original:[[[[0u64;3];2];3];4*5*2*4]};
         let (p,seen)=model.predict(0,[51,50],3,1,true,[false,true,true]);
         assert!(!seen);
         assert_eq!(p,[0.0,0.5,0.5]);
