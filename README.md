@@ -63,3 +63,16 @@ No third-party runtime or ML crates are required.
 ## Measuring actual learning
 
 The self-play command also evaluates agent 0 **before and after training** against a frozen copy of the initial policy. It runs these evaluations without policy updates and reports estimated bb/100 with approximate 95% uncertainty bands. Use `--eval-hands 10000` for more evaluation hands (or `--eval-hands 0` to skip). This is an initial regression indicator, not a rigorous proof of generalization or GTO quality; trajectories are not fully paired because players sample different randomized decisions. Evaluation against multiple held-out opponents is still required.
+
+## Six-player no-limit arena
+
+An independent, runnable 6-max simulator is available in `src/sixmax.rs`. It supports full-hand settlement with side pots and short all-in reopening checks, six abstract decision types (fold, call/check, bet/raise 33%, 75%, pot and all-in), rotating button and blinds, and independent public-action range beliefs. It is not a GTO solver or a neural network; the opponent range beliefs are coarse heuristics.
+
+```bash
+cargo run --release -- --sixmax-train --hands 1000000 --seed 42 --checkpoint sixmax.bin
+cargo run --release -- --sixmax-eval --hands 120000 --seed 99 --checkpoint sixmax.bin --opponent random
+```
+
+To warm-start from an imported PHH imitation policy and compare two frozen generations, see [SIXMAX.md](SIXMAX.md). The six-max workflows evaluate against a frozen historical Pluribus **imitation**, not the actual Pluribus agent. Historical PHH replay and the earlier Heads-Up training use different model formats and cannot be mixed directly.
+
+The 1M-hand six-max ablation confirmed the current projected PHH policy does **not** improve the trained agent (direct matched-table scratch +46.604 bb/100 versus PHH warm-start, approximate 95% half-width 5.598 bb/100). These are simulation metrics, not results versus human opponents.
