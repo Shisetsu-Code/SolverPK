@@ -2,10 +2,11 @@
 
 Simuladores y agentes de investigación para **Texas Hold'em** en Rust, sin dependencias externas en el núcleo actual. Incluye Heads-Up tabular/Monte Carlo, arena no-limit 6-max, ingestión PHH y **una red neuronal real entrenada con 100 millones de manos sintéticas de self-play**.
 
-**Estado confirmado (2026-11-19):** entrenamiento 6-max neuronal de 100M completado en [GitHub Actions](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44564068762), con los diez bloques y 44 pruebas exitosos. El agente final obtuvo +60,11 ±14,42 bb/100 contra su profesor tabular y +47,35 ±8,09 bb/100 contra un imitador PHH. Son resultados **del simulador abstracto**, no GTO ni rendimiento esperado ante humanos.
+**Estado actual (2026-11-19):** motor 6-max corregido, con rake configurable y contabilidad verificada contra una referencia independiente. Los 100M de entrenamiento histórico están completados; sus pesos se conservaron y se reevaluaron con el motor corregido. La [auditoría completa](AUDIT_SIXMAX.md) documenta errores, pruebas, resultados y mejoras pendientes. El modelo sigue siendo un prototipo, con una limitación importante en la representación de palos.
 
 **Documentación principal:**
 
+- [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md): revisión actual de reglas, rake, ganancias, pruebas independientes y reevaluación del checkpoint 100M.
 - [PROJECT_STATUS.md](PROJECT_STATUS.md): inventario técnico, cronología, evidencia, parámetros, checkpoints, comandos, limitaciones y traspaso a otro desarrollador/LLM.
 - [CHANGELOG.md](CHANGELOG.md): historial cronológico de cambios y experimentos validados.
 - [ROADMAP.md](ROADMAP.md): mejoras propuestas en orden de prioridad, con criterios de aceptación.
@@ -26,26 +27,30 @@ cargo run --release -- --help
 
 ## Entrenar y evaluar: red neuronal 6-max
 
+Todos los comandos 6-max exigen `--rake-bps`: `500` equivale a 5%; `0` elige explícitamente comisión cero. Con rake positivo también se exige `--rake-cap-bb`. Los ejemplos usan 5% con cap de 3 BB y no-flop-no-drop; es un escenario configurable, no la tarifa de una sala específica.
+
 Red `64 → 32 ReLU → 6 softmax`, backpropagation con política REINFORCE y baseline móvil; observación parcial sin cartas ocultas, acciones fold/check-call/4 tamaños de subida. Checkpoint neuronal `SPKNN001`, **distinto de los formatos tabulares**.
 
 ```bash
 # Entrenar política neuronal desde cero con manos sintéticas 6-max
-cargo run --release -- --sixmax-neural-train --hands 20000 --seed 42 --checkpoint neural.bin
+cargo run --release -- --sixmax-neural-train --rake-bps 500 --rake-cap-bb 3 --hands 20000 --seed 42 --checkpoint neural.bin
 
 # Retomar una política ya entrenada
-cargo run --release -- --sixmax-neural-train --resume --hands 100000 --seed 43 --learning-rate 0.0005 --checkpoint neural.bin
+cargo run --release -- --sixmax-neural-train --rake-bps 500 --rake-cap-bb 3 --resume --hands 100000 --seed 43 --learning-rate 0.0005 --checkpoint neural.bin
 
 # Profesor tabular opcional, para una primera distilación supervisada
-cargo run --release -- --sixmax-train --hands 100000 --seed 42 --checkpoint tabular.bin
-cargo run --release -- --sixmax-neural-distill --teacher tabular.bin --hands 100000 --seed 43 --checkpoint distilled.bin
+cargo run --release -- --sixmax-train --rake-bps 500 --rake-cap-bb 3 --hands 100000 --seed 42 --checkpoint tabular.bin
+cargo run --release -- --sixmax-neural-distill --rake-bps 500 --rake-cap-bb 3 --teacher tabular.bin --hands 100000 --seed 43 --checkpoint distilled.bin
 
 # Evaluación: candidato neural vs 5 profesores tabulares
-cargo run --release -- --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural.bin --tabular tabular.bin
+cargo run --release -- --sixmax-neural-eval --rake-bps 500 --rake-cap-bb 3 --hands 120000 --seed 944104 --checkpoint neural.bin --tabular tabular.bin
 ```
 
 **Checkpoint real de 100M:** descargar desde [run 44564068762](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44564068762), artifact `neural-100m-checkpoint-100m` o `neural-100m-full-evidence`. El archivo de pesos no está versionado dentro de Git; su SHA-256 está registrado en [PROJECT_STATUS.md](PROJECT_STATUS.md). Guardar una copia fuera de GitHub Actions, que actualmente usa retención de 30 días.
 
-## Qué cambió con los 100M
+## Experimento histórico 100M, anterior a la auditoría
+
+**Las cifras de esta sección corresponden al motor anterior, sin rake.** Se conservan para trazabilidad; los resultados corregidos están en [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md).
 
 | Punto de evaluación | Contra profesor tabular | Contra imitador PHH |
 |---|---:|---:|
@@ -59,8 +64,8 @@ Cada par de cifras proviene de **120.000 manos** con la misma semilla de test y 
 ## Motor 6-max tabular y replay histórico
 
 ```bash
-cargo run --release -- --sixmax-train --hands 1000000 --seed 42 --checkpoint sixmax.bin
-cargo run --release -- --sixmax-eval --hands 120000 --seed 99 --checkpoint sixmax.bin --opponent random
+cargo run --release -- --sixmax-train --rake-bps 500 --rake-cap-bb 3 --hands 1000000 --seed 42 --checkpoint sixmax.bin
+cargo run --release -- --sixmax-eval --rake-bps 500 --rake-cap-bb 3 --hands 120000 --seed 99 --checkpoint sixmax.bin --opponent random
 
 # Importar PHH (p. ej. data/pluribus del repo público)
 cargo run --release -- --import-phh --source data/pluribus --output observations.bin
@@ -81,8 +86,8 @@ El Heads-Up usa política **tabular de 640 buckets y 3 acciones**, con Monte Car
 
 ## Límites y orden de próximas mejoras
 
-El motor es una abstracción con 4 tamaños de raise y sin rake; no ha superado una suite independiente de conformidad de apuestas, all-ins y side pots. La política neuronal de ~2.278 parámetros no modela el historial completo ni rangos de 1.326 combos; REINFORCE usa recompensa terminal de alta varianza. Solo se han contrastado unos pocos rivales fijos; no hay garantía de equilibrio, explotabilidad o GTO.
+El motor conserva cuatro tamaños abstractos de raise. El rake ahora se configura explícitamente; su liquidación pasó 100.000 manos contra otra implementación y el evaluador pasó las 2.598.960 manos de cinco cartas. Esto no certifica todas las variantes NLHE. La política de ~2.278 parámetros pierde la identidad de los palos propios, recorta recompensas y no modela el historial completo ni rangos de 1.326 combinaciones. Los rivales de evaluación siguen siendo limitados.
 
-**Próxima prioridad:** 1) auditar las reglas con una implementación independiente, 2) construir liga congelada y selección de mejor checkpoint con semillas de test nuevas, 3) checkpoints reproducibles/retomables, 4) rangos completos e historial de apuestas, 5) actor–critic neuronal mejorado, 6) paralelización y GPU AMD cuando se justifiquen. Los criterios detallados están en [ROADMAP.md](ROADMAP.md).
+**Próxima prioridad:** versionar y corregir las observaciones de cartas/palos, conservar el objetivo monetario de aprendizaje, acumular gradientes coherentes, ampliar la liga de evaluación y hacer los checkpoints reproducibles. Ver [ROADMAP.md](ROADMAP.md).
 
 Uso previsto: simulación y evaluación de estrategias fuera de línea. Licencia MIT.

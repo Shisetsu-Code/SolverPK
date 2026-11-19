@@ -1,5 +1,16 @@
 # Historial de cambios — SolverPK
 
+## 2026-11-19 — auditoría económica posterior a los 100M
+
+- Corregidos reparto de empates/side pots, tamaños calculados después del call, reapertura acumulativa de all-ins cortos y runouts sin apuestas posibles.
+- Nuevo `accounting.rs`: rake explícito, cap único, no-flop-no-drop, devoluciones excluidas, enteros de precisión fina y cierre de dinero por mano.
+- Duelo y evaluación reportan resultados netos; ambos equipos se acumulan por separado y los intervalos usan varianza muestral por reparto agrupado.
+- Corregidos derechos de subida y validación de historiales PHH, accuracy en empates, carga de checkpoints y desbordamientos de contadores.
+- Añadidos oráculo independiente de cartas, enumeración de 2.598.960 manos, 100.000 partidas con referencia independiente de liquidación e integración CLI.
+- Reevaluación congelada: 12 casos, 1,44M manos, tres semillas, dos rivales y dos perfiles de rake; hashes de pesos intactos. [Evidencia](AUDIT_SIXMAX.md).
+- Entrenamientos históricos pasan a ejecución manual; la validación del software se ejecuta automáticamente.
+- Hallazgos estratégicos pendientes: identidad de palos perdida en las observaciones, recompensa recortada, actualizaciones secuenciales con política modificada y referencias de evaluación muy comprimidas.
+
 > Bitácora funcional orientada a ingeniería. Para el estado vigente, las métricas completas y el traspaso consultar [PROJECT_STATUS.md](PROJECT_STATUS.md); para propuestas futuras [ROADMAP.md](ROADMAP.md).
 
 ## 2026-11-19 — entrenamiento neuronal 100M verificado

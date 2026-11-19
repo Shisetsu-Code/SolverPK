@@ -1,5 +1,7 @@
 # PHH integration — multiway replay and imitation baseline
 
+> Actualización de validación: la auditoría económica añadió rechazo de manos truncadas, reapertura individual por all-ins acumulados, respuesta obligatoria a apuestas pendientes y runouts sin checks artificiales frente a jugadores all-in. Los benchmarks históricos no identifican a este imitador como el agente Pluribus original. Ver [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md).
+
 Source: https://github.com/uoftcprg/phh-dataset
 
 The PHH importer is a separate **2–10-player historical replay/validation engine**. SolverPK **now also has a playable, trainable 6-max arena** in `src/sixmax.rs`, plus a neural 6-max policy in `src/neural.rs`; its rules implementation is separate from the PHH replay, so identical behavior between them is not automatically guaranteed. The earlier `src/selfplay.rs` agent remains Heads-Up only.

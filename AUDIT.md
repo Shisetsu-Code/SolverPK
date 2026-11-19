@@ -1,5 +1,7 @@
 # Audit findings — 2026-11-19
 
+> Este archivo conserva la auditoría histórica Heads-Up. La auditoría posterior del motor 6-max, rake y modelo 100M está en [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md).
+
 ## Scope
 
 Reviewed original Heads-Up simulation, tabular self-play, RNG, and frozen generation duel.

@@ -151,7 +151,10 @@ impl State{
         Ok(s)
     }
     fn next_street(&mut self, cards:&[u8])->Result<(),String>{
-        if !self.queue.is_empty() && self.stacks.iter().enumerate().filter(|(i,v)|**v>0 && !self.folded[*i]).count()>1{
+        let live_bettors=self.stacks.iter().enumerate().filter(|(p,v)|**v>0 && !self.folded[*p]).count();
+        let call_outstanding=self.stacks.iter().enumerate()
+            .any(|(p,&stack)|stack>0 && !self.folded[p] && self.street_paid[p]<self.current);
+        if call_outstanding || (!self.queue.is_empty() && live_bettors>1){
             return Err(format!("premature board transition; outstanding actions {:?}",self.queue));
         }
         let expected=match self.board_len{0=>3,3=>1,4=>1,_=>return Err("board already complete".into())};
@@ -160,8 +163,15 @@ impl State{
         self.street=match self.board_len{3=>1,4=>2,5=>3,_=>unreachable!()};
         self.street_paid.fill(0);self.current=0;self.min_raise=self.min_bet;
         self.acted_at.fill(None);
-        self.queue=ordered_after(self.button,self.stacks.len(),|p|!self.folded[p] && self.stacks[p]>0);
+        // A lone live stack cannot bet against all-in opponents. Once any
+        // outstanding call is resolved, the board runs out without checks.
+        self.queue=if live_bettors>1 {
+            ordered_after(self.button,self.stacks.len(),|p|!self.folded[p] && self.stacks[p]>0)
+        }else{VecDeque::new()};
         Ok(())
+    }
+    fn has_live_opponent(&self,p:usize)->bool{
+        self.stacks.iter().enumerate().any(|(q,&stack)|q!=p && !self.folded[q] && stack>0)
     }
     fn raise_right_open(&self,p:usize)->bool{
         // Short all-ins reopen only when their cumulative increment since
@@ -176,7 +186,7 @@ impl State{
         b[13]=self.stacks.len() as u8;b[14]=self.button as u8;
         let to_call=(self.current-self.street_paid[actor]).max(0);
         b[15]=(if to_call>0{1}else{0}) | 2 |
-            (if self.raise_right_open(actor) && self.stacks[actor]>to_call && self.stacks.iter().enumerate().any(|(p,&v)|p!=actor && !self.folded[p] && v>0){4}else{0});
+            (if self.raise_right_open(actor) && self.stacks[actor]>to_call && self.has_live_opponent(actor){4}else{0});
         b[16..18].copy_from_slice(&self.hole[actor]);
         b[88]=u8::from(is_pluribus); // actor identity, not a model feature
         let big_blind=self.min_bet.clamp(0,u32::MAX as i64) as u32;
@@ -194,6 +204,7 @@ impl State{
         if self.queue.front().copied()!=Some(p){return Err(format!("out of turn player {} expected {:?}",p+1,self.queue.front().map(|i|i+1)));}
         if self.folded[p] || self.stacks[p]==0{return Err("folded/all-in player cannot act".into());}
         if kind==2 && !self.raise_right_open(p){return Err("betting not reopened for this player".into());}
+        if kind==2 && !self.has_live_opponent(p){return Err("cannot raise against only all-in opponents".into());}
         let to_call=(self.current-self.street_paid[p]).max(0);
         self.queue.pop_front();
         match kind{
