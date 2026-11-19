@@ -168,7 +168,7 @@ struct View{
 fn state(v:View)->usize{
     let a=v.hole[0]%13;
     let b=v.hole[1]%13;
-    let strength=if a==b{0}else if a.max(b)>=11{1}else if a.max(b)>=8{2}else if a/13==b/13{3}else{4};
+    let strength=if a==b{0}else if a.max(b)>=11{1}else if a.max(b)>=8{2}else if v.hole[0]/13==v.hole[1]/13{3}else{4};
     let players=if v.active<=2{0}else if v.active<=4{1}else{2};
     let ratio=v.call as f64/(v.pot+v.call).max(1) as f64;
     let price=if v.call==0{0}else if ratio<0.28{1}else{2};
