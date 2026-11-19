@@ -202,12 +202,10 @@ fn evaluate(candidate: &Agent, hands: usize, samples: usize, seed: u64) -> (f64,
     for i in 0..hands {
         let mut agents = vec![candidate.clone(), Agent::new()];
         let mut rng = Rng::new(seed.wrapping_add((i/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
-        let seat = i % 2;
-        let result = if seat == 0 {
-            play(&mut agents, 0, 1, i, &mut rng, samples, 0.0, false).0
-        } else {
-            -play(&mut agents, 1, 0, i, &mut rng, samples, 0.0, false).0
-        };
+        // Candidate remains in physical seat 0; Table::new alternates
+        // the small blind according to i % 2. Do NOT swap both agent
+        // mapping and blind index, which fixes the candidate to SB.
+        let result = play(&mut agents, 0, 1, i, &mut rng, samples, 0.0, false).0;
         net += result;
         let bb = result as f64 / BIG_BLIND as f64;
         sum_sq += bb*bb;
@@ -241,12 +239,8 @@ pub fn duel(args: &[String]) -> io::Result<()> {
         // Every pair uses same starting RNG seed, opposite seats. Policy decisions
         // alter RNG consumption so these are NOT perfectly paired trajectories.
         let mut rng=Rng::new(seed.wrapping_add((hand/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
-        let (chips,shown) = if hand%2==0 {
-            play(&mut agents,0,1,hand,&mut rng,samples,0.0,false)
-        } else {
-            let (n,s)=play(&mut agents,1,0,hand,&mut rng,samples,0.0,false);
-            (-n,s)
-        };
+        // Left policy always occupies seat 0, while the blind alternates.
+        let (chips,shown) = play(&mut agents,0,1,hand,&mut rng,samples,0.0,false);
         win_sum+=chips;
         sq+=(chips as f64 / BIG_BLIND as f64).powi(2);
         showdown_count+=shown as u64;
@@ -284,11 +278,11 @@ pub fn run(args: &[String]) -> io::Result<()> {
     let mut net_sum=0i64;
     // Rooms are logical tables interleaved in one CPU process; not hardware-parallel.
     for hand in 0..hands {
-        let room = hand % rooms;
+        // Logical rooms currently have no effect on the number of threads.
         let a = rng.range(agents.len());
         let mut b = rng.range(agents.len()-1);
         if b >= a {b+=1;}
-        let (net,showdown)=play(&mut agents,a,b,hand+room,&mut rng,samples,alpha,verbose);
+        let (net,showdown)=play(&mut agents,a,b,hand,&mut rng,samples,alpha,verbose);
         net_sum+=net;
         showdowns+=showdown as u64;
         if (hand+1)%10000==0 { println!("played={} hands/s={:.1} showdowns={}",hand+1,(hand+1)as f64/start.elapsed().as_secs_f64().max(1e-9),showdowns); }
@@ -312,6 +306,15 @@ pub fn run(args: &[String]) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn alternates_blinds_in_training_and_evaluation() {
+        for hand in 0..100 {
+            let mut rng=Rng::new(hand as u64);
+            let table=Table::new(&mut rng,hand%2);
+            assert_eq!(table.pos,hand%2);
+            assert_eq!(table.street[hand%2],1);
+            assert_eq!(table.street[1-hand%2],2);
+        }
+    }
     #[test] fn eval_does_not_change_policy() {
         let agent=Agent::new();
         let before=agent.rows[0].logits;
