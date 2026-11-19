@@ -27,6 +27,10 @@ jobs:
         run: ./target/release/solverpk --sixmax-neural-eval --hands 6000 --seed 9401 --checkpoint sixmax-neural.bin --tabular sixmax-tabular.bin | tee neural-vs-tabular.log
       - name: Load old checkpoint and continue
         run: ./target/release/solverpk --sixmax-neural-train --resume --hands 5000 --learning-rate 0.001 --seed 4102 --checkpoint sixmax-neural.bin | tee neural-resume.log
+      - name: Supervised neural distillation from tabular teacher
+        run: ./target/release/solverpk --sixmax-neural-distill --hands 100000 --seed 6101 --teacher sixmax-tabular.bin --checkpoint sixmax-neural-distilled.bin | tee neural-distill.log
+      - name: Frozen distilled neural vs tabular
+        run: ./target/release/solverpk --sixmax-neural-eval --hands 12000 --seed 9401 --checkpoint sixmax-neural-distilled.bin --tabular sixmax-tabular.bin | tee neural-distilled-vs-tabular.log
       - name: Upload neural model and benchmarks
         if: always()
         uses: actions/upload-artifact@v4
@@ -39,5 +43,8 @@ jobs:
             neural-resume.log
             neural-vs-tabular.log
             tabular-train.log
+            sixmax-neural-distilled.bin
+            neural-distill.log
+            neural-distilled-vs-tabular.log
           retention-days: 30
           if-no-files-found: warn
