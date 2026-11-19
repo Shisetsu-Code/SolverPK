@@ -41,6 +41,70 @@ fn key(record:&[u8;ROW])->usize{
     let pos=if record[10]==record[14]{1}else{0};
     (((((street*5+ranks)*2+suited)*4+price)*3+multi)*2)+pos
 }
+
+/// Frozen behavior policy for evaluation in the Heads-Up arena.
+/// PHH learned from 6-player hands; pool the player-count dimension explicitly
+/// for transfer to Heads-Up and track unseen-state fallback.
+pub(crate) struct FrozenPolicy {
+    pooled: [[[u64; 3]; 2]; 4*5*2*4],
+}
+impl FrozenPolicy {
+    pub(crate) fn load(path: &str) -> io::Result<Self> {
+        let mut file=BufReader::new(File::open(path)?);
+        let mut magic=[0u8;8];
+        file.read_exact(&mut magic)?;
+        if &magic!=b"SPKIMT01" { return Err(invalid("not SPKIMT01 model")); }
+        let mut count=[0u8;4];
+        file.read_exact(&mut count)?;
+        if u32::from_le_bytes(count) as usize!=BUCKETS {return Err(invalid("wrong bucket count"));}
+        let mut pooled=[[[0u64;3];2];4*5*2*4];
+        for street_rank_suit_price in 0..4*5*2*4 {
+            for multi in 0..3 {
+                for pos in 0..2 {
+                    for action in 0..3 {
+                        let mut bytes=[0u8;8];
+                        file.read_exact(&mut bytes)?;
+                        let value=u64::from_le_bytes(bytes);
+                        pooled[street_rank_suit_price][pos][action]
+                            =pooled[street_rank_suit_price][pos][action].saturating_add(value);
+                    }
+                }
+            }
+        }
+        let mut trailing=[0u8;1];
+        if file.read(&mut trailing)?!=0 {return Err(invalid("trailing model bytes"));}
+        Ok(Self{pooled})
+    }
+    pub(crate) fn predict(
+        &self, street: usize, hole:[u8;2], pot:i64, call:i64,
+        on_button: bool, legal:[bool;3],
+    ) -> ([f32;3],bool) {
+        let a=hole[0];let b=hole[1];
+        let ranks=if a==255 || b==255 {4} else if a%13==b%13{0} else {
+            let high=(a%13).max(b%13);
+            if high>=11 {1} else if high>=8 {2} else {3}
+        };
+        let suited=usize::from(a!=255 && b!=255 && a/13==b/13);
+        let price=if call<=0 {0} else {
+            let ratio=call as f64/(pot.max(0)+call).max(1) as f64;
+            if ratio<0.2{1}else if ratio<0.4{2}else{3}
+        };
+        let group=(((street.min(3)*5+ranks)*2+suited)*4)+price;
+        let counts=&self.pooled[group][usize::from(on_button)];
+        let observations=counts.iter().sum::<u64>();
+        let mut probs=[0f32;3];let mut total=0.0;
+        for action in 0..3 {
+            if legal[action] {
+                // Laplace smoothing is the same as the PHH trainer.
+                probs[action]=(counts[action] as f64+SMOOTH) as f32;
+                total+=probs[action] as f64;
+            }
+        }
+        for p in &mut probs {*p=(*p as f64/total) as f32;}
+        (probs,observations>0)
+    }
+}
+
 fn scan<F:FnMut(&[u8;ROW])->io::Result<()>>(path:&str,mut consume:F)->io::Result<()>{
     let mut file=BufReader::new(File::open(path)?);
     let mut magic=[0u8;8];file.read_exact(&mut magic)?;
@@ -95,6 +159,12 @@ pub fn run(args:&[String])->io::Result<()>{
 #[cfg(test)]
 mod tests{
     use super::*;
+    #[test] fn transfer_respects_legal_actions(){
+        let model=FrozenPolicy{pooled:[[[0u64;3];2];4*5*2*4]};
+        let (p,seen)=model.predict(0,[51,50],3,1,true,[false,true,true]);
+        assert!(!seen);
+        assert_eq!(p,[0.0,0.5,0.5]);
+    }
     #[test] fn no_opponent_cards_in_feature_key(){
         let mut x=[0u8;96];
         x[11]=2;x[16]=51;x[17]=50;x[72..80].copy_from_slice(&6i64.to_le_bytes());
