@@ -7,6 +7,7 @@ Simuladores y agentes de investigación para **Texas Hold'em** en Rust, sin depe
 **Documentación principal:**
 
 - [PROJECT_STATUS.md](PROJECT_STATUS.md): inventario técnico, cronología, evidencia, parámetros, checkpoints, comandos, limitaciones y traspaso a otro desarrollador/LLM.
+- [CHANGELOG.md](CHANGELOG.md): historial cronológico de cambios y experimentos validados.
 - [ROADMAP.md](ROADMAP.md): mejoras propuestas en orden de prioridad, con criterios de aceptación.
 - [NEURAL_SIXMAX.md](NEURAL_SIXMAX.md): arquitectura neuronal, aprendizaje y resultados.
 - [SIXMAX.md](SIXMAX.md): motor multijugador, reglas y self-play tabular.
