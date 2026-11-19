@@ -1,4 +1,5 @@
 name: 50 USD bankroll stop-loss and wager-cap audit
+# Includes hero-only all-in frequency and maximum actual exposure.
 on:
   push:
     paths:
