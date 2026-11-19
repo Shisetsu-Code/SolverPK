@@ -47,3 +47,52 @@ fn historical_checkpoint_cannot_be_silently_resumed_or_overwritten(){
     assert_eq!(std::fs::read(&path).unwrap(),bytes);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn starting_a_new_run_does_not_replace_an_existing_checkpoint(){
+    let dir=directory("no-clobber");let path=dir.join("keep.bin");
+    successful(train(&path,"12",false));
+    let before=std::fs::read(&path).unwrap();
+    let output=train(&path,"12",false);
+    assert!(!output.status.success(),"a fresh run silently replaced an existing trained model");
+    assert_eq!(std::fs::read(&path).unwrap(),before);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn malformed_or_duplicate_training_arguments_do_not_silently_change_provenance(){
+    let dir=directory("invalid-args");
+    for (i,extra) in [vec!["--seed","not-a-seed"],vec!["--learning-rate","not-a-rate"],
+        vec!["--hands","18"],vec!["--seed"]].iter().enumerate(){
+        let path=dir.join(format!("invalid-{i}.bin"));
+        let output=Command::new(env!("CARGO_BIN_EXE_solverpk"))
+            .args(["--sixmax-neural-train","--hands","12","--rake-bps","0",
+                "--checkpoint",path.to_str().unwrap()]).args(extra).output().unwrap();
+        assert!(!output.status.success(),"invalid configuration was accepted: {extra:?}");
+        assert!(!path.exists(),"invalid input wrote a misleading checkpoint");
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn distillation_resume_is_exact_and_teacher_provenance_stays_unverified(){
+    let dir=directory("distill");let teacher=dir.join("teacher.bin");
+    let run=|args:&[&str]|successful(Command::new(env!("CARGO_BIN_EXE_solverpk")).args(args).output().unwrap());
+    run(&["--sixmax-train","--hands","12","--seed","713","--learning-rate","0",
+        "--checkpoint",teacher.to_str().unwrap(),"--rake-bps","0"]);
+    let continuous=dir.join("continuous.bin");let split=dir.join("split.bin");
+    let distill=|path:&Path,hands:&str,resume:bool|{
+        let mut args=vec!["--sixmax-neural-distill","--teacher",teacher.to_str().unwrap(),
+            "--hands",hands,"--seed","717","--learning-rate","0.001","--rake-bps","0",
+            "--checkpoint",path.to_str().unwrap()];
+        if resume{args.push("--resume");}run(&args)
+    };
+    distill(&continuous,"12",false);distill(&split,"6",false);distill(&split,"6",true);
+    assert!(std::fs::read(&continuous).unwrap()==std::fs::read(&split).unwrap(),
+        "distillation resume did not preserve weights and metadata");
+    let out=run(&["--sixmax-neural-league","--checkpoint",split.to_str().unwrap(),
+        "--hands","12","--seed","3003","--rake-bps","0"]);
+    assert!(out.lines().filter(|s|s.starts_with("SIXMAX_LEAGUE_ROW "))
+        .all(|s|s.contains("split=unverified_external")),"{out}");
+    std::fs::remove_dir_all(dir).unwrap();
+}

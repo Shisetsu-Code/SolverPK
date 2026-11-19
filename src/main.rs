@@ -226,6 +226,8 @@ fn main() {
         println!("solverpk --hands 10000 --seed 42 --samples 64 --verbose");
         println!("solverpk --sixmax-train --hands 100000 --checkpoint sixmax.bin --rake-bps 500 --rake-cap-bb 3");
         println!("solverpk --sixmax-neural-train --hands 20000 --checkpoint sixmax-neural.bin --rake-bps 500 --rake-cap-bb 3");
+        println!("solverpk --sixmax-neural-league --checkpoint neural-v2.bin --hands 120000 --seed 2026111901 --rake-bps 500 --rake-cap-bb 3 [--rival-checkpoint historical.bin]");
+        println!("Neural training creates SPKNN002; legacy SPKNN001 is evaluation-only. Resume continues recorded deal indices.");
         println!("solverpk --sixmax-neural-distill --teacher sixmax.bin --hands 100000 --checkpoint sixmax-neural.bin --rake-bps 0");
         println!("solverpk --sixmax-neural-eval --hands 6000 --checkpoint sixmax-neural.bin --tabular sixmax.bin --rake-bps 500 --rake-cap-bb 3");
         println!("solverpk --sixmax-eval --hands 60000 --checkpoint sixmax.bin --rake-bps 0");
@@ -250,6 +252,10 @@ fn main() {
     }
     if args.iter().any(|a| a=="--sixmax-neural-train") {
         if let Err(e)=sixmax::neural_train(&args) {eprintln!("Neural training error: {e}");std::process::exit(2);}
+        return;
+    }
+    if args.iter().any(|a| a=="--sixmax-neural-league") {
+        if let Err(e)=sixmax::neural_league(&args) {eprintln!("Neural league error: {e}");std::process::exit(2);}
         return;
     }
     if args.iter().any(|a| a=="--sixmax-neural-eval") {
