@@ -244,7 +244,14 @@ fn state(v:View)->usize{
     let ratio=v.call as f64/(v.pot+v.call).max(1) as f64;
     let price=if v.call==0{0}else if ratio<0.28{1}else{2};
     let pos=if v.on_button{0}else if v.street==0{1}else{2};
-    (((((v.street as usize*5+strength)*3+players)*3+price)*3+pos)*4+v.texture)*3+v.pressure as usize)*3+v.range_bucket
+    let mut key=v.street as usize;
+    for (factor,bucket) in [
+        (5,strength),(3,players),(3,price),(3,pos),
+        (4,v.texture),(3,v.pressure as usize),(3,v.range_bucket)
+    ] {
+        key=key*factor+bucket;
+    }
+    key
 }
 #[derive(Clone,Copy)]
 struct PolicyRow{weights:[f32;ACTIONS],baseline:f32,visits:u32}
