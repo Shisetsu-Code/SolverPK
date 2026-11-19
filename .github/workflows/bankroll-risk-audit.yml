@@ -26,14 +26,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p references evidence
-          gh run download 44601763525 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-10m --dir references
-          gh run download 44603187298 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-20m --dir references
-          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir references
-          test -s references/tabular-corrected-10m.bin
-          test -s references/tabular-corrected-20m.bin
-          test -s references/pluribus-imitation.bin
-          sha256sum references/tabular-corrected-10m.bin references/tabular-corrected-20m.bin references/pluribus-imitation.bin > evidence/before.sha256
+          mkdir -p references/ten references/twenty references/phh evidence
+          gh run download 44601763525 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-10m --dir references/ten
+          gh run download 44603187298 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-20m --dir references/twenty
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir references/phh
+          test -s references/ten/tabular-corrected-10m.bin
+          test -s references/twenty/tabular-corrected-20m.bin
+          test -s references/phh/pluribus-imitation.bin
+          sha256sum references/ten/tabular-corrected-10m.bin references/twenty/tabular-corrected-20m.bin references/phh/pluribus-imitation.bin > evidence/before.sha256
       - name: Exercise stop loss on frozen tabular policies and multiple rivals
         shell: bash
         run: |
@@ -41,8 +41,9 @@ jobs:
           for model in 10 20; do
             for rival in phh random clone; do
               for seed in 990071 990073 990079 990081 990083; do
-                args=(--sixmax-bankroll-eval --hands 100000 --seed "$seed" --checkpoint "references/tabular-corrected-${model}m.bin" --opponent "$rival" --bankroll-usd 50 --max-bet-usd 10 --stop-loss-usd 50 --rake-bps 500 --rake-cap-bb 3)
-                if [[ "$rival" == phh ]]; then args+=(--phh-model references/pluribus-imitation.bin); fi
+                if [[ "$model" == "10" ]]; then checkpoint="references/ten/tabular-corrected-10m.bin"; else checkpoint="references/twenty/tabular-corrected-20m.bin"; fi
+                args=(--sixmax-bankroll-eval --hands 100000 --seed "$seed" --checkpoint "references/${model == 10 ? "ten" : "twenty"}/tabular-corrected-${model}m.bin" --opponent "$rival" --bankroll-usd 50 --max-bet-usd 10 --stop-loss-usd 50 --rake-bps 500 --rake-cap-bb 3)
+                if [[ "$rival" == phh ]]; then args+=(--phh-model references/phh/pluribus-imitation.bin); fi
                 ./target/release/solverpk "${args[@]}" | tee -a evidence/bankroll-results.log
               done
             done
