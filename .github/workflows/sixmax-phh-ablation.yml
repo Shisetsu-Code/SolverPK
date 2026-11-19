@@ -49,6 +49,12 @@ jobs:
           set -euo pipefail
           ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint scratch.bin --opponent clone | tee scratch-clone.log
           ./target/release/solverpk --sixmax-eval --hands 120000 --seed 99122 --checkpoint warmstart.bin --opponent clone | tee warmstart-clone.log
+      - name: Matched three-versus-three generation duel
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000 --seed 99122 | tee direct-duel.log
+          ./target/release/solverpk --sixmax-duel --left scratch.bin --right scratch.bin --hands 120000 --seed 99122 | tee null-duel.log
       - name: Save evidence and model checkpoints
         if: always()
         uses: actions/upload-artifact@v4
@@ -63,5 +69,7 @@ jobs:
             warmstart-phh.log
             scratch-clone.log
             warmstart-clone.log
+            direct-duel.log
+            null-duel.log
           retention-days: 30
           if-no-files-found: warn
