@@ -1,0 +1,196 @@
+name: Neural 100 million 6max self-play hands
+on:
+  push:
+    paths:
+      - '.github/workflows/neural-100m.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  neural-100m:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --all-targets
+          cargo build --release
+      - name: Restore 1M-hand distilled neural seed and frozen reference bots
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p models checkpoints
+          gh run download 44562688853 --repo Shisetsu-Code/SolverPK --name sixmax-neural-million --dir models
+          mv models/neural-250k.bin neural-100m.bin
+          gh run download 44550178708 --repo Shisetsu-Code/SolverPK --name sixmax-phh-ablation --dir models
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir models
+          test -s neural-100m.bin
+          test -s models/scratch.bin
+          test -s models/pluribus-imitation.bin
+          sha256sum neural-100m.bin models/scratch.bin models/pluribus-imitation.bin | tee initial-checksums.txt
+      - name: Frozen baseline before further training
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-0m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-0m-phh.log
+      - name: Self-play 10M / 100M (phase 1)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 810211 --learning-rate 0.00060 --checkpoint neural-100m.bin | tee train-10m.log
+          cp neural-100m.bin checkpoints/neural-10m.bin
+          test -s checkpoints/neural-10m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 10000000 0.00060 | tee -a train-10m.log
+      - name: Validate frozen neural at 10M versus teacher and PHH
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-10m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-10m-phh.log
+      - name: Persist 10M milestone
+        uses: actions/upload-artifact@v4
+        with:
+          name: neural-100m-checkpoint-10m
+          path: |
+            checkpoints/neural-10m.bin
+            train-10m.log
+            eval-10m-teacher.log
+            eval-10m-phh.log
+          retention-days: 30
+      - name: Self-play 20M / 100M (phase 2)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 820422 --learning-rate 0.00048 --checkpoint neural-100m.bin | tee train-20m.log
+          cp neural-100m.bin checkpoints/neural-20m.bin
+          test -s checkpoints/neural-20m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 20000000 0.00048 | tee -a train-20m.log
+      - name: Self-play 30M / 100M (phase 3)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 830633 --learning-rate 0.00038 --checkpoint neural-100m.bin | tee train-30m.log
+          cp neural-100m.bin checkpoints/neural-30m.bin
+          test -s checkpoints/neural-30m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 30000000 0.00038 | tee -a train-30m.log
+      - name: Self-play 40M / 100M (phase 4)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 840844 --learning-rate 0.00030 --checkpoint neural-100m.bin | tee train-40m.log
+          cp neural-100m.bin checkpoints/neural-40m.bin
+          test -s checkpoints/neural-40m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 40000000 0.00030 | tee -a train-40m.log
+      - name: Self-play 50M / 100M (phase 5)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 851055 --learning-rate 0.00024 --checkpoint neural-100m.bin | tee train-50m.log
+          cp neural-100m.bin checkpoints/neural-50m.bin
+          test -s checkpoints/neural-50m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 50000000 0.00024 | tee -a train-50m.log
+      - name: Validate frozen neural at 50M versus teacher and PHH
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-50m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-50m-phh.log
+      - name: Persist 50M milestone
+        uses: actions/upload-artifact@v4
+        with:
+          name: neural-100m-checkpoint-50m
+          path: |
+            checkpoints/neural-50m.bin
+            train-50m.log
+            eval-50m-teacher.log
+            eval-50m-phh.log
+          retention-days: 30
+      - name: Self-play 60M / 100M (phase 6)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 861266 --learning-rate 0.00019 --checkpoint neural-100m.bin | tee train-60m.log
+          cp neural-100m.bin checkpoints/neural-60m.bin
+          test -s checkpoints/neural-60m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 60000000 0.00019 | tee -a train-60m.log
+      - name: Self-play 70M / 100M (phase 7)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 871477 --learning-rate 0.00015 --checkpoint neural-100m.bin | tee train-70m.log
+          cp neural-100m.bin checkpoints/neural-70m.bin
+          test -s checkpoints/neural-70m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 70000000 0.00015 | tee -a train-70m.log
+      - name: Self-play 80M / 100M (phase 8)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 881688 --learning-rate 0.00012 --checkpoint neural-100m.bin | tee train-80m.log
+          cp neural-100m.bin checkpoints/neural-80m.bin
+          test -s checkpoints/neural-80m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 80000000 0.00012 | tee -a train-80m.log
+      - name: Self-play 90M / 100M (phase 9)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 891899 --learning-rate 0.000095 --checkpoint neural-100m.bin | tee train-90m.log
+          cp neural-100m.bin checkpoints/neural-90m.bin
+          test -s checkpoints/neural-90m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 90000000 0.000095 | tee -a train-90m.log
+      - name: Self-play 100M / 100M (phase 10)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 902110 --learning-rate 0.000075 --checkpoint neural-100m.bin | tee train-100m.log
+          cp neural-100m.bin checkpoints/neural-100m.bin
+          test -s checkpoints/neural-100m.bin
+          printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 100000000 0.000075 | tee -a train-100m.log
+      - name: Validate frozen neural at 100M versus teacher and PHH
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-100m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-100m-phh.log
+      - name: Persist 100M milestone
+        uses: actions/upload-artifact@v4
+        with:
+          name: neural-100m-checkpoint-100m
+          path: |
+            checkpoints/neural-100m.bin
+            train-100m.log
+            eval-100m-teacher.log
+            eval-100m-phh.log
+          retention-days: 30
+      - name: Verify 100M scheduled self-play hands and final artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find checkpoints -maxdepth 1 -name 'neural-*.bin' | wc -l)" -eq 10
+          for n in $(seq 10 10 100); do
+            test -s "checkpoints/neural-${n}m.bin"
+            test -s "train-${n}m.log"
+            grep -q "SIXMAX_NEURAL_TRAIN hands=10000000" "train-${n}m.log"
+          done
+          sha256sum checkpoints/neural-100m.bin | tee final-checksum.txt
+          echo "CONFIRMED_100M_HANDS=100000000"
+      - name: Upload checkpoints logs and final neural policy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neural-100m-full-evidence
+          path: |
+            checkpoints/
+            train-*m.log
+            eval-*m-*.log
+            initial-checksums.txt
+            final-checksum.txt
+          retention-days: 30
+          if-no-files-found: warn
