@@ -1,0 +1,45 @@
+name: Statistical baseline controls
+on:
+  push:
+    paths:
+      - 'src/**'
+      - '.github/workflows/statistical-controls.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify tests and compile
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Restore previous trained policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 44522869784 --repo Shisetsu-Code/SolverPK --name solverpk-10m-continuation --dir old
+          test -s old/selfplay.bin
+      - name: Fixed random opponent and pure Monte Carlo baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --baseline-test --checkpoint old/selfplay.bin --baseline random --hands 100000 --samples 16 --seed 711 | tee random.log
+          ./target/release/solverpk --baseline-test --checkpoint old/selfplay.bin --baseline mc --hands 100000 --samples 16 --seed 722 | tee mc.log
+          ./target/release/solverpk --baseline-test --checkpoint old/selfplay.bin --baseline clone --hands 100000 --samples 16 --seed 733 | tee clone.log
+      - name: Upload statistical controls
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: statistical-baselines
+          path: |
+            random.log
+            mc.log
+            clone.log
+          retention-days: 30
+          if-no-files-found: warn
