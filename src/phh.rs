@@ -122,7 +122,7 @@ struct State{
     stacks:Vec<i64>,start:Vec<i64>,total:Vec<i64>,street_paid:Vec<i64>,
     folded:Vec<bool>,hole:Vec<[u8;2]>,board:[u8;5],board_len:usize,
     pot:i64,street:u8,current:i64,min_raise:i64,min_bet:i64,
-    queue:VecDeque<usize>,button:usize,
+    queue:VecDeque<usize>,button:usize,acted_at:Vec<Option<i64>>,
 }
 fn ordered_after(seat:usize,n:usize,eligible:impl Fn(usize)->bool)->VecDeque<usize>{
     (1..=n).map(|k|(seat+k)%n).filter(|&p|eligible(p)).collect()
@@ -134,6 +134,7 @@ impl State{
             street_paid:vec![0;n],folded:vec![false;n],hole:vec![[UNKNOWN;2];n],
             board:[UNKNOWN;5],board_len:0,pot:0,street:0,current:0,
             min_raise:hand.min_bet,min_bet:hand.min_bet,queue:VecDeque::new(),button:0,
+            acted_at:vec![None;n],
         };
         for p in 0..n {
             let ante=hand.antes[p].min(s.stacks[p]);
@@ -158,8 +159,14 @@ impl State{
         for &c in cards{self.board[self.board_len]=c;self.board_len+=1;}
         self.street=match self.board_len{3=>1,4=>2,5=>3,_=>unreachable!()};
         self.street_paid.fill(0);self.current=0;self.min_raise=self.min_bet;
+        self.acted_at.fill(None);
         self.queue=ordered_after(self.button,self.stacks.len(),|p|!self.folded[p] && self.stacks[p]>0);
         Ok(())
+    }
+    fn raise_right_open(&self,p:usize)->bool{
+        // Short all-ins reopen only when their cumulative increment since
+        // this player's last action reaches the last complete raise size.
+        self.acted_at[p].map_or(true,|previous|self.current-previous>=self.min_raise)
     }
     fn observe(&self,actor:usize,action:u8,amount:i64,hand_id:u64,index:u16,is_pluribus:bool)->[u8;96]{
         let mut b=[0u8;RECORD_BYTES];
@@ -169,7 +176,7 @@ impl State{
         b[13]=self.stacks.len() as u8;b[14]=self.button as u8;
         let to_call=(self.current-self.street_paid[actor]).max(0);
         b[15]=(if to_call>0{1}else{0}) | 2 |
-            (if self.stacks[actor]>to_call && self.stacks.iter().enumerate().any(|(p,&v)|p!=actor && !self.folded[p] && v>0){4}else{0});
+            (if self.raise_right_open(actor) && self.stacks[actor]>to_call && self.stacks.iter().enumerate().any(|(p,&v)|p!=actor && !self.folded[p] && v>0){4}else{0});
         b[16..18].copy_from_slice(&self.hole[actor]);
         b[88]=u8::from(is_pluribus); // actor identity, not a model feature
         let big_blind=self.min_bet.clamp(0,u32::MAX as i64) as u32;
@@ -186,6 +193,7 @@ impl State{
     fn action(&mut self,p:usize,kind:u8,amount:i64)->Result<(),String>{
         if self.queue.front().copied()!=Some(p){return Err(format!("out of turn player {} expected {:?}",p+1,self.queue.front().map(|i|i+1)));}
         if self.folded[p] || self.stacks[p]==0{return Err("folded/all-in player cannot act".into());}
+        if kind==2 && !self.raise_right_open(p){return Err("betting not reopened for this player".into());}
         let to_call=(self.current-self.street_paid[p]).max(0);
         self.queue.pop_front();
         match kind{
@@ -210,12 +218,13 @@ impl State{
                 self.stacks[p]-=payment;self.total[p]+=payment;self.street_paid[p]=target;self.pot+=payment;
                 self.current=target;
                 if raise>=self.min_raise {self.min_raise=raise;}
-                // Short all-in raises do not reopen action for players who have
-                // already acted; all others must still respond.
+                // Every player owing chips must respond; raise_right_open
+                // separately tracks whether that response may include a raise.
                 self.queue=ordered_after(p,self.stacks.len(),|i|!self.folded[i] && i!=p && self.stacks[i]>0 && self.street_paid[i]<target);
             }
             _=>return Err("invalid action kind".into())
         }
+        self.acted_at[p]=Some(self.current);
         Ok(())
     }
     fn settle(&self,hand:&Hand)->Result<(),String>{

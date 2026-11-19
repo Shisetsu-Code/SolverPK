@@ -28,25 +28,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-train --hands 100000 --seed 79131 --checkpoint 6max.bin | tee train-100k.log
+          ./target/release/solverpk --sixmax-train --rake-bps 0 --hands 100000 --seed 79131 --checkpoint 6max.bin | tee train-100k.log
           cp 6max.bin model-100k.bin
       - name: Evaluate generation 100k
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 92001 --checkpoint model-100k.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee eval-100k-phh.log
-          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 92001 --checkpoint model-100k.bin --opponent clone | tee eval-100k-clone.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 120000 --seed 92001 --checkpoint model-100k.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee eval-100k-phh.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 120000 --seed 92001 --checkpoint model-100k.bin --opponent clone | tee eval-100k-clone.log
       - name: Continue to 1M
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-train --resume --hands 900000 --seed 79132 --checkpoint 6max.bin | tee train-1m.log
+          ./target/release/solverpk --sixmax-train --rake-bps 0 --resume --hands 900000 --seed 79132 --checkpoint 6max.bin | tee train-1m.log
       - name: Evaluate generation 1M on same held-out seeds
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 92001 --checkpoint 6max.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee eval-1m-phh.log
-          ./target/release/solverpk --sixmax-eval --hands 120000 --seed 92001 --checkpoint 6max.bin --opponent clone | tee eval-1m-clone.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 120000 --seed 92001 --checkpoint 6max.bin --opponent phh --phh-model phh/pluribus-imitation.bin | tee eval-1m-phh.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 120000 --seed 92001 --checkpoint 6max.bin --opponent clone | tee eval-1m-clone.log
           sha256sum model-100k.bin 6max.bin | tee model-sha256.txt
       - name: Save generation checkpoints and metrics
         if: always()

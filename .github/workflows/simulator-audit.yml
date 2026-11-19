@@ -2,7 +2,7 @@ name: Simulator accounting audit
 on:
   push:
     branches: [main, 'audit/simulator-accounting-20261119']
-    paths: ['src/**', 'Cargo.toml', '.github/workflows/simulator-audit.yml']
+    paths: ['src/**', 'tests/**', 'scripts/audit_evaluate.py', 'Cargo.toml', '.github/workflows/simulator-audit.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,6 +26,28 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --release exhaustive_five_card -- --ignored --nocapture 2>&1 | tee audit-exhaustive.log
+      - name: Independent accounting over 100000 legal hands
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --release audit_stress -- --ignored --nocapture 2>&1 | tee audit-stress.log
+      - name: Restore immutable 100M checkpoint and frozen opponents
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/audit/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit-models
+          gh run download 44564068762 --repo Shisetsu-Code/SolverPK --name neural-100m-full-evidence --dir audit-models
+          gh run download 44550178708 --repo Shisetsu-Code/SolverPK --name sixmax-phh-ablation --dir audit-models
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir audit-models
+      - name: Frozen reevaluation with explicit rake and new seeds
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/audit/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/audit_evaluate.py --hands 120000 2>&1 | tee audit-evaluation.log
       - name: Save validation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -33,6 +55,7 @@ jobs:
           name: simulator-audit-evidence
           path: |
             audit-*.log
+            audit-evaluation.json
             target/release/solverpk
           retention-days: 90
           if-no-files-found: warn

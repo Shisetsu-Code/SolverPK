@@ -18,13 +18,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-train --hands 100000 --seed 7101 --checkpoint sixmax.bin | tee training.log
+          ./target/release/solverpk --sixmax-train --rake-bps 0 --hands 100000 --seed 7101 --checkpoint sixmax.bin | tee training.log
           test -s sixmax.bin
       - name: Frozen six-seat baseline evaluation
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin | tee evaluation.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 60000 --seed 9101 --checkpoint sixmax.bin | tee evaluation.log
       - name: Restore frozen Pluribus imitation policy
         env:
           GH_TOKEN: ${{ github.token }}
@@ -38,9 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent phh --phh-model phh-model/pluribus-imitation.bin | tee evaluation-phh.log
-          ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent phh --candidate-phh --phh-model phh-model/pluribus-imitation.bin | tee evaluation-phh-null.log
-          ./target/release/solverpk --sixmax-eval --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent clone | tee evaluation-clone.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent phh --phh-model phh-model/pluribus-imitation.bin | tee evaluation-phh.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent phh --candidate-phh --phh-model phh-model/pluribus-imitation.bin | tee evaluation-phh-null.log
+          ./target/release/solverpk --sixmax-eval --rake-bps 0 --hands 60000 --seed 9101 --checkpoint sixmax.bin --opponent clone | tee evaluation-clone.log
       - name: Save evidence and trained policy
         if: always()
         uses: actions/upload-artifact@v4

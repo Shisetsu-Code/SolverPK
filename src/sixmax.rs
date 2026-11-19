@@ -34,6 +34,10 @@ fn cluster_result(sum:f64,sumsq:f64,groups:usize,player_hands_per_group:f64)->(f
 #[path = "sixmax_audit_tests.rs"]
 mod audit_tests;
 
+#[cfg(test)]
+#[path = "sixmax_stress_tests.rs"]
+mod stress_tests;
+
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 enum Action {Fold,Call,Raise(i64)} // Raise to street-total
 #[derive(Clone)]
@@ -634,9 +638,12 @@ fn load(path:&str)->io::Result<[Bot;N]>{
                 if !x.is_finite(){return Err(io::Error::new(io::ErrorKind::InvalidData,"nonfinite weight"));}
             }
             let mut b=[0u8;4];file.read_exact(&mut b)?;row.baseline=f32::from_le_bytes(b);
+            if !row.baseline.is_finite(){return Err(io::Error::new(io::ErrorKind::InvalidData,"nonfinite baseline"));}
             let mut v=[0u8;4];file.read_exact(&mut v)?;row.visits=u32::from_le_bytes(v);
         }
     }
+    let mut trailing=[0u8;1];
+    if file.read(&mut trailing)?!=0{return Err(io::Error::new(io::ErrorKind::InvalidData,"trailing 6max checkpoint bytes"));}
     Ok(bots)
 }
 pub fn run(args:&[String])->io::Result<()>{
