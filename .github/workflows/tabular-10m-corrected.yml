@@ -1,0 +1,96 @@
+name: Tabular 6max corrected engine 10M
+on:
+  push:
+    paths:
+      - '.github/workflows/tabular-10m-corrected.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test and build corrected simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --all-targets --no-fail-fast
+          cargo test --release exhaustive_five_card -- --ignored
+          cargo test --release audit_stress -- --ignored
+          cargo build --release
+          git rev-parse HEAD | tee source-commit.txt
+      - name: Restore frozen PHH and historical tabular reference
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p references
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir references
+          gh run download 44550178708 --repo Shisetsu-Code/SolverPK --name sixmax-phh-ablation --dir references
+          test -s references/pluribus-imitation.bin
+          test -s references/scratch.bin
+          sha256sum references/pluribus-imitation.bin references/scratch.bin | tee reference-sha256.txt
+      - name: Fresh corrected self-play 5M
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-train --hands 5000000 --seed 2026111901 --learning-rate 0.01 --rake-bps 500 --rake-cap-bb 3 --checkpoint tabular-corrected-10m.bin | tee train-5m.log
+          cp tabular-corrected-10m.bin tabular-corrected-5m.bin
+          sha256sum tabular-corrected-5m.bin | tee checkpoint-5m-sha256.txt
+          test -s tabular-corrected-5m.bin
+      - name: Continue to 10M with independent deal stream
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-train --resume --hands 5000000 --seed 2026111902 --learning-rate 0.005 --rake-bps 500 --rake-cap-bb 3 --checkpoint tabular-corrected-10m.bin | tee train-10m.log
+          sha256sum tabular-corrected-10m.bin | tee checkpoint-10m-sha256.txt
+          test -s tabular-corrected-10m.bin
+          grep -q 'SIXMAX hands=5000000' train-5m.log
+          grep -q 'SIXMAX hands=5000000' train-10m.log
+          echo 'CONFIRMED_TRAINED_HANDS=10000000'
+      - name: Evaluate frozen corrected 5M and 10M on held-out deals
+        shell: bash
+        run: |
+          set -euo pipefail
+          for generation in 5 10; do
+            for eval_seed in 990071 990073; do
+              for rival in random clone phh; do
+                args=(--sixmax-eval --hands 120000 --seed "$eval_seed" --rake-bps 500 --rake-cap-bb 3 --checkpoint "tabular-corrected-${generation}m.bin" --opponent "$rival")
+                if [[ "$rival" == phh ]]; then args+=(--phh-model references/pluribus-imitation.bin); fi
+                ./target/release/solverpk "${args[@]}" | tee "eval-${generation}m-${rival}-${eval_seed}.log"
+              done
+            done
+          done
+      - name: Compare corrected 10M directly against historical tabular
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/release/solverpk --sixmax-duel --left tabular-corrected-10m.bin --right references/scratch.bin --hands 120000 --seed 990071 --rake-bps 500 --rake-cap-bb 3 | tee duel-10m-vs-historical.log
+      - name: Verify final frozen hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum -c checkpoint-5m-sha256.txt
+          sha256sum -c checkpoint-10m-sha256.txt
+          sha256sum -c reference-sha256.txt
+      - name: Store evidence and frozen policies
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sixmax-tabular-corrected-10m
+          path: |
+            tabular-corrected-5m.bin
+            tabular-corrected-10m.bin
+            train-5m.log
+            train-10m.log
+            eval-*.log
+            duel-*.log
+            *sha256.txt
+            source-commit.txt
+          retention-days: 90
+          if-no-files-found: warn
