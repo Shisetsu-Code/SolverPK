@@ -1,4 +1,4 @@
-name: Neural distillation from million-hand 6max teacher
+name: Neural v2 distillation from million-hand 6max teacher
 on:
   workflow_dispatch:
 permissions:
@@ -27,24 +27,24 @@ jobs:
           gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir models
           test -s models/pluribus-imitation.bin
       - name: Distill 250k complete hands
-        run: ./target/release/solverpk --sixmax-neural-distill --rake-bps 0 --teacher models/scratch.bin --hands 250000 --seed 71115 --checkpoint neural-250k.bin | tee distill-250k.log
+        run: ./target/release/solverpk --sixmax-neural-distill --rake-bps 0 --teacher models/scratch.bin --hands 250000 --seed 71115 --checkpoint neural-v2-250k.bin | tee distill-250k.log
       - name: Evaluate 250k neural vs teacher and PHH imitation
         run: |
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 60000 --seed 94115 --checkpoint neural-250k.bin --tabular models/scratch.bin | tee eval-250k-teacher.log
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 60000 --seed 94115 --checkpoint neural-250k.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-250k-phh.log
+          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 60000 --seed 94115 --checkpoint neural-v2-250k.bin --tabular models/scratch.bin | tee eval-250k-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 60000 --seed 94115 --checkpoint neural-v2-250k.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-250k-phh.log
       - name: Continue distillation to one million hands
-        run: ./target/release/solverpk --sixmax-neural-distill --rake-bps 0 --resume --teacher models/scratch.bin --hands 750000 --seed 71116 --checkpoint neural-250k.bin | tee distill-1m.log
+        run: ./target/release/solverpk --sixmax-neural-distill --rake-bps 0 --resume --teacher models/scratch.bin --hands 750000 --seed 71116 --checkpoint neural-v2-250k.bin | tee distill-1m.log
       - name: Evaluate final neural vs teacher and PHH imitation
         run: |
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 94115 --checkpoint neural-250k.bin --tabular models/scratch.bin | tee eval-1m-teacher.log
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 94115 --checkpoint neural-250k.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-1m-phh.log
+          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 94115 --checkpoint neural-v2-250k.bin --tabular models/scratch.bin | tee eval-1m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 94115 --checkpoint neural-v2-250k.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-1m-phh.log
       - name: Save model and evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sixmax-neural-million
+          name: sixmax-neural-v2-million
           path: |
-            neural-250k.bin
+            neural-v2-250k.bin
             distill-250k.log
             distill-1m.log
             eval-250k-teacher.log

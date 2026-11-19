@@ -1,5 +1,8 @@
 name: Neural 100 million 6max self-play hands
 on:
+  push:
+    paths:
+      - '.github/workflows/neural-100m.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -36,13 +39,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-0m-teacher.log
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-0m-phh.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-0m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-0m-phh.log
       - name: Self-play 10M / 100M (phase 1)
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 810211 --learning-rate 0.00060 --checkpoint neural-100m.bin | tee train-10m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 810211 --learning-rate 0.00060 --checkpoint neural-100m.bin | tee train-10m.log
           cp neural-100m.bin checkpoints/neural-10m.bin
           test -s checkpoints/neural-10m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 10000000 0.00060 | tee -a train-10m.log
@@ -50,8 +53,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-10m-teacher.log
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-10m-phh.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-10m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-10m-phh.log
       - name: Persist 10M milestone
         uses: actions/upload-artifact@v4
         with:
@@ -66,7 +69,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 820422 --learning-rate 0.00048 --checkpoint neural-100m.bin | tee train-20m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 820422 --learning-rate 0.00048 --checkpoint neural-100m.bin | tee train-20m.log
           cp neural-100m.bin checkpoints/neural-20m.bin
           test -s checkpoints/neural-20m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 20000000 0.00048 | tee -a train-20m.log
@@ -74,7 +77,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 830633 --learning-rate 0.00038 --checkpoint neural-100m.bin | tee train-30m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 830633 --learning-rate 0.00038 --checkpoint neural-100m.bin | tee train-30m.log
           cp neural-100m.bin checkpoints/neural-30m.bin
           test -s checkpoints/neural-30m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 30000000 0.00038 | tee -a train-30m.log
@@ -82,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 840844 --learning-rate 0.00030 --checkpoint neural-100m.bin | tee train-40m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 840844 --learning-rate 0.00030 --checkpoint neural-100m.bin | tee train-40m.log
           cp neural-100m.bin checkpoints/neural-40m.bin
           test -s checkpoints/neural-40m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 40000000 0.00030 | tee -a train-40m.log
@@ -90,7 +93,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 851055 --learning-rate 0.00024 --checkpoint neural-100m.bin | tee train-50m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 851055 --learning-rate 0.00024 --checkpoint neural-100m.bin | tee train-50m.log
           cp neural-100m.bin checkpoints/neural-50m.bin
           test -s checkpoints/neural-50m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 50000000 0.00024 | tee -a train-50m.log
@@ -98,8 +101,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-50m-teacher.log
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-50m-phh.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-50m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-50m-phh.log
       - name: Persist 50M milestone
         uses: actions/upload-artifact@v4
         with:
@@ -114,7 +117,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 861266 --learning-rate 0.00019 --checkpoint neural-100m.bin | tee train-60m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 861266 --learning-rate 0.00019 --checkpoint neural-100m.bin | tee train-60m.log
           cp neural-100m.bin checkpoints/neural-60m.bin
           test -s checkpoints/neural-60m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 60000000 0.00019 | tee -a train-60m.log
@@ -122,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 871477 --learning-rate 0.00015 --checkpoint neural-100m.bin | tee train-70m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 871477 --learning-rate 0.00015 --checkpoint neural-100m.bin | tee train-70m.log
           cp neural-100m.bin checkpoints/neural-70m.bin
           test -s checkpoints/neural-70m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 70000000 0.00015 | tee -a train-70m.log
@@ -130,7 +133,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 881688 --learning-rate 0.00012 --checkpoint neural-100m.bin | tee train-80m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 881688 --learning-rate 0.00012 --checkpoint neural-100m.bin | tee train-80m.log
           cp neural-100m.bin checkpoints/neural-80m.bin
           test -s checkpoints/neural-80m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 80000000 0.00012 | tee -a train-80m.log
@@ -138,7 +141,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 891899 --learning-rate 0.000095 --checkpoint neural-100m.bin | tee train-90m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 891899 --learning-rate 0.000095 --checkpoint neural-100m.bin | tee train-90m.log
           cp neural-100m.bin checkpoints/neural-90m.bin
           test -s checkpoints/neural-90m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 90000000 0.000095 | tee -a train-90m.log
@@ -146,7 +149,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-train --rake-bps 0 --resume --hands 10000000 --seed 902110 --learning-rate 0.000075 --checkpoint neural-100m.bin | tee train-100m.log
+          ./target/release/solverpk --sixmax-neural-train --resume --hands 10000000 --seed 902110 --learning-rate 0.000075 --checkpoint neural-100m.bin | tee train-100m.log
           cp neural-100m.bin checkpoints/neural-100m.bin
           test -s checkpoints/neural-100m.bin
           printf 'PHASE_HANDS=%d TOTAL_HANDS=%d LR=%s\n' 10000000 100000000 0.000075 | tee -a train-100m.log
@@ -154,8 +157,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-100m-teacher.log
-          ./target/release/solverpk --sixmax-neural-eval --rake-bps 0 --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-100m-phh.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin | tee eval-100m-teacher.log
+          ./target/release/solverpk --sixmax-neural-eval --hands 120000 --seed 944104 --checkpoint neural-100m.bin --tabular models/scratch.bin --phh-model models/pluribus-imitation.bin | tee eval-100m-phh.log
       - name: Persist 100M milestone
         uses: actions/upload-artifact@v4
         with:
@@ -191,3 +194,4 @@ jobs:
             final-checksum.txt
           retention-days: 30
           if-no-files-found: warn
+

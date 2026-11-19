@@ -5,7 +5,6 @@ Rust performs all poker, inference and learning. Python stdlib only orchestrates
 commands and records immutable evidence. Every evaluation is frozen.
 """
 import argparse
-import hashlib
 import json
 import math
 import os
@@ -94,7 +93,9 @@ def main():
     frozen_paths = {**historical, **{f"{seed}-{phase}": path for seed, phase, path in models}}
     before = {name: sha256(path) for name, path in frozen_paths.items()}
     rows = []
-    for training_seed, phase, path in models:
+    # Evaluate the historical model on the SAME league as an extra candidate.
+    evaluation_models = models + [(None, "historical_v1", historical["neural"])]
+    for training_seed, phase, path in evaluation_models:
         for evaluation_seed in EVAL_SEEDS:
             command = [binary, "--sixmax-neural-league", "--checkpoint", path,
                        "--hands", str(args.eval_hands), "--seed", str(evaluation_seed), *RAKE,
@@ -123,9 +124,10 @@ def main():
     descriptive = []
     for opponent in sorted({r["opponent"] for r in rows}):
         means = {phase: statistics.mean(r["net_bb100"] for r in rows
-                 if r["opponent"] == opponent and r["phase"] == phase) for phase in ("initial", "trained")}
+                 if r["opponent"] == opponent and r["phase"] == phase) for phase in ("initial", "trained", "historical_v1")}
         descriptive.append({"opponent": opponent, "initial_mean_bb100": means["initial"],
                             "trained_mean_bb100": means["trained"],
+                            "historical_v1_mean_bb100": means["historical_v1"],
                             "difference_of_means_bb100": means["trained"] - means["initial"]})
     report = {"source_commit": os.environ.get("GITHUB_SHA", "local"), "binary_sha256": sha256(binary),
               "engine": "accounting-v2", "model_format": "SPKNN002", "architecture": [128, 32, 6],
