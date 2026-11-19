@@ -9,14 +9,29 @@ const BIG_BLIND: i64 = 2;
 #[derive(Clone)]
 struct Rng(u64);
 impl Rng {
-    fn new(seed: u64) -> Self { Self(if seed == 0 { 0x9e3779b97f4a7c15 } else { seed }) }
+    fn new(seed: u64) -> Self {
+        // SplitMix64 finalizer prevents correlated initial states from nearby seeds.
+        let mut z = seed.wrapping_add(0x9e3779b97f4a7c15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
+        let mixed = z ^ (z >> 31);
+        Self(if mixed == 0 { 0x9e3779b97f4a7c15 } else { mixed })
+    }
     fn next(&mut self) -> u64 {
         let mut x = self.0;
         x ^= x >> 12; x ^= x << 25; x ^= x >> 27;
         self.0 = x;
         x.wrapping_mul(0x2545f4914f6cdd1d)
     }
-    fn range(&mut self, n: usize) -> usize { (self.next() % n as u64) as usize }
+    fn range(&mut self, n: usize) -> usize {
+        assert!(n > 0, "random range must be nonempty");
+        let bound = n as u64;
+        let threshold = bound.wrapping_neg() % bound;
+        loop {
+            let r = self.next();
+            if r >= threshold { return (r % bound) as usize; }
+        }
+    }
     fn chance(&mut self, p: f64) -> bool { (self.next() as f64 / u64::MAX as f64) < p }
 }
 fn deck(rng: &mut Rng) -> [u8; 52] {
@@ -285,6 +300,30 @@ fn main() {
 mod tests {
     use super::*;
     fn c(r:usize,s:usize)->u8 { (s*13+r-2) as u8 }
+    #[test] fn rng_seed_mixing_and_shuffle_invariants() {
+        let mut a=Rng::new(77101);
+        let mut b=Rng::new(77102);
+        assert_ne!(a.next(),b.next());
+        let mut unique=std::collections::HashSet::new();
+        for seed in 0..200 {
+            let mut rng=Rng::new(seed);
+            let d=deck(&mut rng);
+            assert_eq!(d.iter().copied().collect::<std::collections::HashSet<_>>().len(),52);
+            unique.insert(d);
+        }
+        assert_eq!(unique.len(),200);
+    }
+    #[test] fn all_hand_ranking_categories() {
+        assert!(score5(&[c(10,0),c(11,0),c(12,0),c(13,0),c(14,0)])
+            > score5(&[c(9,0),c(9,1),c(9,2),c(9,3),c(14,1)]));
+        let flush = score5(&[c(2,0),c(5,0),c(8,0),c(11,0),c(13,0)]);
+        let straight=score5(&[c(5,0),c(6,1),c(7,2),c(8,0),c(9,1)]);
+        assert!(flush > straight);
+        let full=score5(&[c(10,0),c(10,1),c(10,2),c(8,0),c(8,1)]);
+        assert!(full > flush);
+        let trips=score5(&[c(10,0),c(10,1),c(10,2),c(8,0),c(7,1)]);
+        assert!(straight > trips);
+    }
     #[test] fn straight_flush_beats_quads() {
         let sf=score5(&[c(10,0),c(11,0),c(12,0),c(13,0),c(14,0)]);
         let quad=score5(&[c(9,0),c(9,1),c(9,2),c(9,3),c(14,0)]);
