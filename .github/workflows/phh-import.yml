@@ -1,0 +1,39 @@
+name: PHH importer validation
+on:
+  push:
+    paths:
+      - 'src/**'
+      - '.github/workflows/phh-import.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Unit tests and release build
+        run: |
+          cargo test --all-targets
+          cargo build --release
+      - name: Fetch verified PHH sample from Pluribus
+        run: |
+          mkdir -p fixtures/pluribus
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/uoftcprg/phh-dataset/main/data/pluribus/100/0.phh -o fixtures/pluribus/0.phh
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/uoftcprg/phh-dataset/main/data/pluribus/100/11.phh -o fixtures/pluribus/11.phh
+          test -s fixtures/pluribus/0.phh
+          test -s fixtures/pluribus/11.phh
+      - name: Import PHH files
+        run: |
+          ./target/release/solverpk --import-phh --source fixtures/pluribus --output decisions.bin | tee import.log
+          test -s decisions.bin
+          wc -c decisions.bin
+      - name: Upload sample importer results
+        uses: actions/upload-artifact@v4
+        with:
+          name: phh-import-sample
+          path: |
+            decisions.bin
+            import.log
+          retention-days: 14
