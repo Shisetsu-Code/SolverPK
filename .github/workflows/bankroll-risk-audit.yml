@@ -1,0 +1,60 @@
+name: 50 USD bankroll stop-loss and wager-cap audit
+on:
+  push:
+    paths:
+      - '.github/workflows/bankroll-risk-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Compile and run tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --all-targets --no-fail-fast
+          cargo build --release
+      - name: Restore frozen 10M/20M checkpoints and PHH imitation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p references evidence
+          gh run download 44601763525 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-10m --dir references
+          gh run download 44603187298 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-20m --dir references
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir references
+          test -s references/tabular-corrected-10m.bin
+          test -s references/tabular-corrected-20m.bin
+          test -s references/pluribus-imitation.bin
+          sha256sum references/tabular-corrected-10m.bin references/tabular-corrected-20m.bin references/pluribus-imitation.bin > evidence/before.sha256
+      - name: Exercise stop loss on frozen tabular policies and multiple rivals
+        shell: bash
+        run: |
+          set -euo pipefail
+          for model in 10 20; do
+            for rival in phh random clone; do
+              for seed in 990071 990073 990079 990081 990083; do
+                args=(--sixmax-bankroll-eval --hands 100000 --seed "$seed" --checkpoint "references/tabular-corrected-${model}m.bin" --opponent "$rival" --bankroll-usd 50 --max-bet-usd 10 --stop-loss-usd 50 --rake-bps 500 --rake-cap-bb 3)
+                if [[ "$rival" == phh ]]; then args+=(--phh-model references/pluribus-imitation.bin); fi
+                ./target/release/solverpk "${args[@]}" | tee -a evidence/bankroll-results.log
+              done
+            done
+          done
+          grep -q 'SIXMAX_BANKROLL' evidence/bankroll-results.log
+          sha256sum -c evidence/before.sha256
+          git rev-parse HEAD > evidence/source-commit.txt
+      - name: Store logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bankroll-50usd-risk-control
+          path: evidence/**
+          retention-days: 90
+          if-no-files-found: warn
