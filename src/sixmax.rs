@@ -379,7 +379,7 @@ mod tests{
     #[test]fn seeded_games_conserve(){
         let mut bots=std::array::from_fn(|_|Bot::new());
         for i in 0..500 {
-            let result=play(&mut bots,i*137+4,i%N,0.03,false);
+            let result=play(&mut bots,i*137+4,(i as usize)%N,0.03,false);
             assert_eq!(result.iter().sum::<i64>(),0);
         }
     }
