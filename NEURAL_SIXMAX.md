@@ -68,3 +68,11 @@ cargo run --release -- --sixmax-neural-train --resume --hands 5000 --seed 4102 -
 The neural net used about 9.3M gradient updates across the million deals. There is **no statistically conclusive advantage over the teacher**; the point estimates remain near parity. Results versus PHH only measure superiority against a coarse six-player *imitation* of Pluribus, not against Pluribus itself. Both evaluations use no rake, simplified action sizing and the same six-max engine.
 
 These are CPU-based measurements from GitHub Actions runners. No RX 6800 XT benchmark has been performed.
+
+## 100-million-hand neural continuation
+
+The [100M six-max training workflow](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44564068762) has been configured and started. It resumes from the **1-million-hand distilled neural checkpoint** from run 44562688853, then executes **ten sequential 10M-hand six-player self-play segments** using independently seeded segments and decaying REINFORCE learning rates (0.00060 to 0.000075). The policy remains a 64→32→6 MLP trained on CPU; no GPU training is implied.
+
+The workflow preserves a versioned checkpoint after each 10M hands and uploads intermediate checkpoints/evaluations at 10M, 50M and 100M. The 0M/10M/50M/100M frozen checks use identical evaluation seeds and the same 1M-hand tabular teacher and Pluribus imitation. Final verification requires ten successful 10M training logs; a merely triggered workflow is not proof that 100M completed.
+
+No automatic champion selection or best-model rollback is implemented: training longer can **reduce** poker EV. Compare held-out results at each milestone and prefer the best validated checkpoint, not necessarily the final weights. Accuracy against the Pluribus imitator is not equivalent to professional or GTO strength. Evaluation seeds should be extended in follow-up independent tests to avoid selection bias.
