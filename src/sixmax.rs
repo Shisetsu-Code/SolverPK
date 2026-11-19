@@ -8,6 +8,10 @@ use std::fs::File;
 use std::io::{self,Read,Write};
 use std::time::Instant;
 
+#[path = "sixmax_bankroll.rs"]
+mod bankroll;
+pub use bankroll::bankroll_eval;
+
 const N:usize=6;
 const STACK:i64=200;
 const BB:i64=2;
