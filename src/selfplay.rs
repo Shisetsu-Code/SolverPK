@@ -91,7 +91,9 @@ fn play(
         let mut pending = 2usize;
         let mut minimum_raise = BIG_BLIND;
         let mut steps = 0usize;
-        while pending > 0 && table.stack[0] > 0 && table.stack[1] > 0 {
+        while pending > 0 {
+            if table.stack[actor] == 0 { break; }
+            if table.stack[1-actor] == 0 && table.call_amount(actor) == 0 { break; }
             steps += 1;
             assert!(steps <= 100, "betting round stuck");
             let call = table.call_amount(actor);
