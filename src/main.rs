@@ -1,3 +1,4 @@
+mod selfplay;
 use std::env;
 use std::time::Instant;
 
@@ -229,8 +230,14 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.iter().any(|a|a=="--help" || a=="-h") {
         println!("solverpk --hands 10000 --seed 42 --samples 64 --verbose");
+        println!("solverpk --self-play --hands 10000 --rooms 64 --agents 8 --samples 8 --checkpoint selfplay.bin");
+        println!("solverpk --self-play --resume --hands 10000 --rooms 64 --agents 8 --checkpoint selfplay.bin");
         println!("Bot0: tight/aggressive. Bot1: loose/aggressive with occasional bluffs.");
         println!("Heads-up cash simulation, 100 BB stacks, no rake. Every hand resets stacks.");
+        return;
+    }
+    if args.iter().any(|a| a=="--self-play") {
+        if let Err(e)=selfplay::run(&args) {eprintln!("Self-play error: {e}"); std::process::exit(2);}
         return;
     }
     let hands: usize = arg(&args,"--hands",1000);
