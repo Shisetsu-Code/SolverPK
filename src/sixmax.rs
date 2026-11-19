@@ -340,6 +340,66 @@ fn play_neural(
     }
     net_chips
 }
+/// Generate real full-game states under a frozen tabular teacher, then
+/// minimize neural cross-entropy to the teacher's action distribution.
+pub fn neural_distill(args:&[String])->io::Result<()>{
+    let teacher_path=args.windows(2).find(|w|w[0]=="--teacher").map(|w|w[1].as_str())
+        .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --teacher"))?;
+    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
+        .unwrap_or("sixmax-neural.bin");
+    let hands:usize=super::arg(args,"--hands",100000);
+    let seed:u64=super::arg(args,"--seed",52);
+    let lr:f32=super::arg(args,"--learning-rate",0.004);
+    if hands==0 || !lr.is_finite() || !(0.0..=0.05).contains(&lr) {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"invalid distillation configuration"));
+    }
+    let teachers=load(teacher_path)?;
+    let mut nn=if args.iter().any(|v|v=="--resume"){Net::load(path)?}else{Net::new(seed)};
+    let start=Instant::now();
+    let mut sums=[0f64;N];
+    for h in 0..hands {
+        let hand_seed=seed ^ (h as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let mut table=Table6::new(hand_seed,h%N);
+        let mut rng=Rng::new(hand_seed^0x4d7f291ca0b8f11d);
+        for street in 0..4 {
+            if street>0 {
+                if table.alive()==1 {break;}
+                table.next_street().expect("teacher round transition");
+            }
+            let mut steps=0;
+            while !table.completed(){
+                steps+=1;
+                assert!(steps<=200,"teacher exceeded betting limit");
+                let p=table.actor;
+                let view=table.view(p);
+                let x=neural_input(&table,p);
+                let teacher_prob=probs(&teachers[p].table[state(view)],view.legal);
+                let nn_prob=nn.forward(&x,view.legal).prob;
+                let mut kl=0f64;
+                for a in 0..ACTIONS {
+                    if teacher_prob[a]>0.0 {
+                        kl+=teacher_prob[a] as f64*
+                          ((teacher_prob[a] as f64).ln()-(nn_prob[a] as f64).max(1e-12).ln());
+                    }
+                }
+                sums[p]+=kl;
+                nn.imitate(&x,view.legal,teacher_prob,lr);
+                let choice=draw(teacher_prob,&mut rng);
+                let act=if choice==0{Action::Fold}else if choice==1{Action::Call}
+                    else{Action::Raise(table.raise_to(p,choice))};
+                table.act(act).expect("teacher legal action");
+            }
+            if table.alive()==1{break;}
+        }
+        assert_eq!(table.net().iter().sum::<i64>(),0);
+    }
+    nn.save(path)?;
+    println!("SIXMAX_NEURAL_DISTILL hands={} steps={} mean_kl_sum_per_hand={:.5} elapsed={:.3}s model={}",
+        hands,nn.steps,sums.iter().sum::<f64>()/hands as f64,
+        start.elapsed().as_secs_f64(),path);
+    Ok(())
+}
+
 pub fn neural_train(args:&[String])->io::Result<()>{
     let hands:usize=super::arg(args,"--hands",20000);
     let seed:u64=super::arg(args,"--seed",4101);
