@@ -81,11 +81,12 @@ impl Net {
             }
             self.b1[j]=(self.b1[j]+lr*hidden_delta[j]).clamp(-8.0,8.0);
         }
-        self.steps+=1;
+        self.steps=self.steps.saturating_add(1);
     }
     /// Cross-entropy policy distillation from an established tabular teacher.
     /// No opponent private cards or post-decision observations are provided.
     pub fn imitate(&mut self,x:&[f32;INPUT],legal:[bool;ACTIONS],target:[f32;ACTIONS],lr:f32){
+        if lr<=0.0{return;}
         let fw=self.forward(x,legal);
         let mut grad=[0f32;ACTIONS];
         for a in 0..ACTIONS{
@@ -107,7 +108,7 @@ impl Net {
             }
             self.b1[j]=(self.b1[j]+lr*hd[j]).clamp(-8.0,8.0);
         }
-        self.steps+=1;
+        self.steps=self.steps.saturating_add(1);
     }
     pub fn save(&self,path:&str)->io::Result<()>{
         let mut file=File::create(path)?;
@@ -131,12 +132,21 @@ impl Net {
             if !x.is_finite(){return Err(io::Error::new(io::ErrorKind::InvalidData,"nonfinite neural weight"));}
             Ok(x)
         }
+        fn weight<R:Read>(r:&mut R)->io::Result<f32>{
+            let x=f(r)?;
+            // Initialization and every optimizer update keep parameters in
+            // this range; finite outliers can still overflow the forward pass.
+            if !(-8.0..=8.0).contains(&x){
+                return Err(io::Error::new(io::ErrorKind::InvalidData,"neural weight outside optimizer bounds"));
+            }
+            Ok(x)
+        }
         let mut net=Self::new(13);
         net.steps=u64read(&mut file)?;net.baseline=f(&mut file)?;
-        for row in net.w1.iter_mut(){for v in row{*v=f(&mut file)?;}}
-        for v in &mut net.b1{*v=f(&mut file)?;}
-        for row in &mut net.w2{for v in row{*v=f(&mut file)?;}}
-        for v in &mut net.b2{*v=f(&mut file)?;}
+        for row in net.w1.iter_mut(){for v in row{*v=weight(&mut file)?;}}
+        for v in &mut net.b1{*v=weight(&mut file)?;}
+        for row in &mut net.w2{for v in row{*v=weight(&mut file)?;}}
+        for v in &mut net.b2{*v=weight(&mut file)?;}
         let mut extra=[0u8;1];
         if file.read(&mut extra)?!=0{return Err(io::Error::new(io::ErrorKind::InvalidData,"trailing checkpoint bytes"));}
         Ok(net)

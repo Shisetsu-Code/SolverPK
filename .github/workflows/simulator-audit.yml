@@ -20,7 +20,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo test --all-targets 2>&1 | tee audit-tests.log
+          cargo test --all-targets --no-fail-fast 2>&1 | tee audit-tests.log
       - name: Exhaustive independent five-card reference
         shell: bash
         run: |

@@ -14,6 +14,15 @@ const STATES:usize=4*5*3*3*3*4*3*3;
 const ACTIONS:usize=6;
 const MAGIC:&[u8;8]=b"SPK6MAX3";
 
+// Inputs are sums of per-cluster rewards in big blinds. Each cluster must
+// contain the same number of player-hands (6 for a seat, 36 for a 3v3 duel).
+fn cluster_result(sum:f64,sumsq:f64,groups:usize,player_hands_per_group:f64)->(f64,f64){
+    let mean=sum/groups as f64;
+    let variance=(sumsq/groups as f64-mean*mean).max(0.0);
+    (mean*100.0/player_hands_per_group,
+     1.96*(variance/groups as f64).sqrt()*100.0/player_hands_per_group)
+}
+
 #[cfg(test)]
 #[path = "sixmax_audit_tests.rs"]
 mod audit_tests;
@@ -84,10 +93,11 @@ impl Table6 {
     fn call(&self,p:usize)->i64{(self.high-self.street[p]).max(0).min(self.stack[p])}
     fn raise_to(&self,p:usize,action:usize)->i64{
         let max_to=self.street[p]+self.stack[p];
+        let pot_after_call=self.pot+self.call(p);
         let desired=match action{
-            2=>self.high+(self.pot/3).max(self.min_raise),
-            3=>self.high+((self.pot*3)/4).max(self.min_raise),
-            4=>self.high+self.pot.max(self.min_raise),
+            2=>self.high+(pot_after_call/3).max(self.min_raise),
+            3=>self.high+((pot_after_call*3)/4).max(self.min_raise),
+            4=>self.high+pot_after_call.max(self.min_raise),
             5=>max_to,
             _=>panic!("invalid bet-size action"),
         };
@@ -96,7 +106,10 @@ impl Table6 {
     fn legal(&self,p:usize)->[bool;ACTIONS]{
         let due=self.high-self.street[p];
         let opponent_live=(0..N).any(|q|q!=p && !self.folded[q] && self.stack[q]>0);
-        let possible=!self.acted[p] && opponent_live && self.stack[p]>due;
+        // Reopening is individual: short all-ins may cumulatively make a
+        // player face a full raise since their most recent call/bet.
+        let reopened=!self.acted[p] || due>=self.min_raise;
+        let possible=reopened && opponent_live && self.stack[p]>due;
         let mut result=[false;ACTIONS];
         result[0]=due>0;
         result[1]=true;
@@ -149,8 +162,8 @@ impl Table6 {
                         if q!=p && !self.folded[q] && self.stack[q]>0 {self.pending[q]=true;}
                     }
                 }else{
-                    // Short all-in does not reopen betting for actors that
-                    // already acted, but everyone owing chips must respond.
+                    // A short all-in does not change the full-raise size.
+                    // legal() checks cumulative reopening for each player.
                     self.acted[p]=true;
                     for q in 0..N {
                         if q!=p && !self.folded[q] && self.stack[q]>0 && self.street[q]<self.high {
@@ -173,7 +186,8 @@ impl Table6 {
         self.visible=match self.round{1=>3,2=>4,_=>5};
         self.street=[0;N];self.high=0;self.min_raise=BB;
         self.acted=[false;N];
-        self.pending=std::array::from_fn(|p|!self.folded[p] && self.stack[p]>0);
+        let can_bet=self.live_bettors()>1;
+        self.pending=std::array::from_fn(|p|can_bet && !self.folded[p] && self.stack[p]>0);
         self.actor=self.first_pending_after(self.button).unwrap_or(self.button);
         Ok(())
     }
@@ -182,12 +196,23 @@ impl Table6 {
         let mut levels=self.total.to_vec();
         levels.sort_unstable();levels.dedup();levels.retain(|&x|x>0);
         let mut previous=0;
+        let mut pots:Vec<(i64,Vec<usize>)>=Vec::new();
         for level in levels{
             let funders:Vec<usize>=(0..N).filter(|&p|self.total[p]>=level).collect();
             let pot=(level-previous)*funders.len() as i64;
             previous=level;
+            if funders.len()==1 {
+                winnings[funders[0]]+=pot; // unmatched chips, not a side pot
+                continue;
+            }
             let eligible:Vec<usize>=funders.into_iter().filter(|&p|!self.folded[p]).collect();
             assert!(!eligible.is_empty(),"unclaimable pot");
+            if let Some((amount,players))=pots.last_mut() {
+                if *players==eligible {*amount+=pot;continue;}
+            }
+            pots.push((pot,eligible));
+        }
+        for (pot,eligible) in pots {
             let winners=if eligible.len()==1{eligible}else{
                 let mut best=0;
                 let mut results=Vec::new();
@@ -447,10 +472,7 @@ pub fn neural_eval(args:&[String])->io::Result<()>{
         }
         sum+=group_value;sumsq+=group_value*group_value;
     }
-    let avg=sum/hands as f64*100.0;
-    let mean=sum/groups as f64;
-    let v=(sumsq/groups as f64-mean*mean).max(0.0);
-    let ci=1.96*(v/groups as f64).sqrt()*100.0/N as f64;
+    let (avg,ci)=cluster_result(sum,sumsq,groups,N as f64);
     println!("SIXMAX_NEURAL_EVAL hands={} candidate=neural opponent={} bb100={:+.3} ci95_cluster_half={:.3} elapsed={:.3}s",
         hands,if phh.is_some(){"phh_imitation"}else{"tabular"},avg,ci,started.elapsed().as_secs_f64());
     Ok(())
@@ -702,14 +724,11 @@ pub fn evaluate(args:&[String])->io::Result<()>{
         totals+=group_result;
         group_sq+=group_result*group_result;
     }
-    let mean=totals/hands as f64;
-    let group_mean=totals/groups as f64;
-    let group_var=(group_sq/groups as f64-group_mean*group_mean).max(0.0);
-    let half=1.96*(group_var/groups as f64).sqrt()*100.0/N as f64;
+    let (mean,half)=cluster_result(totals,group_sq,groups,N as f64);
     println!("SIXMAX_EVAL_ACTIONS total={} fold={} call={} bet33={} bet75={} pot={} allin={}",
         action_counts.iter().sum::<u64>(),action_counts[0],action_counts[1],
         action_counts[2],action_counts[3],action_counts[4],action_counts[5]);
-    println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_six_hand_cluster_half={:.3} opponent={} candidate={} eval_seed={}",hands,mean*100.0,half,opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
+    println!("SIXMAX_EVAL hands={} bb100={:+.3} ci95_six_hand_cluster_half={:.3} opponent={} candidate={} eval_seed={}",hands,mean,half,opponent,if candidate_phh{"phh"}else{"selfplay"},seed);
     Ok(())
 }
 /// Direct frozen team duel, three seats per generation, rotating button
@@ -751,10 +770,7 @@ pub fn duel(args:&[String])->io::Result<()>{
         }
         totals+=pair_net;pair_sq+=pair_net*pair_net;
     }
-    let mean=totals/(hands as f64*3.0)*100.0;
-    let pm=totals/pairs as f64;
-    let var=(pair_sq/pairs as f64-pm*pm).max(0.0);
-    let half=1.96*(var/pairs as f64).sqrt()*100.0/(2.0*N as f64*3.0);
+    let (mean,half)=cluster_result(totals,pair_sq,pairs,2.0*N as f64*3.0);
     println!("SIXMAX_DUEL left={} right={} hands={} left_bb100={:+.3} right_bb100={:+.3} ci95_twelve_hand_pair_half={:.3} elapsed={:.3}s",
         left,right,hands,mean,-mean,half,start.elapsed().as_secs_f64());
     println!("SIXMAX_DUEL_NOTE three seats per strategy, twelve matched deals per paired seed with both team assignments, frozen policies, no GTO guarantee");

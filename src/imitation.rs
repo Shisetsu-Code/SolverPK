@@ -69,7 +69,8 @@ impl FrozenPolicy {
                         let value=u64::from_le_bytes(bytes);
                         original[street_rank_suit_price][multi][pos][action]=value;
                         pooled[street_rank_suit_price][pos][action]
-                            =pooled[street_rank_suit_price][pos][action].saturating_add(value);
+                            =pooled[street_rank_suit_price][pos][action].checked_add(value)
+                                .ok_or_else(||invalid("pooled action counts overflow"))?;
                     }
                 }
             }
@@ -93,7 +94,7 @@ impl FrozenPolicy {
         let group=(((street.min(3)*5+ranks)*2+suited)*4)+price;
         let multi=if active<=2{0}else if active<=4{1}else{2};
         let counts=&self.original[group][multi][usize::from(on_button)];
-        let seen=counts.iter().sum::<u64>()>0;
+        let seen=counts.iter().any(|&count|count>0);
         let mut probs=[0f32;3];let mut total=0f32;
         for i in 0..3{if legal[i]{probs[i]=(counts[i] as f32)+1.0;total+=probs[i];}}
         for p in &mut probs{*p/=total;}
@@ -115,7 +116,7 @@ impl FrozenPolicy {
         };
         let group=(((street.min(3)*5+ranks)*2+suited)*4)+price;
         let counts=&self.pooled[group][usize::from(on_button)];
-        let observations=counts.iter().sum::<u64>();
+        let seen=counts.iter().any(|&count|count>0);
         let mut probs=[0f32;3];let mut total=0.0;
         for action in 0..3 {
             if legal[action] {
@@ -125,7 +126,7 @@ impl FrozenPolicy {
             }
         }
         for p in &mut probs {*p=(*p as f64/total) as f32;}
-        (probs,observations>0)
+        (probs,seen)
     }
 }
 

@@ -6,6 +6,7 @@ mod phh_eval;
 mod phh_compare;
 mod sixmax;
 mod neural;
+mod accounting;
 use std::env;
 use std::time::Instant;
 

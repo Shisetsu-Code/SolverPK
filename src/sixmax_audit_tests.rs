@@ -1,6 +1,21 @@
 use super::*;
 
 #[test]
+fn audit_regression_cluster_interval_uses_sample_variance() {
+    // Two independent clusters, each of six hands, return 6 and 18 BB.
+    // Sample variance of cluster totals is 72; mean standard error is 6 BB.
+    let (mean, half) = cluster_result(24.0, 360.0, 2, 6.0);
+    assert!((mean-200.0).abs()<1e-10);
+    assert!((half-196.0).abs()<1e-10);
+}
+
+#[test]
+#[should_panic(expected="at least two independent clusters")]
+fn audit_regression_single_cluster_cannot_report_zero_uncertainty() {
+    cluster_result(6.0, 36.0, 1, 6.0);
+}
+
+#[test]
 fn audit_regression_cumulative_short_allins_reopen_after_full_raise_faced() {
     let mut t = Table6::new(23, 0);
     t.act(Action::Raise(20)).unwrap(); // seat 3, full increment 18

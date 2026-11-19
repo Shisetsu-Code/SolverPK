@@ -299,6 +299,9 @@ fn reconstruct(h:&Hand,id:u64)->Result<Vec<[u8;96]>,String>{
     if !s.queue.is_empty() && s.folded.iter().filter(|&&f|!f).count()>1{
         return Err("hand stopped with outstanding betting actions".into());
     }
+    if s.folded.iter().filter(|&&f|!f).count()>1 && s.board_len<5{
+        return Err("hand stopped before complete board".into());
+    }
     s.settle(h)?;
     Ok(out)
 }
