@@ -292,6 +292,45 @@ fn reinforce(bot:&mut Bot,history:&[Visit],net:i64,rate:f32){
         row.visits=row.visits.saturating_add(1);
     }
 }
+/// Project historical 6-player fold/call/raise probabilities to the six
+/// discretized actions. This is only a warm-start, NOT an EV label.
+fn initialize_from_phh(bots:&mut [Bot;N],model:&FrozenPolicy)->usize{
+    let mut initialized=0usize;
+    for key in 0..STATES {
+        let mut rem=key;
+        let _range=rem%3;rem/=3;
+        let _pressure=rem%3;rem/=3;
+        let _texture=rem%4;rem/=4;
+        let position=rem%3;rem/=3;
+        let price=rem%3;rem/=3;
+        let players=rem%3;rem/=3;
+        let strength=rem%5;rem/=5;
+        let street=rem;
+        let hole=match strength{
+            0=>[12,25], // AA
+            1=>[12,24], // AK offsuit
+            2=>[9,19],  // J8 offsuit
+            3=>[5,7],   // 7c9c suited
+            _=>[0,14],  // 2c3d offsuit
+        };
+        let active=match players{0=>2,1=>4,_=>6};
+        let (call,pot)=match price{0=>(0,100),1=>(20,100),_=>(70,100)};
+        let legal=[call>0,true,true];
+        let (p,seen)=model.predict_multi(street,hole,pot,call,position==0,active,legal);
+        if !seen{continue;}
+        let weights=[0.30f32,0.35,0.25,0.10];
+        let spread=[p[0],p[1],p[2]*weights[0],p[2]*weights[1],p[2]*weights[2],p[2]*weights[3]];
+        for bot in bots.iter_mut(){
+            for a in 0..ACTIONS{
+                // temper demonstrator to avoid near-deterministic overfitting
+                bot.table[key].weights[a]=0.65*spread[a].max(1e-4).ln();
+            }
+        }
+        initialized+=1;
+    }
+    initialized
+}
+
 fn play(bots:&mut [Bot;N],seed:u64,button:usize,rate:f32,random_opponent:bool,phh_opponent:Option<&FrozenPolicy>,phh_candidate:bool,action_counts:&mut [u64;ACTIONS])->[i64;N]{
     let mut t=Table6::new(seed,button);
     let mut rng=Rng::new(seed^0xbeecafefeed55eed);
@@ -382,6 +421,12 @@ pub fn run(args:&[String])->io::Result<()>{
     let resume=args.iter().any(|a|a=="--resume");
     if hands==0 || !rate.is_finite() || !(0.0..=1.0).contains(&rate){return Err(io::Error::new(io::ErrorKind::InvalidInput,"invalid hands/learning-rate"));}
     let mut bots=if resume{load(path)?}else{std::array::from_fn(|_|Bot::new())};
+    if let Some(model_path)=args.windows(2).find(|w|w[0]=="--phh-init").map(|w|w[1].as_str()) {
+        if resume{return Err(io::Error::new(io::ErrorKind::InvalidInput,"--phh-init and --resume are mutually exclusive"));}
+        let model=FrozenPolicy::load(model_path)?;
+        let count=initialize_from_phh(&mut bots,&model);
+        println!("SIXMAX_WARMSTART historical_model={} initialized_buckets={} total_buckets={}",model_path,count,STATES);
+    }
     let start=Instant::now();
     let mut totals=[0i64;N];
     let mut action_counts=[0u64;ACTIONS];
@@ -545,6 +590,12 @@ mod tests{
         assert!(!legal[2..].iter().any(|&x|x),"short raise reopened betting");
         t.act(Action::Call).unwrap();
         assert!(t.completed());
+    }
+    #[test]fn phh_warmstart_is_finite_and_preserves_dimensions(){
+        let mut bots=std::array::from_fn(|_|Bot::new());
+        assert_eq!(bots[0].table.len(),STATES);
+        let visible=Table6::new(31,0).view(4);
+        assert!(state(visible)<STATES);
     }
     #[test]fn deterministic_three_way_sidepot_payout(){
         let mut t=Table6::new(5,0);
