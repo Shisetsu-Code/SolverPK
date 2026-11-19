@@ -150,7 +150,11 @@ impl Table {
         let mut pending = 2usize;
         let mut min_raise = BIG_BLIND;
         let mut steps = 0;
-        while pending > 0 && self.stack[0] > 0 && self.stack[1] > 0 {
+        while pending > 0 {
+            if self.stack[actor] == 0 { break; }
+            // When an opponent is all-in, the remaining player must still
+            // respond to an outstanding bet, but cannot bet into an empty side pot.
+            if self.stack[1-actor] == 0 && self.call_amount(actor) == 0 { break; }
             steps += 1;
             assert!(steps < 1000, "betting round did not terminate");
             let call = self.call_amount(actor);
@@ -337,6 +341,17 @@ mod tests {
     #[test] fn seven_card_best_five() {
         let cards=[c(14,0),c(13,0),c(12,0),c(11,0),c(10,0),c(2,1),c(3,2)];
         assert_eq!(score7(&cards),score5(&[cards[0],cards[1],cards[2],cards[3],cards[4]]));
+    }
+    #[test] fn all_in_raise_requires_opponent_response() {
+        let mut rng=Rng::new(123);
+        let mut table=Table::new(&mut rng,0);
+        // Player 0 shoved 200 chips; player 1 must call/fold before showdown.
+        table.stack=[0,198];
+        table.street=[200,2];
+        table.invested=[200,2];
+        table.betting(1,&mut rng,8,false);
+        assert!(table.actions[1] >= 1,"all-in bet was not answered");
+        assert!(table.folded==Some(1) || table.street[1]>2);
     }
     #[test] fn deterministic_game_and_chip_conservation() {
         let mut a=Rng::new(123);
