@@ -38,6 +38,14 @@ mod audit_tests;
 #[path = "sixmax_stress_tests.rs"]
 mod stress_tests;
 
+#[cfg(test)]
+#[path = "sixmax_observation_tests.rs"]
+mod observation_tests;
+
+#[cfg(test)]
+#[path = "sixmax_neural_tests.rs"]
+mod neural_tests;
+
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 enum Action {Fold,Call,Raise(i64)} // Raise to street-total
 #[derive(Clone)]
@@ -283,6 +291,9 @@ fn neural_input(t:&Table6,p:usize)->[f32;NN_INPUT]{
 }
 #[derive(Clone)]
 struct NeuralVisit {features:[f32;NN_INPUT],legal:[bool;ACTIONS],action:usize}
+fn neural_reward(net_units:i64)->f32{
+    (net_units as f32/(BB_UNITS as f32*20.0)).clamp(-4.0,4.0)
+}
 fn play_neural(
     net:&mut Net,seed:u64,button:usize,rate:f32,
     baseline:Option<(&Bot,Option<&FrozenPolicy>)>,rake:RakeConfig,
@@ -333,7 +344,7 @@ fn play_neural(
     let net_chips=settlement.net;
     if rate>0.0 && baseline.is_none(){
         for p in 0..N{
-            let reward=(net_chips[p] as f32/(BB_UNITS as f32*20.0)).clamp(-4.0,4.0);
+            let reward=neural_reward(net_chips[p]);
             for visit in &trajectory[p] {
                 net.reinforce(&visit.features,visit.legal,visit.action,reward,rate);
             }

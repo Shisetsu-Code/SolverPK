@@ -1,7 +1,7 @@
 name: Simulator accounting audit
 on:
   push:
-    branches: [main, 'audit/simulator-accounting-20261119']
+    branches: [main, 'audit/simulator-accounting-20261119', 'fix/neural-v2-20261119']
     paths: ['src/**', 'tests/**', 'scripts/audit_evaluate.py', 'Cargo.toml', '.github/workflows/simulator-audit.yml']
   workflow_dispatch:
 permissions:

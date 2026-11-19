@@ -21,6 +21,13 @@ pub struct Forward {
     hidden:[f32;HIDDEN],
     pub prob:[f32;ACTIONS],
 }
+#[derive(Clone,Copy)]
+pub struct PolicySample<'a> {
+    pub features:&'a [f32;INPUT],
+    pub legal:[bool;ACTIONS],
+    pub action:usize,
+    pub reward:f32,
+}
 impl Net {
     pub fn new(seed:u64)->Self {
         let mut rng=Rng::new(seed);
@@ -54,6 +61,14 @@ impl Net {
         for a in 0..ACTIONS{if legal[a]{prob[a]=(logits[a]-max).exp();total+=prob[a];}}
         if total>0.0 {for p in &mut prob{*p/=total;}}
         Forward{hidden,prob}
+    }
+    // Transitional adapter for the regression run. It intentionally retains
+    // the old sequential optimizer until the failing batch tests are observed.
+    pub fn reinforce_hand(&mut self,samples:&[PolicySample<'_>],_player_rewards:&[f32],lr:f32)->io::Result<()> {
+        for sample in samples {
+            self.reinforce(sample.features,sample.legal,sample.action,sample.reward,lr);
+        }
+        Ok(())
     }
     /// Online policy gradient; snapshot pre-update params for exact backprop.
     pub fn reinforce(&mut self,x:&[f32;INPUT],legal:[bool;ACTIONS],action:usize,reward:f32,lr:f32){
@@ -152,6 +167,9 @@ impl Net {
         Ok(net)
     }
 }
+#[cfg(test)]
+#[path = "neural_v2_tests.rs"]
+mod v2_tests;
 #[cfg(test)]
 mod tests{
     use super::*;
