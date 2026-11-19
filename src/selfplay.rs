@@ -203,7 +203,7 @@ fn evaluate(candidate: &Agent, hands: usize, samples: usize, seed: u64) -> (f64,
     // Pair seats for every candidate. Evaluation never calls learn().
     for i in 0..hands {
         let mut agents = vec![candidate.clone(), Agent::new()];
-        let mut rng = Rng::new(seed.wrapping_add((i/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
+        let mut rng = Rng::new(seed ^ ((i/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
         // Candidate remains in physical seat 0; Table::new alternates
         // the small blind according to i % 2. Do NOT swap both agent
         // mapping and blind index, which fixes the candidate to SB.
@@ -240,7 +240,7 @@ pub fn duel(args: &[String]) -> io::Result<()> {
     for hand in 0..hands {
         // Every pair uses same starting RNG seed, opposite seats. Policy decisions
         // alter RNG consumption so these are NOT perfectly paired trajectories.
-        let mut rng=Rng::new(seed.wrapping_add((hand/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
+        let mut rng=Rng::new(seed ^ ((hand/2) as u64).wrapping_mul(0x9e3779b97f4a7c15));
         // Left policy always occupies seat 0, while the blind alternates.
         let (chips,shown) = play(&mut agents,0,1,hand,&mut rng,samples,0.0,false);
         win_sum+=chips;
@@ -308,6 +308,15 @@ pub fn run(args: &[String]) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test] fn independent_duel_seed_streams() {
+        let mut a=Rng::new(77101 ^ 0u64.wrapping_mul(0x9e3779b97f4a7c15));
+        let mut b=Rng::new(77102 ^ 0u64.wrapping_mul(0x9e3779b97f4a7c15));
+        let da=crate::deck(&mut a);
+        let db=crate::deck(&mut b);
+        assert_ne!(da,db);
+        let mut offset=Rng::new(77101 ^ 1u64.wrapping_mul(0x9e3779b97f4a7c15));
+        assert_ne!(crate::deck(&mut offset),db,"different seeds cannot alias adjacent deal indices");
+    }
     #[test] fn alternates_blinds_in_training_and_evaluation() {
         for hand in 0..100 {
             let mut rng=Rng::new(hand as u64);
