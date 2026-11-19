@@ -2,6 +2,7 @@
 //! No external dependencies. Separate from historical PHH replay and HU arena.
 use crate::{deck, score7, Rng};
 use crate::imitation::FrozenPolicy;
+use crate::neural::{Net, INPUT as NN_INPUT};
 use std::fs::File;
 use std::io::{self,Read,Write};
 use std::time::Instant;
@@ -238,6 +239,159 @@ struct View{
     street:u8,on_button:bool,active:usize,legal:[bool;ACTIONS],
     pressure:u8,texture:usize,range_bucket:usize,
 }
+/// Numerical 64D neural observation, using only player's known cards
+/// and public quantities. Future board cards are excluded by visible.
+fn neural_input(t:&Table6,p:usize)->[f32;NN_INPUT]{
+    let v=t.view(p);
+    let mut x=[0f32;NN_INPUT];
+    x[(v.hole[0]%13) as usize]=1.0;
+    x[13+(v.hole[1]%13) as usize]=1.0;
+    x[26]=f32::from(v.hole[0]/13==v.hole[1]/13);
+    x[27]=f32::from(v.hole[0]%13==v.hole[1]%13);
+    for &card in &v.board[..v.visible] {
+        x[28+(card%13) as usize]+=0.25;
+        x[41+(card/13) as usize]+=0.20;
+    }
+    x[45]=v.street as f32/3.0;
+    x[46]=v.active as f32/6.0;
+    x[47]=(v.pot as f32/240.0).min(3.0);
+    x[48]=(v.call as f32/200.0).min(1.0);
+    x[49]=v.stack as f32/200.0;
+    x[50]=f32::from(v.on_button);
+    x[51]=v.texture as f32/3.0;
+    x[52]=v.pressure as f32/2.0;
+    x[53]=v.range_bucket as f32/2.0;
+    x[54]=t.raise_per_seat[p] as f32/5.0;
+    x[55]=(t.high as f32/200.0).min(3.0);
+    // Opponent public strength beliefs, no opponent hole cards.
+    let mut n=0f32;
+    let mut posterior=[0f32;3];
+    for q in 0..N {
+        if q!=p && !t.folded[q] {
+            n+=1.0;
+            for k in 0..3 {posterior[k]+=t.estimated_ranges[q][k];}
+        }
+    }
+    if n>0.0{for k in 0..3 {x[56+k]=posterior[k]/n;}}
+    x[59]=t.folded.iter().filter(|&&f|f).count() as f32/6.0;
+    x[60]=t.total[p] as f32/200.0;
+    x[61]=t.street[p] as f32/200.0;
+    x[62]=v.visible as f32/5.0;
+    x[63]=t.min_raise as f32/200.0;
+    x
+}
+#[derive(Clone)]
+struct NeuralVisit {features:[f32;NN_INPUT],legal:[bool;ACTIONS],action:usize}
+fn play_neural(
+    net:&mut Net,seed:u64,button:usize,rate:f32,
+    baseline:Option<(&Bot,Option<&FrozenPolicy>)>,
+)->[i64;N]{
+    let mut t=Table6::new(seed,button);
+    let mut rng=Rng::new(seed^0xbaba9caf_19d0e911);
+    let mut trajectory:[Vec<NeuralVisit>;N]=std::array::from_fn(|_|Vec::new());
+    for street in 0..4{
+        if street>0 {
+            if t.alive()==1 {break;}
+            t.next_street().expect("street progression");
+        }
+        let mut iterations=0;
+        while !t.completed(){
+            iterations+=1;
+            assert!(iterations<=200,"neural betting loop");
+            let p=t.actor;
+            let view=t.view(p);
+            let x=neural_input(&t,p);
+            let legal=view.legal;
+            let distribution=if let Some((tabular,phh))=baseline{
+                if p==0 {net.forward(&x,legal).prob}
+                else if let Some(model)=phh {
+                    let coarse=[legal[0],legal[1],legal[2..].iter().any(|&v|v)];
+                    let raw=model.predict_multi(view.street as usize,view.hole,view.pot,view.call,view.on_button,view.active,coarse).0;
+                    let mut out=[0f32;ACTIONS];out[0]=raw[0];out[1]=raw[1];
+                    let weights=[0.30,0.35,0.25,0.10];
+                    let denom=(2..ACTIONS).filter(|&i|legal[i]).map(|i|weights[i-2]).sum::<f32>();
+                    if denom>0.0 {
+                        for i in 2..ACTIONS{
+                            if legal[i]{out[i]=raw[2]*weights[i-2]/denom;}
+                        }
+                    }
+                    out
+                }else{probs(&tabular.table[state(view)],legal)}
+            }else{net.forward(&x,legal).prob};
+            let action=draw(distribution,&mut rng);
+            let bet=if action==0{Action::Fold}else if action==1{Action::Call}
+                else{Action::Raise(t.raise_to(p,action))};
+            t.act(bet).expect("neural legal action");
+            if rate>0.0 && baseline.is_none(){
+                trajectory[p].push(NeuralVisit{features:x,legal,action});
+            }
+        }
+        if t.alive()==1 {break;}
+    }
+    let net_chips=t.net();
+    assert_eq!(net_chips.iter().sum::<i64>(),0);
+    if rate>0.0 && baseline.is_none(){
+        for p in 0..N{
+            let reward=(net_chips[p] as f32/(BB as f32*20.0)).clamp(-4.0,4.0);
+            for visit in &trajectory[p] {
+                net.reinforce(&visit.features,visit.legal,visit.action,reward,rate);
+            }
+        }
+    }
+    net_chips
+}
+pub fn neural_train(args:&[String])->io::Result<()>{
+    let hands:usize=super::arg(args,"--hands",20000);
+    let seed:u64=super::arg(args,"--seed",4101);
+    let lr:f32=super::arg(args,"--learning-rate",0.002);
+    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str()).unwrap_or("sixmax-neural.bin");
+    if hands==0 || !lr.is_finite() || !(0.0..=0.05).contains(&lr){
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,"invalid hands / neural learning rate"));
+    }
+    let mut net=if args.iter().any(|v|v=="--resume"){Net::load(path)?}else{Net::new(seed)};
+    let started=Instant::now();
+    for hand in 0..hands{
+        let deal_seed=seed ^ (hand as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        play_neural(&mut net,deal_seed,hand%N,lr,None);
+    }
+    net.save(path)?;
+    println!("SIXMAX_NEURAL_TRAIN hands={} steps={} elapsed={:.3}s hands_per_sec={:.2} checkpoint={}",
+        hands,net.steps,started.elapsed().as_secs_f64(),
+        hands as f64/started.elapsed().as_secs_f64().max(1e-9),path);
+    Ok(())
+}
+pub fn neural_eval(args:&[String])->io::Result<()>{
+    let path=args.windows(2).find(|w|w[0]=="--checkpoint").map(|w|w[1].as_str())
+        .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --checkpoint"))?;
+    let tab_path=args.windows(2).find(|w|w[0]=="--tabular").map(|w|w[1].as_str())
+        .ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"missing --tabular"))?;
+    let phh_path=args.windows(2).find(|w|w[0]=="--phh-model").map(|w|w[1].as_str());
+    let phh=phh_path.map(FrozenPolicy::load).transpose()?;
+    let base=load(tab_path)?[0].clone();
+    let mut net=Net::load(path)?;
+    let hands:usize=super::arg(args,"--hands",6000);
+    let seed:u64=super::arg(args,"--seed",98722);
+    if hands==0 || hands%N!=0{return Err(io::Error::new(io::ErrorKind::InvalidInput,"--hands must be multiple of six"));}
+    let groups=hands/N;
+    let started=Instant::now();
+    let mut sum=0f64;let mut sumsq=0f64;
+    for group in 0..groups {
+        let deal_seed=seed ^ (group as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let mut group_value=0f64;
+        for button in 0..N {
+            group_value+=play_neural(&mut net,deal_seed,button,0.0,Some((&base,phh.as_ref())))[0] as f64/BB as f64;
+        }
+        sum+=group_value;sumsq+=group_value*group_value;
+    }
+    let avg=sum/hands as f64*100.0;
+    let mean=sum/groups as f64;
+    let v=(sumsq/groups as f64-mean*mean).max(0.0);
+    let ci=1.96*(v/groups as f64).sqrt()*100.0/N as f64;
+    println!("SIXMAX_NEURAL_EVAL hands={} candidate=neural opponent={} bb100={:+.3} ci95_cluster_half={:.3} elapsed={:.3}s",
+        hands,if phh.is_some(){"phh_imitation"}else{"tabular"},avg,ci,started.elapsed().as_secs_f64());
+    Ok(())
+}
+
 fn state(v:View)->usize{
     let a=v.hole[0]%13;
     let b=v.hole[1]%13;
