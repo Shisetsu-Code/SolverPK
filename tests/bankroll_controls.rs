@@ -89,6 +89,24 @@ fn bankroll_cli_rejects_malformed_seed_before_reading_a_checkpoint() {
 }
 
 #[test]
+fn bankroll_cli_rejects_a_trailing_duplicate_money_flag_before_reading_a_checkpoint() {
+    for flag in ["--bankroll-usd", "--stop-loss-usd", "--max-bet-usd"] {
+        let output = run(&[
+            "--sixmax-bankroll-eval", "--hands", "1", "--seed", "42",
+            "--checkpoint", "unused", "--opponent", "clone", "--rake-bps", "0",
+            "--bankroll-usd", "50", "--stop-loss-usd", "20", "--max-bet-usd", "10",
+            flag,
+        ]);
+        assert_eq!(output.status.code(), Some(2));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains(flag) && stderr.contains("duplicate"),
+            "trailing duplicate {flag} must be reported before opening the checkpoint: {stderr}"
+        );
+    }
+}
+
+#[test]
 fn bankroll_cli_reports_a_stop_triggered_by_the_final_requested_hand() {
     let directory = TestDirectory::new();
     let checkpoint = allin_checkpoint(&directory);
