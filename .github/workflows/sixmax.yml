@@ -1,9 +1,5 @@
 name: Sixmax Rust self-play verification
 on:
-  push:
-    paths:
-      - 'src/sixmax.rs'
-      - '.github/workflows/sixmax.yml'
   workflow_dispatch:
 permissions:
   contents: read

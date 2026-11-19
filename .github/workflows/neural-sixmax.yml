@@ -1,9 +1,5 @@
 name: Neural sixmax training and evaluation
 on:
-  push:
-    paths:
-      - 'src/neural.rs'
-      - '.github/workflows/neural-sixmax.yml'
   workflow_dispatch:
 permissions:
   contents: read

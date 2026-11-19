@@ -1,8 +1,5 @@
 name: Historical Pluribus benchmark for Self-play 10M and 20M
 on:
-  push:
-    paths:
-      - '.github/workflows/historical-benchmark.yml'
   workflow_dispatch:
 permissions:
   contents: read

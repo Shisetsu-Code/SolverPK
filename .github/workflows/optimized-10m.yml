@@ -1,8 +1,5 @@
 name: Optimized fresh self-play 10M rerun
 on:
-  push:
-    paths:
-      - '.github/workflows/optimized-10m.yml'
   workflow_dispatch:
 permissions:
   contents: read

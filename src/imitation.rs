@@ -200,4 +200,31 @@ mod tests{
         let counts=Counts::new();let p=counts.probability(0,0b110);
         assert_eq!(p,[0.0,0.5,0.5]);
     }
+    #[test] fn seen_state_does_not_overflow_action_counts(){
+        let mut model=FrozenPolicy{pooled:[[[0u64;3];2];4*5*2*4],original:[[[[0u64;3];2];3];4*5*2*4]};
+        // Unknown hole cards, preflop, no bet: group 32, off button.
+        model.pooled[32][0]=[u64::MAX,1,0];
+        model.original[32][0][0]=[u64::MAX,1,0];
+        let (hu,hu_seen)=model.predict(0,[255,255],3,0,false,[true;3]);
+        let (multi,multi_seen)=model.predict_multi(0,[255,255],3,0,false,2,[true;3]);
+        assert!(hu_seen && multi_seen);
+        assert!(hu.iter().chain(&multi).all(|p|p.is_finite()));
+        assert!((hu.iter().sum::<f32>()-1.0).abs()<1e-6);
+        assert!((multi.iter().sum::<f32>()-1.0).abs()<1e-6);
+    }
+    #[test] fn overflowing_pooled_checkpoint_counts_are_rejected(){
+        let path=std::env::temp_dir().join(format!("solverpk-imitation-overflow-{}.bin",std::process::id()));
+        let mut data=Vec::from(*b"SPKIMT01");
+        data.extend_from_slice(&(BUCKETS as u32).to_le_bytes());
+        for bucket in 0..BUCKETS{
+            for action in 0..3{
+                let count:u64=if action==0 && bucket==0{u64::MAX}else if action==0 && bucket==2{1}else{0};
+                data.extend_from_slice(&count.to_le_bytes());
+            }
+        }
+        std::fs::write(&path,data).unwrap();
+        let result=FrozenPolicy::load(path.to_str().unwrap());
+        std::fs::remove_file(path).unwrap();
+        assert!(matches!(result,Err(e) if e.kind()==io::ErrorKind::InvalidData));
+    }
 }

@@ -1,8 +1,5 @@
 name: PHH imitation vs Monte Carlo
 on:
-  push:
-    paths:
-      - '.github/workflows/phh-vs-mc.yml'
   workflow_dispatch:
 permissions:
   contents: read

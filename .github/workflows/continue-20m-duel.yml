@@ -1,8 +1,5 @@
 name: Continue 10M to 20M and duel
 on:
-  push:
-    paths:
-      - '.github/workflows/continue-20m-duel.yml'
   workflow_dispatch:
 permissions:
   contents: read

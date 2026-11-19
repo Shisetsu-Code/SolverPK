@@ -1,8 +1,5 @@
 name: Sixmax PHH warmstart ablation verified
 on:
-  push:
-    paths:
-      - '.github/workflows/sixmax-phh-ablation.yml'
   workflow_dispatch:
 permissions:
   contents: read

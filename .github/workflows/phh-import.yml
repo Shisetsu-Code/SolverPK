@@ -1,9 +1,5 @@
 name: PHH importer validation
 on:
-  push:
-    paths:
-      - 'src/**'
-      - '.github/workflows/phh-import.yml'
   workflow_dispatch:
 permissions:
   contents: read

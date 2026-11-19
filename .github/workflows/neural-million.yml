@@ -1,8 +1,5 @@
 name: Neural distillation from million-hand 6max teacher
 on:
-  push:
-    paths:
-      - '.github/workflows/neural-million.yml'
   workflow_dispatch:
 permissions:
   contents: read

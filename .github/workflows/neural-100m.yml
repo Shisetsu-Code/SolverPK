@@ -1,8 +1,5 @@
 name: Neural 100 million 6max self-play hands
 on:
-  push:
-    paths:
-      - '.github/workflows/neural-100m.yml'
   workflow_dispatch:
 permissions:
   contents: read

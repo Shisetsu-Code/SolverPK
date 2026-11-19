@@ -173,4 +173,37 @@ mod tests{
         let x=[0.25;INPUT];let mask=[true;ACTIONS];
         assert_eq!(net.forward(&x,mask).prob,restored.forward(&x,mask).prob);
     }
+    #[test]fn zero_rate_imitation_keeps_model_frozen(){
+        let mut net=Net::new(41);
+        let before=net.clone();
+        net.imitate(&[0.2;INPUT],[true;ACTIONS],[0.0,1.0,0.0,0.0,0.0,0.0],0.0);
+        assert_eq!(net.steps,before.steps);
+        assert_eq!(net.w1,before.w1);
+        assert_eq!(net.b1,before.b1);
+        assert_eq!(net.w2,before.w2);
+        assert_eq!(net.b2,before.b2);
+        assert_eq!(net.baseline,before.baseline);
+    }
+    #[test]fn reinforcement_counter_does_not_wrap(){
+        let mut net=Net::new(43);
+        net.steps=u64::MAX;
+        net.reinforce(&[0.2;INPUT],[true;ACTIONS],1,1.0,0.01);
+        assert_eq!(net.steps,u64::MAX);
+        assert!(net.forward(&[0.2;INPUT],[true;ACTIONS]).prob.iter().all(|p|p.is_finite()));
+    }
+    #[test]fn imitation_counter_does_not_wrap(){
+        let mut net=Net::new(47);
+        net.steps=u64::MAX;
+        net.imitate(&[0.2;INPUT],[true;ACTIONS],[0.0,1.0,0.0,0.0,0.0,0.0],0.01);
+        assert_eq!(net.steps,u64::MAX);
+    }
+    #[test]fn checkpoint_rejects_finite_weights_that_overflow_inference(){
+        let mut net=Net::new(53);
+        net.w1[0][0]=f32::MAX;
+        let path=std::env::temp_dir().join(format!("solverpk-neural-overflow-{}.bin",std::process::id()));
+        net.save(path.to_str().unwrap()).unwrap();
+        let result=Net::load(path.to_str().unwrap());
+        std::fs::remove_file(path).unwrap();
+        assert!(matches!(result,Err(e) if e.kind()==io::ErrorKind::InvalidData));
+    }
 }

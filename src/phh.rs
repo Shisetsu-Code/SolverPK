@@ -361,6 +361,11 @@ mod tests{
         let t="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cc']";
         let h=parse_hand(t).unwrap();assert!(reconstruct(&h,1).is_err());
     }
+    #[test] fn incomplete_hand_after_closed_betting_round_rejected(){
+        let t="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cc','p2 cc']";
+        let h=parse_hand(t).unwrap();
+        assert!(reconstruct(&h,1).is_err(),"a closed preflop round does not complete a hand with two live players");
+    }
     #[test] fn cards_and_amounts(){
         assert_eq!(card_id("As").unwrap(),51);
         assert_eq!(parse_money("0.25").unwrap(),25);

@@ -14,6 +14,10 @@ const STATES:usize=4*5*3*3*3*4*3*3;
 const ACTIONS:usize=6;
 const MAGIC:&[u8;8]=b"SPK6MAX3";
 
+#[cfg(test)]
+#[path = "sixmax_audit_tests.rs"]
+mod audit_tests;
+
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 enum Action {Fold,Call,Raise(i64)} // Raise to street-total
 #[derive(Clone)]

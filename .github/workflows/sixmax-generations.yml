@@ -1,8 +1,5 @@
 name: Sixmax generation 100k vs 1M
 on:
-  push:
-    paths:
-      - '.github/workflows/sixmax-generations.yml'
   workflow_dispatch:
 permissions:
   contents: read

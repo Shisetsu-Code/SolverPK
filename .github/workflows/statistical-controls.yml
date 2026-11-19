@@ -1,9 +1,5 @@
 name: Statistical baseline controls
 on:
-  push:
-    paths:
-      - 'src/**'
-      - '.github/workflows/statistical-controls.yml'
   workflow_dispatch:
 permissions:
   contents: read
