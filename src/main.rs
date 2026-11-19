@@ -2,6 +2,7 @@ mod selfplay;
 mod evaluator;
 mod phh;
 mod imitation;
+mod phh_eval;
 use std::env;
 use std::time::Instant;
 
@@ -224,9 +225,14 @@ fn main() {
         println!("solverpk --duel --left 1m.bin --right 11m.bin --hands 100000 --samples 8");
         println!("solverpk --import-phh --source data/pluribus --output observations.bin --max-files 1000");
         println!("solverpk --train-phh --source observations.bin --output imitation.bin");
+        println!("solverpk --evaluate-phh --model imitation.bin --candidate phh|uniform|mc --hands 100000 --samples 32");
         println!("solverpk --baseline-test --checkpoint selfplay.bin --baseline random|mc|clone --hands 100000 --samples 16");
         println!("Bot0: tight/aggressive. Bot1: loose/aggressive with occasional bluffs.");
         println!("Heads-up cash simulation, 100 BB stacks, no rake. Every hand resets stacks.");
+        return;
+    }
+    if args.iter().any(|a| a=="--evaluate-phh") {
+        if let Err(e)=phh_eval::run(&args) {eprintln!("PHH evaluation error: {e}"); std::process::exit(2);}
         return;
     }
     if args.iter().any(|a| a=="--train-phh") {
