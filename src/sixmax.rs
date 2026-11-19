@@ -117,7 +117,7 @@ impl Table6 {
         let call=self.call(p);
         let legal=self.legal(p);
         match action {
-            Action::Fold if legal[0] =>{self.folded[p]=true;self.pending[p]=false;self.acted[p]=true;}
+            Action::Fold if legal[0] =>{self.folded[p]=true;self.pending[p]=false;self.acted[p]=true;self.update_public_range(p,0);}
             Action::Call=>{
                 self.pay(p,call);
                 self.pending[p]=false;
@@ -480,6 +480,26 @@ mod tests{
         let mut t=Table6::new(5,1);
         assert_eq!(t.hole.iter().flatten().copied().collect::<std::collections::HashSet<_>>().len(),12);
         let _=t.view(0);
+    }
+    #[test]fn public_range_update_normalized(){
+        let mut t=Table6::new(9,0);
+        t.update_public_range(3,2);
+        let r=t.estimated_ranges[3];
+        assert!((r.iter().sum::<f32>()-1.0).abs()<1e-6);
+        assert!(r[0]>0.15);
+        assert_eq!(t.view(1).range_bucket,0);
+    }
+    #[test]fn six_bet_size_actions_are_legal(){
+        let t=Table6::new(9,0);
+        let actions=t.legal(t.actor);
+        assert_eq!(actions.len(),6);
+        assert!(actions[2..].iter().any(|&a|a));
+        for a in 2..ACTIONS {
+            if actions[a]{
+                let to=t.raise_to(t.actor,a);
+                assert!(to>t.high);
+            }
+        }
     }
     #[test]fn seeded_games_conserve(){
         let mut bots=std::array::from_fn(|_|Bot::new());
