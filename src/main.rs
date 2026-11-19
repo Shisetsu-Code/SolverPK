@@ -1,4 +1,5 @@
 mod selfplay;
+mod evaluator;
 use std::env;
 use std::time::Instant;
 
@@ -42,50 +43,7 @@ fn deck(rng: &mut Rng) -> [u8; 52] {
 }
 fn rank(card: u8) -> usize { (card % 13) as usize + 2 }
 fn suit(card: u8) -> usize { (card / 13) as usize }
-fn score5(cards: &[u8; 5]) -> u64 {
-    let mut count = [0u8; 15];
-    let mut suits = [0u8; 4];
-    for &c in cards { count[rank(c)] += 1; suits[suit(c)] += 1; }
-    let flush = suits.contains(&5);
-    let mut straight = 0;
-    for h in (5..=14).rev() {
-        if (0..5).all(|d| count[if h == 5 && d == 4 { 14 } else { h-d }] > 0) {
-            straight = h; break;
-        }
-    }
-    let mut groups = Vec::with_capacity(5);
-    for r in (2..=14).rev() { if count[r] > 0 { groups.push((count[r], r)); } }
-    groups.sort_by(|a,b| b.cmp(a));
-    let category;
-    let kick: Vec<usize>;
-    if flush && straight > 0 { category = 8; kick = vec![straight]; }
-    else if groups[0].0 == 4 { category = 7; kick = vec![groups[0].1, groups[1].1]; }
-    else if groups[0].0 == 3 && groups[1].0 == 2 { category = 6; kick = vec![groups[0].1, groups[1].1]; }
-    else if flush { category = 5; kick = (2..=14).rev().filter(|&r| count[r]>0).collect(); }
-    else if straight > 0 { category = 4; kick = vec![straight]; }
-    else if groups[0].0 == 3 {
-        category = 3;
-        kick = std::iter::once(groups[0].1).chain(groups[1..].iter().map(|g|g.1)).collect();
-    } else if groups[0].0 == 2 && groups[1].0 == 2 {
-        category = 2;
-        kick = vec![groups[0].1, groups[1].1, groups[2].1];
-    } else if groups[0].0 == 2 {
-        category = 1;
-        kick = std::iter::once(groups[0].1).chain(groups[1..].iter().map(|g|g.1)).collect();
-    } else { category = 0; kick = groups.iter().map(|g|g.1).collect(); }
-    let mut result = category as u64;
-    for i in 0..5 { result = (result << 4) | *kick.get(i).unwrap_or(&0) as u64; }
-    result
-}
-fn score7(cards: &[u8; 7]) -> u64 {
-    let mut best = 0;
-    for a in 0..3 { for b in a+1..4 { for c in b+1..5 {
-        for d in c+1..6 { for e in d+1..7 {
-            best = best.max(score5(&[cards[a],cards[b],cards[c],cards[d],cards[e]]));
-        } }
-    } } }
-    best
-}
+use evaluator::{score5,score7};
 #[derive(Default, Clone, Copy)]
 struct Stats { won: u64, folds: u64, showdowns: u64, net: i64, actions: u64 }
 struct Table {
@@ -123,26 +81,36 @@ impl Table {
     fn pot(&self) -> i64 { self.invested[0] + self.invested[1] }
     fn call_amount(&self, p: usize) -> i64 { (self.street[1-p] - self.street[p]).max(0) }
     fn equity(&self, p: usize, samples: usize, rng: &mut Rng) -> f64 {
-        let mut known = [false; 52];
-        for &c in &self.hole[p] { known[c as usize] = true; }
-        for &c in &self.board[..self.visible] { known[c as usize] = true; }
-        let unknown: Vec<u8> = (0..52).filter(|&c| !known[c]).map(|c|c as u8).collect();
-        let missing = 5 - self.visible;
-        let mut points = 0.0;
+        // Monte Carlo versus a uniformly sampled opponent range, not CFR/GTO.
+        // Zero allocations per sample. Known cards removed once, partial
+        // Fisher-Yates sampling draws opponent + unknown community cards.
+        let mut excluded = 0u64;
+        for &c in &self.hole[p] { excluded |= 1u64 << c; }
+        for &c in &self.board[..self.visible] { excluded |= 1u64 << c; }
+        let mut pool = [0u8; 52];
+        let mut remaining=0usize;
+        for card in 0..52u8 {
+            if excluded & (1u64 << card) == 0 {
+                pool[remaining]=card;
+                remaining+=1;
+            }
+        }
+        let missing=5-self.visible;
+        let mut won=0u64;
         for _ in 0..samples {
-            let mut pool = unknown.clone();
+            // Reusing the previously permuted pool is unbiased: every prefix
+            // is a uniform sample without replacement.
             for k in 0..missing+2 {
-                let j = k + rng.range(pool.len()-k);
+                let j=k+rng.range(remaining-k);
                 pool.swap(k,j);
             }
-            let opp = [pool[0], pool[1]];
-            let mut b = self.board;
-            b[self.visible..].copy_from_slice(&pool[2..2+missing]);
-            let ours = score7(&[self.hole[p][0],self.hole[p][1],b[0],b[1],b[2],b[3],b[4]]);
-            let theirs = score7(&[opp[0],opp[1],b[0],b[1],b[2],b[3],b[4]]);
-            points += if ours > theirs { 1.0 } else if ours == theirs { 0.5 } else { 0.0 };
+            let mut board=self.board;
+            board[self.visible..].copy_from_slice(&pool[2..missing+2]);
+            let ours=score7(&[self.hole[p][0],self.hole[p][1],board[0],board[1],board[2],board[3],board[4]]);
+            let theirs=score7(&[pool[0],pool[1],board[0],board[1],board[2],board[3],board[4]]);
+            won+=if ours>theirs {2} else if ours==theirs {1} else {0};
         }
-        points / samples as f64
+        won as f64 / (2*samples) as f64
     }
     fn betting(&mut self, first: usize, rng: &mut Rng, simulations: usize, verbose: bool) {
         // Heads-up: each player acts once unless a bet/raise reopens action.
