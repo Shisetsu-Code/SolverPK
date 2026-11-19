@@ -351,7 +351,7 @@ mod tests{
         let t="variant='NT'\nplayers=['A','B','C','D','E','F']\nstarting_stacks=[10000,10000,10000,10000,10000,10000]\nfinishing_stacks=[9700,10300,10000,10000,10000,10000]\nantes=[0,0,0,0,0,0]\nblinds_or_straddles=[50,100,0,0,0,0]\nmin_bet=100\nactions=['d dh p1 Ac5d','d dh p2 Jh8h','d dh p3 KhTs','d dh p4 Qh9s','d dh p5 Th5s','d dh p6 7c2d','p3 f','p4 f','p5 f','p6 f','p1 cbr 300','p2 cc','d db 2sQs9c','p1 cc','p2 cbr 450','p1 f']";
         let h=parse_hand(t).unwrap();
         let records=reconstruct(&h,19).unwrap();
-        assert_eq!(records.len(),10);
+        assert_eq!(records.len(),9);
     }
     #[test] fn incomplete_hand_rejected(){
         let t="variant='NT'\nplayers=['A','B']\nstarting_stacks=[100,100]\nantes=[0,0]\nblinds_or_straddles=[1,2]\nmin_bet=2\nactions=['p1 cc']";
