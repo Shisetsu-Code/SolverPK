@@ -1,6 +1,28 @@
 use super::*;
 
 #[test]
+fn audit_regression_tabular_checkpoint_rejects_nonfinite_baseline() {
+    let mut bots:[Bot;N]=std::array::from_fn(|_|Bot::new());
+    bots[0].table[0].baseline=f32::NAN;
+    let path=std::env::temp_dir().join(format!("solverpk-tabular-baseline-{}.bin",std::process::id()));
+    save(path.to_str().unwrap(),&bots).unwrap();
+    let result=load(path.to_str().unwrap());
+    std::fs::remove_file(path).unwrap();
+    assert!(matches!(result,Err(e) if e.kind()==io::ErrorKind::InvalidData));
+}
+
+#[test]
+fn audit_regression_tabular_checkpoint_rejects_trailing_bytes() {
+    let bots:[Bot;N]=std::array::from_fn(|_|Bot::new());
+    let path=std::env::temp_dir().join(format!("solverpk-tabular-trailing-{}.bin",std::process::id()));
+    save(path.to_str().unwrap(),&bots).unwrap();
+    std::fs::OpenOptions::new().append(true).open(&path).unwrap().write_all(b"trailing").unwrap();
+    let result=load(path.to_str().unwrap());
+    std::fs::remove_file(path).unwrap();
+    assert!(matches!(result,Err(e) if e.kind()==io::ErrorKind::InvalidData));
+}
+
+#[test]
 fn audit_regression_cluster_interval_uses_sample_variance() {
     // Two independent clusters, each of six hands, return 6 and 18 BB.
     // Sample variance of cluster totals is 72; mean standard error is 6 BB.
@@ -75,8 +97,8 @@ fn audit_regression_folded_contributions_do_not_create_extra_odd_chips() {
     }
     // There is ONE pot and no unmatched bet. Folded players' contributions
     // cannot create extra odd chips for seat 4 in a 28-chip split pot.
-    assert_eq!(t.settle(), [0, 0, 0, 0, 14, 14]);
-    assert_eq!(t.net(), [0, -1, -2, -5, 4, 4]);
+    assert_eq!(t.settle(RakeConfig::NONE).payouts, [0, 0, 0, 0, 140_000, 140_000]);
+    assert_eq!(t.net(), [0, -10_000, -20_000, -50_000, 40_000, 40_000]);
 }
 
 #[test]

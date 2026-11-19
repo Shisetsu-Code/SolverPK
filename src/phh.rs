@@ -369,6 +369,46 @@ mod tests{
         let h=parse_hand(t).unwrap();
         assert!(reconstruct(&h,1).is_err(),"a closed preflop round does not complete a hand with two live players");
     }
+    fn after_short_all_in()->State{
+        let h=Hand{players:3,starting:vec![100,14,100],blinds:vec![1,2,0],
+            antes:vec![0;3],min_bet:2,..Hand::default()};
+        let mut s=State::new(&h).unwrap();
+        s.action(2,2,10).unwrap();
+        s.action(0,1,0).unwrap();
+        s.action(1,2,14).unwrap();
+        s
+    }
+    #[test] fn short_all_in_does_not_restore_raise_mask(){
+        let s=after_short_all_in();
+        assert_eq!(s.observe(2,1,0,1,3,false)[15],0b011,
+            "the original raiser faces only 4 against a full-raise size of 8");
+    }
+    #[test] fn short_all_in_does_not_restore_raise_right(){
+        let mut s=after_short_all_in();
+        assert!(s.action(2,2,22).is_err(),"a short all-in must not permit a re-raise");
+        assert_eq!(s.queue.front().copied(),Some(2),"a rejected raise must preserve the turn");
+        s.action(2,1,0).unwrap();
+        assert_eq!(s.street_paid[2],14,"calling the extra 4 remains legal");
+    }
+    #[test] fn cumulative_short_all_ins_reopen_only_players_facing_full_raise(){
+        let h=Hand{players:5,starting:vec![100,18,100,14,100],blinds:vec![1,2,0,0,0],
+            antes:vec![0;5],min_bet:2,..Hand::default()};
+        let mut s=State::new(&h).unwrap();
+        s.action(2,2,10).unwrap(); // Complete raise: 8.
+        s.action(3,2,14).unwrap(); // Short all-in: 4.
+        s.action(4,1,0).unwrap(); // Called 14, so now needs 8 more to reopen.
+        s.action(0,1,0).unwrap();
+        s.action(1,2,18).unwrap(); // Another short all-in: 4.
+        assert_eq!(s.min_raise,8);
+        assert_eq!(s.observe(2,2,26,1,5,false)[15]&4,4,
+            "the original raiser now faces a cumulative full raise of 8");
+        assert_eq!(s.observe(4,1,0,1,5,false)[15]&4,0,
+            "the player who called 14 faces only 4 more");
+        s.action(2,2,26).unwrap();
+        assert_eq!(s.min_raise,8);
+        assert_eq!(s.observe(4,2,34,1,6,false)[15]&4,4,
+            "the subsequent full raise also reopens action for the caller");
+    }
     #[test] fn cards_and_amounts(){
         assert_eq!(card_id("As").unwrap(),51);
         assert_eq!(parse_money("0.25").unwrap(),25);

@@ -165,7 +165,13 @@ pub fn run(args:&[String])->io::Result<()>{
         let legal=(0..ACTIONS).filter(|&a|r[15]&(1<<a)!=0).count();
         loss-=probs[action].max(1e-12).ln();
         null_loss+=(legal as f64).ln();
-        if probs[action]==probs.iter().copied().fold(0.0,f64::max){correct+=1;}
+        // Top-1 accuracy chooses one legal action; ties use the lowest index.
+        // Counting every maximum as correct inflates unseen uniform buckets.
+        let mut predicted=(0..ACTIONS).find(|&a|r[15]&(1<<a)!=0).unwrap();
+        for candidate in predicted+1..ACTIONS{
+            if r[15]&(1<<candidate)!=0 && probs[candidate]>probs[predicted]{predicted=candidate;}
+        }
+        if predicted==action{correct+=1;}
         evaluated+=1;
         Ok(())
     })?;
