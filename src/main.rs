@@ -4,6 +4,7 @@ mod phh;
 mod imitation;
 mod phh_eval;
 mod phh_compare;
+mod sixmax;
 use std::env;
 use std::time::Instant;
 
@@ -221,6 +222,8 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.iter().any(|a|a=="--help" || a=="-h") {
         println!("solverpk --hands 10000 --seed 42 --samples 64 --verbose");
+        println!("solverpk --sixmax-train --hands 100000 --checkpoint sixmax.bin");
+        println!("solverpk --sixmax-eval --hands 60000 --checkpoint sixmax.bin");
         println!("solverpk --self-play --hands 10000 --rooms 64 --agents 8 --samples 8 --checkpoint selfplay.bin");
         println!("solverpk --self-play --resume --hands 10000 --rooms 64 --agents 8 --checkpoint selfplay.bin");
         println!("solverpk --duel --left 1m.bin --right 11m.bin --hands 100000 --samples 8");
@@ -231,6 +234,14 @@ fn main() {
         println!("solverpk --baseline-test --checkpoint selfplay.bin --baseline random|mc|clone --hands 100000 --samples 16");
         println!("Bot0: tight/aggressive. Bot1: loose/aggressive with occasional bluffs.");
         println!("Heads-up cash simulation, 100 BB stacks, no rake. Every hand resets stacks.");
+        return;
+    }
+    if args.iter().any(|a| a=="--sixmax-eval") {
+        if let Err(e)=sixmax::evaluate(&args) {eprintln!("6max eval error: {e}"); std::process::exit(2);}
+        return;
+    }
+    if args.iter().any(|a| a=="--sixmax-train") {
+        if let Err(e)=sixmax::run(&args) {eprintln!("6max error: {e}"); std::process::exit(2);}
         return;
     }
     if args.iter().any(|a| a=="--compare-phh-historical") {
