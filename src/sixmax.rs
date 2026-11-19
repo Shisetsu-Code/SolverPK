@@ -508,34 +508,38 @@ pub fn duel(args:&[String])->io::Result<()>{
     }
     let a=load(left)?[0].clone();let b=load(right)?[0].clone();
     let mut seats:[Bot;N]=std::array::from_fn(|p|if p%2==0{a.clone()}else{b.clone()});
-    let mut totals=0f64;let mut group_sq=0f64;
+    let mut totals=0f64;let mut pair_sq=0f64;
     let mut action_counts=[0u64;ACTIONS];
-    let groups=hands/N;
+    let pairs=hands/(2*N);
     let start=Instant::now();
-    for group in 0..groups{
-        if group%2==1 {
-            for seat in (0..N).step_by(2) {seats.swap(seat,seat+1);}
+    for pair in 0..pairs {
+        // Both team assignments play the SAME six deals, with all button
+        // positions. Under identical policies the paired result is exactly 0.
+        let deal_seed=seed ^ (pair as u64).wrapping_mul(0x9e3779b97f4a7c15);
+        let mut pair_net=0f64;
+        for flip in 0..2 {
+            if flip==1 {
+                for seat in (0..N).step_by(2){seats.swap(seat,seat+1);}
+            }
+            for button in 0..N {
+                let result=play(&mut seats,deal_seed,button,0.0,false,None,false,&mut action_counts);
+                let a_net=(0..N).filter(|&p|(p%2==0)==(flip==0))
+                    .map(|p|result[p]).sum::<i64>();
+                pair_net+=a_net as f64/BB as f64;
+            }
+            if flip==1 {
+                for seat in (0..N).step_by(2){seats.swap(seat,seat+1);}
+            }
         }
-        let deal_seed=seed ^ (group as u64).wrapping_mul(0x9e3779b97f4a7c15);
-        let mut group_net=0f64;
-        for button in 0..N {
-            let result=play(&mut seats,deal_seed,button,0.0,false,None,false,&mut action_counts);
-            let a_net=(0..N).filter(|&p|(p%2==0)==(group%2==0)).map(|p|result[p]).sum::<i64>();
-            group_net+=a_net as f64/BB as f64;
-        }
-        totals+=group_net;
-        group_sq+=group_net*group_net;
-        if group%2==1 {
-            for seat in (0..N).step_by(2) {seats.swap(seat,seat+1);}
-        }
+        totals+=pair_net;pair_sq+=pair_net*pair_net;
     }
     let mean=totals/(hands as f64*3.0)*100.0;
-    let gm=totals/groups as f64;
-    let var=(group_sq/groups as f64-gm*gm).max(0.0);
-    let half=1.96*(var/groups as f64).sqrt()*100.0/(N as f64*3.0);
-    println!("SIXMAX_DUEL left={} right={} hands={} left_bb100={:+.3} right_bb100={:+.3} ci95_six_hand_cluster_half={:.3} elapsed={:.3}s",
+    let pm=totals/pairs as f64;
+    let var=(pair_sq/pairs as f64-pm*pm).max(0.0);
+    let half=1.96*(var/pairs as f64).sqrt()*100.0/(2.0*N as f64*3.0);
+    println!("SIXMAX_DUEL left={} right={} hands={} left_bb100={:+.3} right_bb100={:+.3} ci95_twelve_hand_pair_half={:.3} elapsed={:.3}s",
         left,right,hands,mean,-mean,half,start.elapsed().as_secs_f64());
-    println!("SIXMAX_DUEL_NOTE three seats per strategy, six button positions per shared deal, frozen policies, no GTO guarantee");
+    println!("SIXMAX_DUEL_NOTE three seats per strategy, twelve matched deals per paired seed with both team assignments, frozen policies, no GTO guarantee");
     Ok(())
 }
 
