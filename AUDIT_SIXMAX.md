@@ -1,5 +1,7 @@
 # Auditoría de SolverPK: reglas, rake, ganancias y evaluación
 
+> **Comparación con software externo:** [EXTERNAL_ENGINE_AUDIT.md](EXTERNAL_ENGINE_AUDIT.md) amplía esta auditoría con PokerKit, Treys, 6.000 manos completas y controles de caja corregidos. Este documento conserva la auditoría financiera y la reevaluación histórica anteriores.
+
 > **Seguimiento posterior:** [NEURAL_V2.md](NEURAL_V2.md) documenta la corrección de observaciones, recompensas y gradientes, además de la nueva liga. Este informe conserva los hallazgos y resultados del checkpoint histórico SPKNN001 de 100M; sus limitaciones de representación no describen al nuevo SPKNN002.
 
 

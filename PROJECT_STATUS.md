@@ -2,6 +2,8 @@
 
 > **Estado vigente: Neural V2.** [NEURAL_V2.md](NEURAL_V2.md) documenta el encoder de 128 entradas, aprendizaje monetario sin recortes, actualización congelada por mano, checkpoints reproducibles y liga. SPKNN001 se conserva solo para evaluación.
 
+> **Auditoría externa posterior:** [EXTERNAL_ENGINE_AUDIT.md](EXTERNAL_ENGINE_AUDIT.md) describe la comparación con PokerKit/Treys y las correcciones de controles de caja. [TABULAR_10M_CORRECTED.md](TABULAR_10M_CORRECTED.md) y [TABULAR_20M_CORRECTED.md](TABULAR_20M_CORRECTED.md) conservan los entrenamientos tabulares posteriores; no son entrenamientos neuronales V2.
+
 > **Actualización posterior a los 100M:** [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) contiene las correcciones verificadas de reglas/rake, la reevaluación congelada y las limitaciones estratégicas detectadas. Las tablas de experimentos anteriores de este archivo son históricas y no representan resultados después de rake.
 
 > **Fuente de verdad para continuar el desarrollo.** Leer este archivo antes de modificar la arquitectura, los checkpoints o los benchmarks. El plan priorizado está en [ROADMAP.md](ROADMAP.md).
@@ -13,7 +15,7 @@ SolverPK es un proyecto de investigación de póker Texas Hold'em en **Rust sin 
 | Componente | Archivo principal | Agente | Estado |
 |---|---|---|---|
 | Heads-Up original | `src/main.rs`, `src/selfplay.rs`, `src/evaluator.rs` | Actor-critic **tabular**, 640 estados/3 acciones | Funciona; checkpoints y pruebas propios, **no** 6-max |
-| Arena 6-max | `src/sixmax.rs` | Actor-critic **tabular**, 19.440 estados/6 acciones | Funciona en abstracción no-limit; requiere conformance externo |
+| Arena 6-max | `src/sixmax.rs` | Actor-critic **tabular**, 19.440 estados/6 acciones | Comparación externa reproducible; alcance y diferencias de reglas en EXTERNAL_ENGINE_AUDIT.md |
 | Neuronal 6-max | `src/neural.rs` + `src/sixmax.rs` | MLP **128→32→6 V2**, entrenamiento por backpropagation | V2 validada; **100M pertenecen al modelo histórico V1**, conservado |
 | Ingesta PHH | `src/phh.rs`, `src/imitation.rs`, `src/phh_compare.rs`, `src/phh_eval.rs` | Parser, replay histórico y modelo tabular por imitación | 10.000 manos de Pluribus importadas; no es un solver GTO |
 

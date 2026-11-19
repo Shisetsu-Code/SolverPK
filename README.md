@@ -6,6 +6,10 @@ Simuladores y agentes de investigación para **Texas Hold'em** en Rust, sin depe
 
 **Documentación principal:**
 
+La [auditoría externa posterior](EXTERNAL_ENGINE_AUDIT.md) verifica el motor 6-max con PokerKit/Treys: 6.000 manos completas, 38.806 casos de cartas, 158 pruebas Rust y nueve métodos Python. Incluye las correcciones más recientes de stop loss, telemetría y subidas con stacks desiguales.
+
+- [EXTERNAL_ENGINE_AUDIT.md](EXTERNAL_ENGINE_AUDIT.md): comparación reproducible con PokerKit y Treys; correcciones de riesgo, telemetría y subidas con stacks desiguales.
+- [BANKROLL_RISK.md](BANKROLL_RISK.md): caja USD 50, máximo USD 10 por mano y stop loss; resultados históricos de sesiones y límites del experimento.
 - [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md): revisión actual de reglas, rake, ganancias, pruebas independientes y reevaluación del checkpoint 100M.
 - [NEURAL_V2.md](NEURAL_V2.md): correcciones V2, validación y piloto con controles iniciales y tres semillas de entrenamiento.
 - [PROJECT_STATUS.md](PROJECT_STATUS.md): inventario técnico, cronología, evidencia, parámetros, checkpoints, comandos, limitaciones y traspaso a otro desarrollador/LLM.
