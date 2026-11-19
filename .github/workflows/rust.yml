@@ -1,27 +1,47 @@
-name: Rust CI
+name: Rust CI / 10M self-play
 on:
   push:
   pull_request:
+permissions:
+  contents: read
+  actions: read
 jobs:
-  test:
+  test-and-train:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Tests
+      - name: Unit tests
         run: cargo test --all-targets
-      - name: Simulator smoke test
-        run: cargo run --release -- --hands 100 --samples 8 --seed 42
-      - name: Self-play training 1000000 hands
+      - name: Build optimized
+        run: cargo build --release
+      - name: Restore 1M-hand checkpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cargo run --release -- --self-play --hands 800000 --eval-hands 20000 --rooms 64 --agents 8 --samples 4 --seed 42 --checkpoint selfplay.bin | tee selfplay-first.log
-          cargo run --release -- --self-play --resume --hands 200000 --eval-hands 20000 --rooms 64 --agents 8 --samples 4 --seed 4242 --checkpoint selfplay.bin | tee selfplay-resume.log
-      - name: Upload self-play metrics and checkpoint
+          gh run download 44518694789 --repo Shisetsu-Code/SolverPK --name solverpk-selfplay --dir previous
+          test -s previous/selfplay.bin
+          cp previous/selfplay.bin selfplay.bin
+          sha256sum selfplay.bin | tee checkpoint-input.sha256
+      - name: Continue training for 10 million more hands
+        run: |
+          set -o pipefail
+          ./target/release/solverpk --self-play --resume --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 4 --seed 20261119 --checkpoint selfplay.bin | tee selfplay-5m.log
+          cp selfplay.bin checkpoint-5m.bin
+          ./target/release/solverpk --self-play --resume --hands 5000000 --eval-hands 20000 --rooms 64 --agents 8 --samples 4 --seed 20261120 --checkpoint selfplay.bin | tee selfplay-10m.log
+          sha256sum selfplay.bin | tee checkpoint-output.sha256
+      - name: Upload checkpoints and logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: solverpk-selfplay
+          name: solverpk-10m-continuation
           path: |
-            selfplay-first.log
-            selfplay-resume.log
+            selfplay-5m.log
+            selfplay-10m.log
+            checkpoint-5m.bin
             selfplay.bin
-          retention-days: 7
+            checkpoint-input.sha256
+            checkpoint-output.sha256
+          if-no-files-found: warn
+          retention-days: 30
