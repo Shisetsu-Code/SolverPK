@@ -44,6 +44,15 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --release external_engine_export -- --ignored --nocapture 2>&1 | tee external-export.log
+          python -c 'from pathlib import Path; assert any(s.startswith("EXTERNAL_ENGINE_EXPORT hands=6000 ") for s in Path("external-export.log").read_text().splitlines()), "export test did not run"'
+      - name: Verify the comparator rejects corrupted traces
+        if: always()
+        shell: bash
+        env:
+          PYTHONPATH: '${{ github.workspace }}/external-oracles/pokerkit:${{ github.workspace }}/external-oracles/treys'
+        run: |
+          set -euo pipefail
+          python scripts/external_comparator_tests.py -v 2>&1 | tee external-comparator-tests.log
       - name: Replay full hands with pinned PokerKit
         if: always()
         shell: bash
@@ -61,6 +70,7 @@ jobs:
           set -euo pipefail
           python scripts/external_evaluator.py --output external-evaluator.tsv 2>&1 | tee external-evaluator.log
           cargo test --release evaluator::external_tests::external_evaluator_matches_treys_and_pokerkit -- --ignored --exact --nocapture 2>&1 | tee -a external-evaluator.log
+          python -c 'from pathlib import Path; assert "EXTERNAL_EVALUATOR canonical=7462 random5=10000 random6=10000 random7=10000 edge=1344 total=38806 engines=PokerKit,Treys" in Path("external-evaluator.log").read_text().splitlines(), "external evaluator test did not run"'
           python -c 'import json,pathlib; p=pathlib.Path("external-evaluator.json"); d=json.loads(p.read_text()); d["solverpk_verification"]="passed: Rust external_evaluator_matches_treys_and_pokerkit"; p.write_text(json.dumps(d,indent=2,sort_keys=True)+"\n")'
       - name: Exhaustive evaluator and accounting stress regression
         if: always()
@@ -68,7 +78,9 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --release exhaustive_five_card -- --ignored --nocapture 2>&1 | tee external-exhaustive.log
+          python -c 'from pathlib import Path; assert "test evaluator::tests::exhaustive_five_card_scores_match_independent_oracle_and_frequencies ... ok" in Path("external-exhaustive.log").read_text().splitlines(), "exhaustive evaluator test did not run"'
           cargo test --release audit_stress -- --ignored --nocapture 2>&1 | tee external-stress.log
+          python -c 'from pathlib import Path; assert any(s.startswith("AUDIT_STRESS ") and " hands=100000 fixed=50000 heterogeneous=50000 " in s for s in Path("external-stress.log").read_text().splitlines()), "accounting stress test did not run"'
       - name: Preserve reproducible audit evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Replay real SolverPK JSONL histories in an immutable PokerKit engine.
 
-All PokerKit monetary inputs are Fraction objects. Native rake is disabled;
-fees are independently allocated using PokerKit's ChipsPushing operations.
+All PokerKit monetary inputs are Fraction objects. Native rake is disabled.
+Public PokerKit pots and hand ranks are captured before showdown hand killing;
+the specified integer rake/odd-unit policy is then checked exactly.
 No upstream source/state is patched. Known differences are counted individually
 and rejected hands remain explicitly incomplete. Unknown differences fail CLI.
 """
@@ -38,7 +39,7 @@ def exact(value):
 
 
 def card_text(card):
-    if not isinstance(card, int) or not 0 <= card < 52:
+    if type(card) is not int or not 0 <= card < 52:
         raise ValueError(f"invalid card id: {card!r}")
     return "23456789TJQKA"[card % 13] + "cdhs"[card // 13]
 
@@ -60,6 +61,67 @@ class Difference(Exception):
     def __init__(self, category, detail, known=False):
         super().__init__(detail)
         self.category, self.known = category, known
+
+
+def validate_trace(hand):
+    """Reject incomplete masks and Python bool/int coercions before comparison."""
+    def vector(value, length, kind, label, nonnegative=False):
+        if (type(value) is not list or len(value) != length
+                or any(type(x) is not kind for x in value)
+                or (nonnegative and any(x < 0 for x in value))):
+            raise Difference("invalid_trace_schema", f"{label}: expected {length} {kind.__name__} values")
+
+    if type(hand["button"]) is not int or not 0 <= hand["button"] < N:
+        raise Difference("invalid_trace_schema", "button outside 0..5")
+    vector(hand["initial"], N, int, "initial", True)
+    vector(hand["total"], N, int, "total", True)
+    vector(hand["folded"], N, bool, "folded")
+    if type(hand["visible"]) is not int or hand["visible"] not in (0, 3, 4, 5):
+        raise Difference("invalid_trace_schema", "invalid visible board count")
+    if type(hand["hole"]) is not list or len(hand["hole"]) != N:
+        raise Difference("invalid_trace_schema", "six hole-card pairs required")
+    for cards in hand["hole"]:
+        vector(cards, 2, int, "hole cards", True)
+    vector(hand["board"], 5, int, "board", True)
+    if type(hand["steps"]) is not list:
+        raise Difference("invalid_trace_schema", "steps must be an array")
+    for index, step in enumerate(hand["steps"]):
+        for field, upper in (("p", N), ("r", 4), ("a", 6)):
+            if type(step[field]) is not int or not 0 <= step[field] < upper:
+                raise Difference("invalid_trace_schema", f"step={index}: {field} out of range")
+        for field in ("s", "b", "t"):
+            vector(step[field], N, int, f"step={index}: {field}", True)
+        vector(step["f"], N, bool, f"step={index}: f")
+        vector(step["l"], 6, bool, f"step={index}: l")
+        vector(step["to"], 4, int, f"step={index}: to", True)
+        for field in ("h", "m"):
+            if type(step[field]) is not int or step[field] < 0:
+                raise Difference("invalid_trace_schema", f"step={index}: invalid {field}")
+    for name in ("gross", "raked"):
+        for field in ("payouts", "refunds", "net"):
+            vector(hand[name][field], N, int, f"{name}.{field}", field != "net")
+        if type(hand[name]["rake"]) is not int or hand[name]["rake"] < 0:
+            raise Difference("invalid_trace_schema", f"{name}: invalid rake")
+
+
+def policy_payouts(pots, refunds, rake, button):
+    """Apply monetary conventions to external pots; never derive eligibility."""
+    contested = sum(pot["amount_units"] for pot in pots)
+    proportional = [Fraction(rake * pot["amount_units"], contested) for pot in pots]
+    deductions = [fee.numerator // fee.denominator for fee in proportional]
+    order = sorted(range(len(pots)), key=lambda i: (-(proportional[i] - deductions[i]), i))
+    for index in order[:rake - sum(deductions)]:
+        deductions[index] += 1
+    payouts = []
+    for fees in ([0] * len(pots), deductions):
+        awards = refunds.copy()
+        for pot, fee in zip(pots, fees):
+            winners = sorted(pot["winners"], key=lambda seat: (seat - button - 1) % N)
+            share, odd = divmod(pot["amount_units"] - fee, len(winners))
+            for index, seat in enumerate(winners):
+                awards[seat] += share + (index < odd)
+        payouts.append(awards)
+    return payouts[0], payouts[1], deductions, proportional
 
 
 class Audit:
@@ -153,7 +215,8 @@ class Audit:
             raise Difference("invalid_stacks", "six initial stacks >= big blind required")
         automations = tuple(a for a in self.pk.Automation if a not in (
             self.pk.Automation.HOLE_DEALING, self.pk.Automation.BOARD_DEALING,
-            self.pk.Automation.CARD_BURNING))
+            self.pk.Automation.CARD_BURNING, self.pk.Automation.HOLE_CARDS_SHOWING_OR_MUCKING,
+            self.pk.Automation.HAND_KILLING, self.pk.Automation.CHIPS_PUSHING))
         state = self.games.NoLimitTexasHoldem.create_state(
             automations, True, Fraction(0), (Fraction(1), Fraction(2)), Fraction(2),
             tuple(Fraction(hand["initial"][i]) for i in seats), N,
@@ -161,11 +224,43 @@ class Audit:
             rake=lambda amount, current: (Fraction(0), amount))
         for i, seat in enumerate(seats):
             state.deal_hole("".join(card_text(c) for c in hand["hole"][seat]), i)
+        committed = [Fraction(0) for _ in range(N)]
+        for operation in state.operations:
+            if isinstance(operation, self.pk.BlindOrStraddlePosting):
+                committed[seats[operation.player_index]] += operation.amount
         board_offset = 0
+        settlement_pots = None
+
+        def capture_pots():
+            nonlocal settlement_pots
+            if settlement_pots is not None:
+                return
+            live_indices = [i for i in range(N) if state.statuses[i]]
+            if len(live_indices) == 1:
+                # PokerKit deliberately leaves the fold winner's entire current
+                # bet outside its native pot. The independently checked matched
+                # contribution total supplies the correct fee base in this case.
+                winner = seats[live_indices[0]]
+                settlement_pots = [{"amount_units": contested, "eligible": [winner], "winners": [winner]}]
+                return
+            settlement_pots = []
+            for pot in state.pots:
+                if not pot.amount:
+                    continue
+                amount = Fraction(pot.amount) * SCALE
+                if amount.denominator != 1:
+                    raise Difference("reference_fractional_pot", "pot is not a whole accounting unit")
+                ranks = {i: state.get_hand(i, 0, 0) for i in pot.player_indices}
+                if not ranks or any(rank is None for rank in ranks.values()):
+                    raise Difference("reference_missing_hand", "cannot rank an eligible showdown hand")
+                best = max(ranks.values())
+                settlement_pots.append({"amount_units": amount.numerator,
+                                        "eligible": [seats[i] for i in pot.player_indices],
+                                        "winners": [seats[i] for i, rank in ranks.items() if rank == best]})
 
         def advance():
             nonlocal board_offset
-            for _ in range(16):
+            for _ in range(4*N + 8):
                 if not state.status or state.actor_index is not None:
                     return
                 if state.can_burn_card("??"):
@@ -176,6 +271,14 @@ class Audit:
                         raise Difference("board_protocol", f"invalid board count={count}, offset={board_offset}")
                     state.deal_board("".join(card_text(c) for c in hand["board"][board_offset:board_offset + count]))
                     board_offset += count
+                elif state.can_show_or_muck_hole_cards(True):
+                    state.show_or_muck_hole_cards(True)
+                elif state.can_kill_hand():
+                    capture_pots()
+                    state.kill_hand()
+                elif state.can_push_chips():
+                    capture_pots()
+                    state.push_chips()
                 else:
                     raise Difference("blocked_reference", "PokerKit has neither action nor pending board/burn")
             raise Difference("board_protocol", "too many non-betting transitions")
@@ -190,6 +293,8 @@ class Audit:
                 acted.clear()
                 current_round = step["r"]
             actor = inverse[step["p"]]
+            if any(isinstance(x, float) for x in state.stacks + state.bets + state.payoffs):
+                raise Difference("reference_inexact_amount", "floating-point money reached a betting snapshot")
             actual = {
                 "actor": None if state.actor_index is None else seats[state.actor_index],
                 "street": state.street_index,
@@ -244,92 +349,97 @@ class Audit:
                 raise Difference(category or "reference_rejected_action",
                                  f"step={step_index}, action={choice}, target={targets[choice]}", bool(category))
             try:
+                paid = Fraction(0)
                 if choice == 0:
                     state.fold()
                     final_folded[step["p"]] = True
                 elif choice == 1:
-                    state.check_or_call()
+                    paid = state.check_or_call().amount
                 else:
-                    state.complete_bet_or_raise_to(Fraction(targets[choice]))
+                    previous_bet = state.bets[actor]
+                    paid = state.complete_bet_or_raise_to(Fraction(targets[choice])).amount - previous_bet
             except (ValueError, AssertionError) as exc:
                 raise Difference("reference_action_exception", f"step={step_index}: {type(exc).__name__}: {exc}") from exc
             acted.add(step["p"])
+            committed[step["p"]] += paid
             self.count("actions_replayed", group)
+        if committed != hand["total"]:
+            raise Difference("final_contribution_mismatch",
+                             f"PokerKit action payments={list(map(exact, committed))}, exported={hand['total']}")
         advance()
         if state.status or state.actor_index is not None:
             raise Difference("unfinished_reference", "exported actions ended while PokerKit still needs action")
         if board_offset != hand["visible"] or final_folded != hand["folded"]:
             raise Difference("final_state_mismatch", f"board={board_offset}/{hand['visible']}; folds={final_folded}/{hand['folded']}")
+        if any(isinstance(x, float) for x in state.payoffs):
+            raise Difference("reference_inexact_amount", "floating-point money reached final payoffs")
         external = [Fraction(state.payoffs[inverse[i]]) * SCALE for i in range(N)]
         if sum(external) != 0:
             raise Difference("reference_conservation", "PokerKit no-rake payoffs do not sum exactly to zero")
+        if not settlement_pots or sum(p["amount_units"] for p in settlement_pots) != contested:
+            raise Difference("reference_pot_amount", "pre-kill external pots do not match committed contested money")
+        paid_units = [int(amount * SCALE) for amount in committed]
+        refunds = [0] * N
+        largest = max(range(N), key=lambda i: committed[i])
+        second = max(committed[i] for i in range(N) if i != largest)
+        refunds[largest] = int((committed[largest] - second) * SCALE)
+        gross_policy, raked_policy, deductions, proportional = policy_payouts(
+            settlement_pots, refunds, expected_rake, button)
+        reconstructed = [Fraction(refunds[i] - paid_units[i]) for i in range(N)]
+        fees = [Fraction(0) for _ in range(N)]
+        gross_bounds, raked_bounds = [0] * N, [0] * N
+        fee_pots = []
+        for index, pot in enumerate(settlement_pots):
+            winners = pot["winners"]
+            share = Fraction(pot["amount_units"], len(winners))
+            fee = proportional[index] / len(winners)
+            fee_pots.append({"pot_index": index, **pot,
+                             "fee_per_winner_units": exact(fee),
+                             "integer_pot_rake_units": deductions[index]})
+            for seat in winners:
+                reconstructed[seat] += share
+                fees[seat] += fee
+                # Diagnostic bounds are per-player and per-external-pot. They
+                # never decide acceptance: exact policy payouts are checked first.
+                gross_bounds[seat] += int(share.denominator != 1)
+                raked_bounds[seat] += int(proportional[index].denominator != 1)
+                raked_bounds[seat] += int((pot["amount_units"] - deductions[index]) % len(winners) != 0)
+        if reconstructed != external:
+            raise Difference("reference_pot_payoff", "pre-kill pots/ranks do not reconstruct actual PokerKit payoffs")
+        if sum(fees) != expected_rake:
+            raise Difference("reference_fee_conservation", "external per-pot fees do not sum to the configured rake")
         pushes = [op for op in state.operations if isinstance(op, self.pk.ChipsPushing)]
-        positive_pushes = [op for op in pushes if sum(op.amounts) > 0]
-        second_total = sorted(hand["total"])[-2]
-        live_caps = {min(hand["total"][i], second_total) for i in range(N)
-                     if not hand["folded"][i] and hand["total"][i] > 0}
-        killed_caps = {min(hand["total"][seats[op.player_index]], second_total)
-                       for op in state.operations if isinstance(op, self.pk.HandKilling)
-                       and not hand["folded"][seats[op.player_index]]}
-        # PokerKit constructs final pots after killing losing showdown hands.
-        # A killed short stack can remove a genuine earlier pot boundary. The
-        # rational award/fee is unchanged, but independent per-pot integer
-        # rounding may differ even when the merged rational result is integral.
-        merged_after_killing = (len(live_caps) > len(positive_pushes)
-                                and bool(killed_caps.intersection(live_caps - {max(live_caps)})))
+        native_positive_pots = sum(sum(op.amounts) > 0 for op in pushes)
+        merged_after_killing = len(settlement_pots) > native_positive_pots
         if merged_after_killing:
             self.count("pokerkit_post_killing_merged_pot_hands", group)
             self.example("pokerkit_post_killing_pot_merge", {
-                "hand": hand["id"], "live_contribution_caps": sorted(live_caps),
-                "native_positive_pots": len(positive_pushes), "native_killed_caps": sorted(killed_caps)})
-        fractional_pots = any((Fraction(amount) * SCALE).denominator != 1
-                              for op in pushes for amount in op.amounts)
-        if fractional_pots:
+                "hand": hand["id"], "external_pre_kill_pots": settlement_pots,
+                "native_positive_pots": native_positive_pots})
+        if any(gross_bounds):
             self.count("fractional_pot_hands", group)
-        fees = [Fraction(0) for _ in range(N)]
-        fee_pots = []
-        fractional_fee_pots = False
-        live = [i for i, folded in enumerate(hand["folded"]) if not folded]
-        if len(live) == 1:
-            fees[live[0]] = Fraction(expected_rake)
-        else:
-            pushed = sum((sum(Fraction(a) for a in op.amounts) for op in pushes), Fraction(0))
-            if pushed * SCALE != contested:
-                raise Difference("reference_pot_amount", f"pushed={exact(pushed*SCALE)}, contested={contested}")
-            for op in pushes:
-                amount = sum(Fraction(a) for a in op.amounts) * SCALE
-                winners = [i for i, a in enumerate(op.amounts) if a > 0]
-                if not amount:
-                    continue
-                if not winners:
-                    raise Difference("reference_empty_pot", "positive pot has no winner")
-                cost = Fraction(expected_rake * amount, contested * len(winners))
-                fractional_fee_pots |= cost.denominator != 1
-                fee_pots.append({"pot_index": op.pot_index, "amount_units": exact(amount),
-                                 "winners": [seats[i] for i in winners],
-                                 "fee_per_winner_units": exact(cost)})
-                for i in winners:
-                    fees[seats[i]] += cost
-        if sum(fees) != expected_rake:
-            raise Difference("reference_fee_conservation", f"allocated fees={exact(sum(fees))}, expected={expected_rake}")
-        pot_bound = max(1, len(live_caps))
-        for name, expected_net, bound in (("gross", external, pot_bound),
-                                          ("raked", [external[i] - fees[i] for i in range(N)], 2*pot_bound)):
-            deltas = [Fraction(hand[name]["net"][i]) - expected_net[i] for i in range(N)]
+        for name, policy, rational_net, bounds in (
+                ("gross", gross_policy, external, gross_bounds),
+                ("raked", raked_policy, [external[i] - fees[i] for i in range(N)], raked_bounds)):
+            policy_net = [policy[i] - paid_units[i] for i in range(N)]
+            if hand[name]["payouts"] != policy or hand[name]["net"] != policy_net:
+                delta = [hand[name]["payouts"][i] - policy[i] for i in range(N)]
+                raise Difference(f"{name}_policy_payoff_mismatch",
+                                 f"exact policy payout differences={delta}; expected={policy}")
+            self.count(f"{name}_policy_exact_hands", group)
+            deltas = [Fraction(policy_net[i]) - rational_net[i] for i in range(N)]
             if sum(deltas) != 0:
-                raise Difference(f"{name}_payoff_conservation", f"differences sum to {exact(sum(deltas))}")
-            # Fractions may cancel after multiple side pots: the relevant
-            # rounding sites are individual pot awards and fee allocations.
-            can_round = (fractional_pots or merged_after_killing
-                         or (name == "raked" and fractional_fee_pots))
-            if any(deltas) and (not can_round or max(map(abs, deltas)) > bound):
-                raise Difference(f"{name}_payoff_mismatch", f"deltas_units={list(map(exact,deltas))}; bound={bound}; rounding_applicable={can_round}")
+                raise Difference(f"{name}_payoff_conservation", f"rational differences sum to {exact(sum(deltas))}")
+            if any(abs(deltas[i]) > bounds[i] for i in range(N)):
+                raise Difference("rounding_bound_error", f"{name}: deltas={list(map(exact,deltas))}, bounds={bounds}")
             if any(deltas):
                 self.count(f"{name}_rational_rounding_hands", group)
                 record = {"hand": hand["id"], "group": group, "ledger": name,
-                          "deltas_units": list(map(exact, deltas)), "max_allowed_per_player_units": bound,
+                          "deltas_units": list(map(exact, deltas)), "per_player_diagnostic_bounds_units": bounds,
+                          "exact_policy_match": True, "acceptance_tolerance_units": 0,
                           "post_killing_pot_merge": merged_after_killing,
-                          "live_contribution_caps": sorted(live_caps), "native_positive_pots": len(positive_pushes)}
+                          "native_positive_pots": native_positive_pots,
+                          "external_pre_kill_pots": settlement_pots}
                 if name == "raked":
                     record["external_fee_pots"] = fee_pots
                 self.rounding.append(record)
@@ -339,11 +449,15 @@ class Audit:
         self.count("completed", group)
 
     def hand(self, hand):
+        if type(hand) is not dict:
+            self.error({}, "invalid", "invalid_trace_schema", "hand must be an object")
+            return
         group = "fixed" if hand.get("initial") == [200] * N else "variable"
         self.count("hands", group)
         self.buttons[group][str(hand.get("button"))] += 1
-        self.count("exported_actions", group, len(hand.get("steps", [])))
         try:
+            validate_trace(hand)
+            self.count("exported_actions", group, len(hand["steps"]))
             contested, rake = self.ledgers(hand, group)
         except Difference as exc:
             self.error(hand, group, exc.category, str(exc))
@@ -377,8 +491,9 @@ def main():
                 "position_coverage_required": bool(args.require_position_coverage or
                     (args.expected_hands is not None and args.expected_hands >= 12)),
                 "mask_count_unit": "action slots; four raise slots may have the same clipped target",
-                "comparison": "exact rational PokerKit payoffs; no native rake; external pot-derived fee allocation",
-                "rounding_limits": {"gross_per_player_units": N, "raked_per_player_units": 2*N},
+                "comparison": "exact integer policy payouts from pre-kill PokerKit pots and ranks; native Fraction deltas are diagnostic only",
+                "acceptance_tolerance_units": 0,
+                "showdown_control": "show all known cards, capture public pots before hand killing, then kill and push through public APIs",
                 "known_difference_policy": {
                     "cash_free_fold_policy": "Cash-mode PokerKit allows warning-only free folds; Solver masks them.",
                     "pokerkit_first_short_bet_reopens_prior_actor": "PokerKit uses a first increment below BB as reopening threshold; TDA 2026 rule49 requires full bet/raise.",
