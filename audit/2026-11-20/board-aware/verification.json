@@ -1,0 +1,41 @@
+{
+  "binary_sha256_after": "945b0e1f1d0af08ecff85fa83e633d5ae5137bc77c0017c7b6b9714542208c19",
+  "binary_sha256_before": "945b0e1f1d0af08ecff85fa83e633d5ae5137bc77c0017c7b6b9714542208c19",
+  "models_after": {
+    "phh": {
+      "kind": "phh",
+      "path": "/home/runner/work/SolverPK/SolverPK/references/phh/pluribus-imitation.bin",
+      "sha256": "dd032a79192bf48a98e42b536b77588c5f59ec731da1fafa75d495a727b0d327"
+    },
+    "ten": {
+      "kind": "tabular",
+      "path": "/home/runner/work/SolverPK/SolverPK/references/ten/tabular-corrected-10m.bin",
+      "sha256": "57feb03eb3af6d823e9d1c5bc14c221b0a8967ea5949406e2f6615f0ebff6d8c"
+    },
+    "twenty": {
+      "kind": "tabular",
+      "path": "/home/runner/work/SolverPK/SolverPK/references/twenty/tabular-corrected-20m.bin",
+      "sha256": "5b5a8ccd905c53b327cb7b8f53828d2699e51c40c8ae3ae2dd8f73cbb54d22a7"
+    }
+  },
+  "models_before": {
+    "phh": {
+      "kind": "phh",
+      "path": "/home/runner/work/SolverPK/SolverPK/references/phh/pluribus-imitation.bin",
+      "sha256": "dd032a79192bf48a98e42b536b77588c5f59ec731da1fafa75d495a727b0d327"
+    },
+    "ten": {
+      "kind": "tabular",
+      "path": "/home/runner/work/SolverPK/SolverPK/references/ten/tabular-corrected-10m.bin",
+      "sha256": "57feb03eb3af6d823e9d1c5bc14c221b0a8967ea5949406e2f6615f0ebff6d8c"
+    },
+    "twenty": {
+      "kind": "tabular",
+      "path": "/home/runner/work/SolverPK/SolverPK/references/twenty/tabular-corrected-20m.bin",
+      "sha256": "5b5a8ccd905c53b327cb7b8f53828d2699e51c40c8ae3ae2dd8f73cbb54d22a7"
+    }
+  },
+  "protocol_sha256_after": "b4cb572275c4368a25507909745632c75bdcca667414d3f0992590a1a9072471",
+  "protocol_sha256_before": "b4cb572275c4368a25507909745632c75bdcca667414d3f0992590a1a9072471",
+  "unchanged": true
+}

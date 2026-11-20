@@ -1,5 +1,15 @@
 # Historial de cambios — SolverPK
 
+## 2026-11-20 — evaluación congelada con board y caja finita
+
+- Nuevo rival `equity_multiway`: estima participación en el bote frente a todas las manos activas, con cartas públicas/propias, muestreo sin reemplazo y empates fraccionados. Usa rangos uniformes; no es GTO.
+- Nuevo `--sixmax-risk-benchmark` para candidatos tabulares/neuronales con runner congelado compartido, caja/stop USD 50 y máximo USD 10 por mano. Reserva la entrada efectiva: USD 5 a 50 BB o USD 10 a 100 BB.
+- Índices globales de reparto por sesión, control de solapamiento con streams conocidos y seed separado para la corrida corta. Se mantienen todos los cierres financieros y sesiones sin manos.
+- Runner Python con hashes antes/después, manifiesto previo, 20 combinaciones prefijadas, tasas sobre manos reales y bootstrap pareado por sesiones completas. Checkpoints originales y evidencia completa conservados en Git.
+- Regresiones observadas antes de implementar; después pasaron 177 pruebas Rust ordinarias, 21 Python, estrés de 100.000 manos y enumeración de 2.598.960 manos de cinco cartas. Revisiones independientes de código, protocolo y los 1.280 registros reales.
+- Experimento completo: 661.289 manos, 1.119 sesiones detenidas y 161 que alcanzaron el horizonte. Ambos modelos pierden en las 18 combinaciones con rivales sensibles al board; ganan solo frente a PHH. A 100 BB con rake 5%, el 20M obtiene −449,40 BB/100 (−USD 44,94/100) frente a equity y +106,53 BB/100 (+USD 10,65/100) frente a PHH.
+- Se documenta la representación tabular limitada y el recorte de recompensa de entrenamiento, sin atribuirles una contribución causal cuantificada. No se entrenaron pesos, no se recortaron las tasas reportadas y no se seleccionó campeón. [Informe completo](BOARD_AWARE_BENCHMARK.md).
+
 ## 2026-11-19 — comparación con motores externos y controles de caja
 
 - Comparación reproducible del evaluador con PokerKit/Treys fijados por commit y hashes: 38.806 casos, incluidas las 7.462 fuerzas distintas de cinco cartas.

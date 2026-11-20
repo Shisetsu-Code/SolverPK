@@ -1,0 +1,67 @@
+test_all_zero_hand_rates_are_null_in_strict_json (__main__.BenchmarkTests.test_all_zero_hand_rates_are_null_in_strict_json) ... ok
+test_bootstrap_is_reproducible_with_reported_seed (__main__.BenchmarkTests.test_bootstrap_is_reproducible_with_reported_seed) ... ok
+test_case_commands_keep_full_and_smoke_streams_separate (__main__.BenchmarkTests.test_case_commands_keep_full_and_smoke_streams_separate) ... ok
+test_exact_rows_reconcile_and_preserve_integer_money (__main__.BenchmarkTests.test_exact_rows_reconcile_and_preserve_integer_money) ... ok
+test_failing_process_keeps_stdout_and_stderr_evidence (__main__.BenchmarkTests.test_failing_process_keeps_stdout_and_stderr_evidence) ... ok
+test_hash_failure_leaves_no_claimed_experiment_or_model_changes (__main__.BenchmarkTests.test_hash_failure_leaves_no_claimed_experiment_or_model_changes) ... ok
+test_missing_duplicate_and_malformed_rows_are_rejected (__main__.BenchmarkTests.test_missing_duplicate_and_malformed_rows_are_rejected) ... ok
+test_model_identity_requires_the_expected_checkpoint_bytes (__main__.BenchmarkTests.test_model_identity_requires_the_expected_checkpoint_bytes) ... ok
+test_no_hand_cannot_record_a_loss_or_action (__main__.BenchmarkTests.test_no_hand_cannot_record_a_loss_or_action) ... ok
+test_paired_identical_records_have_zero_difference_and_interval (__main__.BenchmarkTests.test_paired_identical_records_have_zero_difference_and_interval) ... ok
+test_paired_rates_recompute_each_candidates_own_denominator (__main__.BenchmarkTests.test_paired_rates_recompute_each_candidates_own_denominator) ... ok
+test_pairing_rejects_missing_or_different_seed_records (__main__.BenchmarkTests.test_pairing_rejects_missing_or_different_seed_records) ... ok
+test_pooled_rate_uses_sum_of_played_hands (__main__.BenchmarkTests.test_pooled_rate_uses_sum_of_played_hands) ... ok
+test_protocol_rejects_missing_hash_and_changed_published_budget (__main__.BenchmarkTests.test_protocol_rejects_missing_hash_and_changed_published_budget) ... ok
+test_risk_fields_and_bankroll_floor_are_checked_independently (__main__.BenchmarkTests.test_risk_fields_and_bankroll_floor_are_checked_independently) ... ok
+test_runner_freezes_manifest_before_processes_and_retains_all_cases (__main__.BenchmarkTests.test_runner_freezes_manifest_before_processes_and_retains_all_cases) ... BOARD_BENCHMARK_CASE mode=smoke case=1/20 id=ten-equity_multiway-100bb_rake5
+BOARD_BENCHMARK_RESULT id=ten-equity_multiway-100bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=2/20 id=twenty-equity_multiway-100bb_rake5
+BOARD_BENCHMARK_RESULT id=twenty-equity_multiway-100bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=3/20 id=ten-tight_aggressive-100bb_rake5
+BOARD_BENCHMARK_RESULT id=ten-tight_aggressive-100bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=4/20 id=twenty-tight_aggressive-100bb_rake5
+BOARD_BENCHMARK_RESULT id=twenty-tight_aggressive-100bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=5/20 id=ten-loose_aggressive-100bb_rake5
+BOARD_BENCHMARK_RESULT id=ten-loose_aggressive-100bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=6/20 id=twenty-loose_aggressive-100bb_rake5
+BOARD_BENCHMARK_RESULT id=twenty-loose_aggressive-100bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=7/20 id=ten-phh-100bb_rake5
+BOARD_BENCHMARK_RESULT id=ten-phh-100bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=8/20 id=twenty-phh-100bb_rake5
+BOARD_BENCHMARK_RESULT id=twenty-phh-100bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=9/20 id=ten-equity_multiway-50bb_rake5
+BOARD_BENCHMARK_RESULT id=ten-equity_multiway-50bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=10/20 id=twenty-equity_multiway-50bb_rake5
+BOARD_BENCHMARK_RESULT id=twenty-equity_multiway-50bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=11/20 id=ten-tight_aggressive-50bb_rake5
+BOARD_BENCHMARK_RESULT id=ten-tight_aggressive-50bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=12/20 id=twenty-tight_aggressive-50bb_rake5
+BOARD_BENCHMARK_RESULT id=twenty-tight_aggressive-50bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=13/20 id=ten-loose_aggressive-50bb_rake5
+BOARD_BENCHMARK_RESULT id=ten-loose_aggressive-50bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=14/20 id=twenty-loose_aggressive-50bb_rake5
+BOARD_BENCHMARK_RESULT id=twenty-loose_aggressive-50bb_rake5 hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=15/20 id=ten-equity_multiway-100bb_norake
+BOARD_BENCHMARK_RESULT id=ten-equity_multiway-100bb_norake hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=16/20 id=twenty-equity_multiway-100bb_norake
+BOARD_BENCHMARK_RESULT id=twenty-equity_multiway-100bb_norake hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=17/20 id=ten-tight_aggressive-100bb_norake
+BOARD_BENCHMARK_RESULT id=ten-tight_aggressive-100bb_norake hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=18/20 id=twenty-tight_aggressive-100bb_norake
+BOARD_BENCHMARK_RESULT id=twenty-tight_aggressive-100bb_norake hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=19/20 id=ten-loose_aggressive-100bb_norake
+BOARD_BENCHMARK_RESULT id=ten-loose_aggressive-100bb_norake hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_CASE mode=smoke case=20/20 id=twenty-loose_aggressive-100bb_norake
+BOARD_BENCHMARK_RESULT id=twenty-loose_aggressive-100bb_norake hands=24 profit_usd=0.000000 bb100=0.0
+BOARD_BENCHMARK_COMPLETE mode=smoke cases=20 hands=480 frozen_unchanged=true results=/tmp/tmpbf0kw7yn/results/results.json
+ok
+test_smaller_stack_keeps_ten_dollar_cap_but_reserves_five (__main__.BenchmarkTests.test_smaller_stack_keeps_ten_dollar_cap_but_reserves_five) ... ok
+test_smoke_omits_only_its_reserved_manifest_exclusion (__main__.BenchmarkTests.test_smoke_omits_only_its_reserved_manifest_exclusion) ... ok
+test_stopped_sessions_and_last_hand_depletion_are_counted (__main__.BenchmarkTests.test_stopped_sessions_and_last_hand_depletion_are_counted) ... ok
+test_write_json_rejects_nonfinite_and_existing_artifacts (__main__.BenchmarkTests.test_write_json_rejects_nonfinite_and_existing_artifacts) ... ok
+test_zero_hand_sessions_remain_in_endpoint_denominators (__main__.BenchmarkTests.test_zero_hand_sessions_remain_in_endpoint_denominators) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 0.753s
+
+OK
