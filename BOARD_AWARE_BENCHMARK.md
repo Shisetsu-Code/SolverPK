@@ -134,6 +134,12 @@ El bootstrap remuestrea sesiones completas. En el diferencial 20M − 10M conser
 
 Se separan `reached_horizon` y `can_continue`: una sesión puede jugar su última mano solicitada y terminar sin dinero suficiente para otra. Las tasas observadas describen este protocolo de detención; no equivalen automáticamente al rendimiento de una política con bankroll ilimitado ni a ganancias frente a personas.
 
+## Integración verificada
+
+Los cambios se integraron mediante [PR #4](https://github.com/Shisetsu-Code/SolverPK/pull/4) en el commit `7126c07178577c1719a24827c0b363584e3f4e4b`, cuyo árbol coincide exactamente con la rama revisada. En `main` terminaron correctamente los workflows de [contabilidad](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44710111148), [benchmark y estadísticas](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44710111157) y [comparación con motores externos](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44710111203).
+
+La integración verificó 181 pruebas Rust distintas (177 ordinarias y las cuatro auditorías explícitas), 21 pruebas Python estadísticas y nueve de regresión del comparador. El replay externo volvió a comprobar 6.000 manos y 72.541 estados/acciones, sin errores, con 6.000 liquidaciones netas exactas bajo las mismas convenciones de rake/reparto. Se mantienen las diferencias de reglas y redondeo ya documentadas en [EXTERNAL_ENGINE_AUDIT.md](EXTERNAL_ENGINE_AUDIT.md). También pasaron los 38.806 casos PokerKit/Treys, la enumeración de cinco cartas y el estrés contable. El [registro de integración](audit/2026-11-20/board-aware/integration.json) conserva los identificadores, resultados y alcance. El cierre documental posterior no modifica código, protocolo ni modelos.
+
 ## Verificación y reproducción
 
 La [prueba inicial](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44706186593) reprodujo siete fallos del estimador todavía sin implementar y ocho fallos de la nueva interfaz ausente. La [verificación posterior](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44707518790) aprobó 177 pruebas Rust ordinarias, 21 de Python, el estrés contable de 100.000 manos y la enumeración de 2.598.960 manos de cinco cartas. Completó también los 20 casos cortos, 480 manos en total, con modelos sin cambios.

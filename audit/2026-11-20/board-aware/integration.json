@@ -1,0 +1,447 @@
+{
+  "accounting_stress_hands": 100000,
+  "exhaustive_five_card_hands": 2598960,
+  "external_comparison": {
+    "all_hands_replayed": true,
+    "elapsed_seconds": 89.996,
+    "mask_difference_counts": {
+      "cash_free_fold_policy": 11441,
+      "pokerkit_first_short_bet_reopens_prior_actor": 820
+    },
+    "strict_checks_passed": true,
+    "summary": {
+      "actions_replayed": 72541,
+      "completed": 6000,
+      "errors": 0,
+      "exported_actions": 72541,
+      "fixed": 3000,
+      "fractional_pot_hands": 16,
+      "gross_exact_hands": 5984,
+      "gross_policy_exact_hands": 6000,
+      "gross_rational_rounding_hands": 16,
+      "hands": 6000,
+      "incomplete": 0,
+      "known_errors": 0,
+      "known_mask_differences": 12261,
+      "ledger_hands_checked": 6000,
+      "pokerkit_post_killing_merged_pot_hands": 1911,
+      "raked_exact_hands": 5261,
+      "raked_policy_exact_hands": 6000,
+      "raked_rational_rounding_hands": 739,
+      "snapshots_attempted": 72541,
+      "snapshots_matched": 72541,
+      "unknown_errors": 0,
+      "unknown_mask_differences": 0,
+      "variable": 3000
+    }
+  },
+  "external_evaluator_cases": 38806,
+  "full_experiment_source_commit": "85d7fd05f46d1841a1bd2fb41351785c4ad4ef8f",
+  "main_board_workflow": "validation plus 20 smoke cases; full experiment is preserved from run 44708043940",
+  "merge_commit": "7126c07178577c1719a24827c0b363584e3f4e4b",
+  "pull_request": {
+    "head_sha": "70c65e4de1446ca244a235bf65729c6dbcee7d89",
+    "merged": true,
+    "number": 4,
+    "url": "https://github.com/Shisetsu-Code/SolverPK/pull/4"
+  },
+  "review": "Independent Rust, statistical result and final documentation reviews approved.",
+  "run_records": [
+    {
+      "conclusion": "success",
+      "created_at": "2026-11-20T09:22:07Z",
+      "event": "push",
+      "head_sha": "7126c07178577c1719a24827c0b363584e3f4e4b",
+      "id": 44710111148,
+      "jobs": [
+        {
+          "conclusion": "success",
+          "id": 136199358715,
+          "logs_url": null,
+          "name": "validate",
+          "run_id": 44710111148,
+          "status": "completed",
+          "steps": [
+            {
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 3,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Build release",
+              "number": 4,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Unit and regression tests",
+              "number": 5,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Exhaustive independent five-card reference",
+              "number": 6,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Independent accounting over 100000 legal hands",
+              "number": 7,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Restore immutable 100M checkpoint and frozen opponents",
+              "number": 8,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Frozen reevaluation with explicit rake and new seeds",
+              "number": 9,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Neural v2 compatibility and bounded three-seed pilot",
+              "number": 10,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Save validation evidence",
+              "number": 11,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 22,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 23,
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "name": "Simulator accounting audit",
+      "status": "completed",
+      "updated_at": "2026-11-20T09:23:20Z",
+      "url": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44710111148"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-11-20T09:22:07Z",
+      "event": "push",
+      "head_sha": "7126c07178577c1719a24827c0b363584e3f4e4b",
+      "id": 44710111157,
+      "jobs": [
+        {
+          "conclusion": "success",
+          "id": 136199358821,
+          "logs_url": null,
+          "name": "validate",
+          "run_id": 44710111157,
+          "status": "completed",
+          "steps": [
+            {
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 3,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 4,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Test all Rust and statistical code",
+              "number": 5,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 6,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 11,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 12,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 13,
+              "status": "completed"
+            }
+          ]
+        },
+        {
+          "conclusion": "success",
+          "id": 136199844110,
+          "logs_url": null,
+          "name": "benchmark",
+          "run_id": 44710111157,
+          "status": "completed",
+          "steps": [
+            {
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/download-artifact@v4",
+              "number": 4,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Restore pinned frozen reference models",
+              "number": 5,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Smoke-test the fixed protocol with a separate seed",
+              "number": 6,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Run the complete predeclared experiment",
+              "number": 7,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 8,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 15,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 16,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "name": "Board-aware frozen bankroll benchmark",
+      "status": "completed",
+      "updated_at": "2026-11-20T09:23:28Z",
+      "url": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44710111157"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-11-20T09:22:07Z",
+      "event": "push",
+      "head_sha": "7126c07178577c1719a24827c0b363584e3f4e4b",
+      "id": 44710111203,
+      "jobs": [
+        {
+          "conclusion": "success",
+          "id": 136199358864,
+          "logs_url": null,
+          "name": "compare",
+          "run_id": 44710111203,
+          "status": "completed",
+          "steps": [
+            {
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 3,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 4,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 5,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 6,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Unit and CLI regression tests",
+              "number": 7,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Export actual six-max histories",
+              "number": 8,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Verify the comparator rejects corrupted traces",
+              "number": 9,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Replay full hands with pinned PokerKit",
+              "number": 10,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Verify evaluator against PokerKit and Treys",
+              "number": 11,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Exhaustive evaluator and accounting stress regression",
+              "number": 12,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Preserve reproducible audit evidence",
+              "number": 13,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 23,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 24,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 25,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 26,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 27,
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "name": "External poker engine comparison",
+      "status": "completed",
+      "updated_at": "2026-11-20T09:24:43Z",
+      "url": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44710111203"
+    }
+  ],
+  "source_scope": "All runtime source, statistical scripts, tests and workflow bytes equal the fully tested experimental source. The integration record and checklist closure are documentation/evidence only.",
+  "tested_tree_sha": "2d1f776e5f99fc90a415bc42a6cfb6ae5c7efa15",
+  "tests": {
+    "explicit_release_rust": 4,
+    "ordinary_rust": 177,
+    "python_external_comparator_passed": 9,
+    "python_statistical_passed": 21,
+    "python_total_distinct": 30,
+    "rust_distinct_passed": 181,
+    "rust_failed": 0
+  }
+}

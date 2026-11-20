@@ -66,7 +66,7 @@
 
 - [x] Independently review information boundaries, monetary controls, stream scheduling and statistics.
 - [x] Verify exact tested source and checkpoint identities; report all results as conditional on this protocol.
-- [ ] Publish evidence and integrate the verified branch; confirm integration checks.
+- [x] Publish evidence and integrate the verified branch; confirm integration checks.
 
 ## Execution evidence
 
@@ -75,3 +75,4 @@
 - Full: run `44708043940`, source `85d7fd05f46d1841a1bd2fb41351785c4ad4ef8f`, all gates passed, 1,280 retained sessions / 661,289 actual hands, original model hashes unchanged.
 - Independent review approved Rust boundaries and statistical protocol; independent result recalculation matched all 20 rates and ten paired point estimates.
 - Full report and raw evidence: `BOARD_AWARE_BENCHMARK.md` and `audit/2026-11-20/board-aware/`. No training or model promotion.
+- Integration: PR #4 merged as `7126c07178577c1719a24827c0b363584e3f4e4b`; its tree exactly matched the reviewed branch. Main runs `44710111148` (accounting), `44710111157` (board benchmark) and `44710111203` (PokerKit/Treys comparison) all passed. See `audit/2026-11-20/board-aware/integration.json`.

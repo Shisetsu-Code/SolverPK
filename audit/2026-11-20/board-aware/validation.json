@@ -74,6 +74,7 @@
     "sessions": 40,
     "source_commit": "954c1a70ea04b90181a6e4d4fe74b53cdfcf104c"
   },
+  "integration_record": "integration.json",
   "red_run": {
     "expected_failing_cli_tests": 8,
     "expected_failing_equity_tests": 7,
