@@ -16,7 +16,6 @@ on:
         default: false
 permissions:
   contents: read
-  actions: read
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -62,14 +61,20 @@ jobs:
           path: validation
       - name: Restore pinned frozen reference models
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p references/ten references/twenty references/phh
-          gh run download 44601763525 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-10m --dir references/ten
-          gh run download 44603187298 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-20m --dir references/twenty
-          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir references/phh
+          python - <<'PY'
+          import gzip, hashlib, json
+          from pathlib import Path
+          root = Path('audit/2026-11-20/board-aware')
+          protocol = json.loads((root / 'protocol.json').read_text())
+          for name, model in protocol['models'].items():
+              data = gzip.decompress((root / model['archive']).read_bytes())
+              assert hashlib.sha256(data).hexdigest() == model['sha256']
+              path = Path('references') / name / Path(model['archive']).stem
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(data)
+          PY
           chmod +x validation/solverpk
           sha256sum -c validation/binary.sha256
       - name: Smoke-test the fixed protocol with a separate seed

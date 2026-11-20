@@ -24,13 +24,20 @@ fn recorded_index(seed: u64, training_seed: u64, start: u64, end: u64) -> Option
 }
 
 fn validate_segments(segments: &[TrainingSegment], seed: u64, groups: usize) -> io::Result<()> {
+    let raw: Vec<_> = segments.iter().map(|s| (s.seed, s.start_hand, s.hands)).collect();
+    validate_raw_segments(&raw, seed, groups)
+}
+
+/// Validate an externally supplied (master seed, start index, count) manifest.
+/// The caller binds that manifest to model hashes; this checks actual raw deals.
+pub(super) fn validate_raw_segments(segments: &[(u64, u64, u64)], seed: u64, groups: usize) -> io::Result<()> {
     let groups = u64::try_from(groups).map_err(|_| invalid("too many evaluation clusters"))?;
     let mut intervals = Vec::with_capacity(segments.len());
-    for segment in segments {
-        let end = segment.start_hand.checked_add(segment.hands).ok_or_else(|| {
+    for &(training_seed, start, count) in segments {
+        let end = start.checked_add(count).ok_or_else(|| {
             io::Error::new(io::ErrorKind::InvalidData, "training segment hand interval overflows")
         })?;
-        intervals.push((segment.seed, segment.start_hand, end));
+        intervals.push((training_seed, start, end));
     }
     for group in 0..groups {
         let current = deal_seed(seed, group);
@@ -52,6 +59,16 @@ fn validate_segments(segments: &[TrainingSegment], seed: u64, groups: usize) -> 
     Ok(())
 }
 
+pub(super) fn validate_unique_stream(seed: u64, hands: usize) -> io::Result<()> {
+    let count = u64::try_from(hands).map_err(|_| invalid("too many planned hands"))?;
+    let a = (RNG_ALIAS_A ^ seed).wrapping_mul(DEAL_STRIDE_INVERSE);
+    let b = (RNG_ALIAS_B ^ seed).wrapping_mul(DEAL_STRIDE_INVERSE);
+    if a < count && b < count {
+        return Err(invalid("planned evaluation deals overlap through the RNG fallback alias"));
+    }
+    Ok(())
+}
+
 /// Reject reuse of any recorded deterministic training deal, including streams
 /// with different master seeds and the RNG's two equivalent raw seeds. Missing
 /// historical provenance is disclosed by the caller; it is never called proven.
@@ -60,7 +77,7 @@ pub(super) fn validate_neural_eval_split(net: &Net, seed: u64, groups: usize) ->
 }
 
 #[derive(Clone, Copy, Debug)]
-enum Heuristic { UniformLegal, CallingStation, TightAggressive, LooseAggressive, Nit }
+pub(super) enum Heuristic { UniformLegal, CallingStation, TightAggressive, LooseAggressive, Nit }
 
 impl Heuristic {
     fn name(self) -> &'static str {
@@ -178,13 +195,17 @@ fn visible_strength(view: View) -> f32 {
     value.min(1.0)
 }
 
-enum RivalPolicy { Heuristic(Heuristic), Neural(Net), Tabular(Bot), Phh(FrozenPolicy) }
+pub(super) enum RivalPolicy {
+    Heuristic(Heuristic), Neural(Net), Tabular(Bot), Phh(FrozenPolicy),
+    Equity(super::equity::EquityPolicy),
+}
 
 impl RivalPolicy {
     fn probabilities(&self, table: &Table6, player: usize) -> [f32; ACTIONS] {
         let view = table.view(player);
         match self {
             Self::Heuristic(policy) => policy.probabilities(view),
+            Self::Equity(policy) => policy.probabilities(view),
             Self::Neural(net) => neural_prob(net, table, player),
             Self::Tabular(bot) => probs(&bot.table[state(view)], view.legal),
             Self::Phh(model) => {
@@ -209,6 +230,7 @@ impl RivalPolicy {
     fn kind(&self) -> &'static str {
         match self {
             Self::Heuristic(_) => "toy_heuristic",
+            Self::Equity(_) => "equity_mc_uniform_ranges",
             Self::Neural(_) => "frozen_neural",
             Self::Tabular(_) => "frozen_tabular_seat0",
             Self::Phh(_) => "frozen_historical_imitation",
@@ -217,7 +239,23 @@ impl RivalPolicy {
 }
 
 fn play_frozen(candidate: &Net, opponent: &RivalPolicy, seed: u64, button: usize, rake: RakeConfig) -> Settlement {
+    play_with(|table, player| neural_prob(candidate, table, player), opponent, seed, button, rake, STACK).0
+}
+
+pub(super) fn play_policies(candidate: &RivalPolicy, opponent: &RivalPolicy,
+    seed: u64, button: usize, rake: RakeConfig, initial_stack: i64) -> (Settlement, RiskTelemetry) {
+    play_with(|table, player| candidate.probabilities(table, player), opponent, seed, button, rake, initial_stack)
+}
+
+fn play_with(candidate: impl Fn(&Table6, usize) -> [f32; ACTIONS], opponent: &RivalPolicy,
+    seed: u64, button: usize, rake: RakeConfig, initial_stack: i64) -> (Settlement, RiskTelemetry) {
+    assert!((BB..=STACK).contains(&initial_stack));
     let mut table = Table6::new(seed, button);
+    // Blinds, deck, and public state are unchanged; only the funded starting
+    // stack varies. Observations keep their original 100 BB reference scale.
+    for player in 0..N { table.stack[player] = initial_stack - table.total[player]; }
+    let mut risk = RiskTelemetry { hero_max_single_action: table.total[0],
+        hero_max_exposure: table.total[0], ..RiskTelemetry::default() };
     // Stable common random numbers across opponents; policy draws do not
     // consume deck randomness or another seat's action stream.
     let mut action_rng: [Rng; N] = std::array::from_fn(|player| {
@@ -235,7 +273,7 @@ fn play_frozen(candidate: &Net, opponent: &RivalPolicy, seed: u64, button: usize
             steps += 1;
             assert!(steps <= 200, "league betting loop");
             let player = table.actor;
-            let distribution = if player == 0 { neural_prob(candidate, &table, player) }
+            let distribution = if player == 0 { candidate(&table, player) }
                 else { opponent.probabilities(&table, player) };
             let choice = draw(distribution, &mut action_rng[player]);
             let action = match choice {
@@ -243,11 +281,18 @@ fn play_frozen(candidate: &Net, opponent: &RivalPolicy, seed: u64, button: usize
                 1 => Action::Call,
                 action => Action::Raise(table.raise_to(player, action)),
             };
+            let before = table.total[player];
             table.act(action).expect("league policy proposed an illegal action");
+            if player == 0 {
+                let paid = table.total[0] - before;
+                risk.hero_max_single_action = risk.hero_max_single_action.max(paid);
+                risk.hero_max_exposure = risk.hero_max_exposure.max(table.total[0]);
+                if paid > 0 && table.stack[0] == 0 { risk.hero_allins += 1; }
+            }
         }
         if table.alive() == 1 { break; }
     }
-    table.settle(rake)
+    (table.settle(rake), risk)
 }
 
 #[derive(Default)]
@@ -304,7 +349,7 @@ fn split_status(candidate: &Net, opponent: &RivalPolicy) -> &'static str {
             untracked |= !net.provenance_complete();
         }
         RivalPolicy::Tabular(_) | RivalPolicy::Phh(_) => untracked = true,
-        RivalPolicy::Heuristic(_) => {}
+        RivalPolicy::Heuristic(_) | RivalPolicy::Equity(_) => {}
     }
     if legacy { "unverified_legacy" }
     else if untracked { "unverified_external" }

@@ -1,26 +1,30 @@
-//! Session-level bankroll controls for frozen six-max tabular evaluations.
-//! A 100 BB table buy-in is exactly the configured max wager of $10.
+//! Session-level bankroll controls for frozen six-max evaluations.
+//! Reserve the actual table buy-in, subject to the USD 10 maximum wager.
 //! Money accounting remains integer-valued in accounting::MONEY_SCALE units.
 use super::*;
-const USD_UNITS:i64=BB_UNITS*10; // BB is USD 0.10: USD 1 = 10 BB.
+pub(super) const USD_UNITS:i64=BB_UNITS*10; // BB is USD 0.10: USD 1 = 10 BB.
 const BUYIN_UNITS:i64=STACK*accounting::MONEY_SCALE; // 100 BB = USD 10.
 const DEFAULT_BANKROLL_USD:i64=50;
 const DEFAULT_MAX_WAGER_USD:i64=10;
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-struct Limits { bankroll:i64,stop_loss:i64,max_bet:i64 }
+pub(super) struct Limits {
+    pub(super) bankroll:i64,
+    pub(super) stop_loss:i64,
+    pub(super) max_bet:i64,
+}
 impl Limits {
     fn from_dollars(bankroll:i64,stop_loss:i64,max_bet:i64)->io::Result<Self>{
         if bankroll<=0 || stop_loss<=0 || stop_loss>bankroll || max_bet!=DEFAULT_MAX_WAGER_USD {
             return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                "bankroll must be positive, stop-loss in (0,bankroll], and maximum bet exactly USD 10 for this fixed-100BB arena"));
+                "bankroll must be positive, stop-loss in (0,bankroll], and maximum wager cap exactly USD 10"));
         }
         let to_units=|usd:i64| usd.checked_mul(USD_UNITS).ok_or_else(||io::Error::new(io::ErrorKind::InvalidInput,"USD value overflow"));
         let limits=Self {bankroll:to_units(bankroll)?,stop_loss:to_units(stop_loss)?,max_bet:to_units(max_bet)?};
         assert_eq!(limits.max_bet,BUYIN_UNITS);
         Ok(limits)
     }
-    fn from_args(args:&[String])->io::Result<Self> {
+    pub(super) fn from_args(args:&[String])->io::Result<Self> {
         let bankroll=neural_arg(args,"--bankroll-usd",DEFAULT_BANKROLL_USD)?;
         let stop_loss=neural_arg(args,"--stop-loss-usd",bankroll)?;
         let max_bet=neural_arg(args,"--max-bet-usd",DEFAULT_MAX_WAGER_USD)?;
@@ -28,55 +32,83 @@ impl Limits {
     }
 }
 #[derive(Default)]
-struct Session {
-    balance:i64,
-    initial:i64,
-    peak:i64,
-    max_drawdown:i64,
-    hands:u64,
-    hero_allins:u64,
-    max_single_action:i64,
-    max_hand_exposure:i64,
-    total_rake:i64,
-    stopped:Option<&'static str>,
+pub(super) struct Session {
+    pub(super) balance:i64,
+    pub(super) initial:i64,
+    pub(super) peak:i64,
+    pub(super) max_drawdown:i64,
+    pub(super) hands:u64,
+    pub(super) hero_allins:u64,
+    // Keep telemetry in engine chips for the existing bankroll CLI. Exact
+    // monetary output multiplies these two fields by MONEY_SCALE.
+    pub(super) max_single_action:i64,
+    pub(super) max_hand_exposure:i64,
+    pub(super) total_rake:i64,
+    pub(super) stopped:Option<&'static str>,
 }
 impl Session {
-    fn new(limits:Limits)->Self{ Self{initial:limits.bankroll,balance:limits.bankroll,peak:limits.bankroll,..Self::default()} }
+    pub(super) fn new(limits:Limits)->Self{ Self{initial:limits.bankroll,balance:limits.bankroll,peak:limits.bankroll,..Self::default()} }
     fn eligible(&mut self,limits:Limits)->bool {
+        self.eligible_for_buyin(limits,BUYIN_UNITS)
+    }
+    pub(super) fn eligible_for_buyin(&mut self,limits:Limits,buyin_units:i64)->bool {
+        // CLI callers validate their stack before starting a session. Fail
+        // closed as well if an internal caller supplies an invalid buy-in.
+        if buyin_units<=0 || buyin_units>limits.max_bet || limits.max_bet>BUYIN_UNITS {
+            self.stopped=Some("insufficient_buyin");
+            return false;
+        }
         if self.balance <= self.initial - limits.stop_loss {
             self.stopped=Some("stop_loss");
             return false;
         }
-        if self.balance < limits.max_bet {
+        if self.balance < buyin_units {
             self.stopped=Some("insufficient_buyin");
             return false;
         }
-        // Reserve the whole fixed buy-in before dealing: this hand must not
+        // Reserve the actual whole buy-in before dealing: this hand must not
         // be able to take the bankroll below the configured loss floor.
-        if self.balance-BUYIN_UNITS < self.initial-limits.stop_loss {
+        if self.balance-buyin_units < self.initial-limits.stop_loss {
             self.stopped=Some("stop_loss_budget");
             return false;
         }
         true
     }
     fn record(&mut self,net:i64,rake:i64,risk:&RiskTelemetry)->io::Result<()> {
-        // Because all participants are 100BB fixed, the absolute loss of the
-        // candidate in one deal must not exceed the full USD 10 table buy-in.
-        if net < -BUYIN_UNITS || net > BUYIN_UNITS*5 {
+        self.record_for_buyin(net,rake,risk,BUYIN_UNITS)
+    }
+    pub(super) fn record_for_buyin(&mut self,net:i64,rake:i64,risk:&RiskTelemetry,buyin_units:i64)->io::Result<()> {
+        if buyin_units<=0 || buyin_units>BUYIN_UNITS {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,"invalid table buy-in or wager cap"));
+        }
+        // All six participants start with the same fixed stack each hand.
+        // Bound both a complete loss and the largest possible five-seat win.
+        if net < -buyin_units || net > buyin_units*5 {
             return Err(io::Error::new(io::ErrorKind::InvalidData,"invalid per-hand exposure or profit"));
         }
-        self.balance=self.balance.checked_add(net).ok_or_else(||io::Error::new(io::ErrorKind::InvalidData,"bankroll arithmetic overflow"))?;
-        if self.balance < 0 {return Err(io::Error::new(io::ErrorKind::InvalidData,"negative bankroll"));}
-        self.peak=self.peak.max(self.balance);
-        self.max_drawdown=self.max_drawdown.max(self.peak-self.balance);
-        self.hands+=1;
-        self.total_rake+=rake;
-        self.hero_allins+=risk.hero_allins;
+        for chips in [risk.hero_max_single_action,risk.hero_max_exposure] {
+            let units=chips.checked_mul(accounting::MONEY_SCALE).ok_or_else(||
+                io::Error::new(io::ErrorKind::InvalidData,"risk telemetry arithmetic overflow"))?;
+            if units<0 || units>buyin_units {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,"hero exceeded actual table buy-in or USD 10 wager cap"));
+            }
+        }
+        let balance=self.balance.checked_add(net).ok_or_else(||io::Error::new(io::ErrorKind::InvalidData,"bankroll arithmetic overflow"))?;
+        if balance<0 {return Err(io::Error::new(io::ErrorKind::InvalidData,"negative bankroll"));}
+        if rake<0 {return Err(io::Error::new(io::ErrorKind::InvalidData,"negative table rake"));}
+        let total_rake=self.total_rake.checked_add(rake).ok_or_else(||io::Error::new(io::ErrorKind::InvalidData,"rake arithmetic overflow"))?;
+        let hands=self.hands.checked_add(1).ok_or_else(||io::Error::new(io::ErrorKind::InvalidData,"hand count overflow"))?;
+        let hero_allins=self.hero_allins.checked_add(risk.hero_allins).ok_or_else(||io::Error::new(io::ErrorKind::InvalidData,"all-in count overflow"))?;
+        // Validate the whole hand before changing the session so that a
+        // rejected result cannot leave a partially updated bankroll record.
+        self.balance=balance;
+        self.peak=self.peak.max(balance);
+        self.max_drawdown=self.max_drawdown.max(self.peak-balance);
+        self.hands=hands;
+        self.total_rake=total_rake;
+        self.hero_allins=hero_allins;
         self.max_single_action=self.max_single_action.max(risk.hero_max_single_action);
         self.max_hand_exposure=self.max_hand_exposure.max(risk.hero_max_exposure);
-        if self.max_single_action>STACK || self.max_hand_exposure>STACK {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,"hero exceeded USD 10 wager cap"));
-        }
         Ok(())
     }
 }
@@ -193,5 +225,79 @@ mod tests {
         let mut s=Session::new(l);
         for _ in 0..100{s.record(BB_UNITS,0,&RiskTelemetry::default()).unwrap();}
         assert_eq!(dollars(s.balance-s.initial),10.0);
+    }
+    #[test]
+    fn actual_fifty_bb_buyin_reserves_five_dollars_instead_of_the_ten_dollar_cap(){
+        let buyin=BUYIN_UNITS/2;
+        let risk=RiskTelemetry {hero_allins:1,hero_max_single_action:STACK/2,hero_max_exposure:STACK/2};
+        for bankroll in [5,50] {
+            let limits=Limits::from_dollars(bankroll,5,10).unwrap();
+            let mut session=Session::new(limits);
+            assert!(session.eligible_for_buyin(limits,buyin),"a funded USD 5 buy-in fits a USD 5 remaining loss budget");
+            session.record_for_buyin(-buyin,0,&risk,buyin).unwrap();
+            assert_eq!(session.balance,(bankroll-5)*USD_UNITS);
+            assert_eq!(session.max_drawdown,buyin);
+            assert_eq!(session.max_hand_exposure,STACK/2);
+            assert_eq!(session.hands,1);
+            assert!(!session.eligible_for_buyin(limits,buyin));
+            assert_eq!(session.stopped,Some("stop_loss"));
+        }
+    }
+    #[test]
+    fn actual_buyin_checks_remaining_balance_and_loss_budget_separately(){
+        let buyin=BUYIN_UNITS/2;
+        let risk=RiskTelemetry {hero_allins:0,hero_max_single_action:20,hero_max_exposure:20};
+        let limits=Limits::from_dollars(6,6,10).unwrap();
+        let mut session=Session::new(limits);
+        assert!(session.eligible_for_buyin(limits,buyin));
+        session.record_for_buyin(-USD_UNITS,0,&risk,buyin).unwrap();
+        assert_eq!(session.balance,buyin);
+        assert!(session.eligible_for_buyin(limits,buyin),"exactly one actual buy-in remains funded");
+        session.record_for_buyin(-USD_UNITS,0,&risk,buyin).unwrap();
+        assert!(!session.eligible_for_buyin(limits,buyin));
+        assert_eq!(session.stopped,Some("insufficient_buyin"));
+
+        let limits=Limits::from_dollars(50,5,10).unwrap();
+        let mut session=Session::new(limits);
+        assert!(session.eligible_for_buyin(limits,buyin));
+        session.record_for_buyin(-USD_UNITS,0,&risk,buyin).unwrap();
+        assert_eq!(session.balance,49*USD_UNITS);
+        assert!(!session.eligible_for_buyin(limits,buyin),"cash alone must not override the remaining USD 4 loss budget");
+        assert_eq!(session.stopped,Some("stop_loss_budget"));
+    }
+    #[test]
+    fn actual_buyin_rejects_oversize_results_and_telemetry_without_booking_them(){
+        let limits=Limits::from_dollars(50,50,10).unwrap();
+        let buyin=BUYIN_UNITS/2;
+        for (net,risk) in [
+            (-buyin-1,RiskTelemetry::default()),
+            (buyin*5+1,RiskTelemetry::default()),
+            (0,RiskTelemetry {hero_max_single_action:STACK/2+1,..RiskTelemetry::default()}),
+            (0,RiskTelemetry {hero_max_exposure:STACK/2+1,..RiskTelemetry::default()}),
+            (0,RiskTelemetry {hero_max_exposure:i64::MAX,..RiskTelemetry::default()}),
+        ] {
+            let mut session=Session::new(limits);
+            assert!(session.record_for_buyin(net,0,&risk,buyin).is_err());
+            assert_eq!(session.balance,limits.bankroll);
+            assert_eq!(session.hands,0);
+            assert_eq!(session.total_rake,0);
+            assert_eq!(session.max_drawdown,0);
+        }
+    }
+    #[test]
+    fn invalid_buyins_never_start_or_book_a_hand(){
+        let limits=Limits::from_dollars(50,50,10).unwrap();
+        for buyin in [-1,0,BUYIN_UNITS+1,i64::MAX] {
+            let mut session=Session::new(limits);
+            assert!(!session.eligible_for_buyin(limits,buyin));
+            assert!(session.record_for_buyin(0,0,&RiskTelemetry::default(),buyin).is_err());
+            assert_eq!(session.balance,limits.bankroll);
+            assert_eq!(session.hands,0);
+        }
+        for maximum in [4*USD_UNITS,11*USD_UNITS] {
+            let limits=Limits {max_bet:maximum,..limits};
+            let mut session=Session::new(limits);
+            assert!(!session.eligible_for_buyin(limits,BUYIN_UNITS/2));
+        }
     }
 }

@@ -1,6 +1,9 @@
 //! Independent, public-information Monte Carlo reference for the frozen arena.
+//! Unknown hands are uniform and do not condition on prior betting. Equity is
+//! showdown pot share, including multiway ties; it is not an action EV estimate.
 //! The betting rule is a fixed diagnostic heuristic, not a GTO policy.
 use super::{Rng, View, ACTIONS, N};
+use crate::evaluator::score7;
 
 pub(super) struct EquityPolicy {
     samples: usize,
@@ -8,17 +11,95 @@ pub(super) struct EquityPolicy {
 
 impl EquityPolicy {
     pub(super) fn new(samples: usize) -> Self {
+        assert!(samples > 0, "equity simulation budget must be positive");
         Self { samples }
     }
 
-    pub(super) fn probabilities(&self, _view: View) -> [f32; ACTIONS] {
-        [0.0; ACTIONS]
+    pub(super) fn probabilities(&self, view: View) -> [f32; ACTIONS] {
+        let equity = self.equity(view) as f32;
+        let price = view.call as f32 / (view.pot + view.call).max(1) as f32;
+        let fair_share = 1.0 / view.active as f32;
+        let value_threshold = (fair_share + 0.18).max(0.45);
+        // Fixed before benchmark results: small call tolerance, infrequent
+        // bluffs, and value aggression above both pot odds and fair pot share.
+        // This ignores range conditioning, future betting and side-pot EV.
+        let (fold, call, raise) = if view.call > 0 && equity + 0.025 < price {
+            (0.96, 0.04, 0.0)
+        } else if equity >= value_threshold && equity >= price + 0.12 {
+            (0.0, 0.20, 0.80)
+        } else if view.call == 0 {
+            (0.0, 0.98, 0.02)
+        } else {
+            (0.04, 0.94, 0.02)
+        };
+        let sizes = [0.40, 0.40, 0.18, 0.02];
+        let mut result = [0.0; ACTIONS];
+        result[0] = fold;
+        result[1] = call;
+        for action in 2..ACTIONS { result[action] = raise * sizes[action - 2]; }
+        for action in 0..ACTIONS {
+            if !view.legal[action] { result[action] = 0.0; }
+        }
+        let sum = result.iter().sum::<f32>();
+        if sum > 0.0 {
+            for probability in &mut result { *probability /= sum; }
+        } else if let Some(action) = (0..ACTIONS).find(|&action| view.legal[action]) {
+            result[action] = 1.0;
+        }
+        result
     }
 
-    fn equity(&self, _view: View) -> f64 {
-        let _ = self.samples;
-        0.0
+    fn equity(&self, view: View) -> f64 {
+        assert!((1..=N).contains(&view.active), "invalid active player count");
+        let mut unknown = UnknownCards::new(view);
+        let mut rng = Rng::new(information_seed(view));
+        let missing = 5 - view.visible;
+        let opponents = view.active - 1;
+        let needed = missing + 2 * opponents;
+        let mut hero = [0u8; 7];
+        hero[..2].copy_from_slice(&view.hole);
+        hero[2..2 + view.visible].copy_from_slice(&view.board[..view.visible]);
+        // The completed hero hand never changes on the river.
+        let river_score = if missing == 0 { Some(score7(&hero)) } else { None };
+        let mut rival = [0u8; 7];
+        let mut share = 0.0;
+        for _ in 0..self.samples {
+            let sampled = unknown.draw(needed, &mut rng);
+            hero[2 + view.visible..].copy_from_slice(&sampled[..missing]);
+            rival[2..].copy_from_slice(&hero[2..]);
+            let our_score = river_score.unwrap_or_else(|| score7(&hero));
+            let mut ties = 1usize;
+            let mut lost = false;
+            for opponent in 0..opponents {
+                let offset = missing + 2 * opponent;
+                rival[..2].copy_from_slice(&sampled[offset..offset + 2]);
+                let their_score = score7(&rival);
+                if their_score > our_score {
+                    lost = true;
+                    break;
+                }
+                if their_score == our_score { ties += 1; }
+            }
+            if !lost { share += 1.0 / ties as f64; }
+        }
+        share / self.samples as f64
     }
+}
+
+fn information_seed(view: View) -> u64 {
+    // Canonical known-card sets make sampling insensitive to card order.
+    // No real-deal seed, opponent cards or unrevealed board enter this RNG.
+    let hole = view.hole.iter().fold(0u64, |mask, &card| mask | (1u64 << card));
+    let board = view.board[..view.visible].iter()
+        .fold(0u64, |mask, &card| mask | (1u64 << card));
+    let mut hash = 0x73f4_06d1_b8a9_2ce5u64; // Equity sampler domain.
+    for value in [hole, board, view.active as u64] {
+        for byte in value.to_le_bytes() {
+            hash ^= byte as u64;
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+    }
+    hash
 }
 
 struct UnknownCards {
@@ -27,11 +108,31 @@ struct UnknownCards {
 }
 
 impl UnknownCards {
-    fn new(_view: View) -> Self {
-        Self { cards: [0; 52], len: 52 }
+    fn new(view: View) -> Self {
+        assert!(view.visible <= 5, "invalid visible board length");
+        let mut excluded = 0u64;
+        for &card in view.hole.iter().chain(view.board[..view.visible].iter()) {
+            assert!(card < 52, "invalid known card");
+            excluded |= 1u64 << card;
+        }
+        let mut result = Self { cards: [0; 52], len: 0 };
+        for card in 0u8..52 {
+            if excluded & (1u64 << card) == 0 {
+                result.cards[result.len] = card;
+                result.len += 1;
+            }
+        }
+        result
     }
 
-    fn draw(&mut self, count: usize, _rng: &mut Rng) -> &[u8] {
+    fn draw(&mut self, count: usize, rng: &mut Rng) -> &[u8] {
+        assert!(count <= self.len, "not enough unknown cards");
+        // A partial Fisher-Yates shuffle selects an ordered uniform sample
+        // without replacement. Reusing the permuted pool remains unbiased.
+        for index in 0..count {
+            let other = index + rng.range(self.len - index);
+            self.cards.swap(index, other);
+        }
         &self.cards[..count]
     }
 }

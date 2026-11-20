@@ -1,0 +1,124 @@
+{
+  "protocol_version": 1,
+  "experiment": "board-aware-risk-v1",
+  "sessions": 64,
+  "hands_per_session": 2000,
+  "master_seed": 2026112007,
+  "equity_samples": 96,
+  "bankroll_usd": 50,
+  "stop_loss_usd": 50,
+  "max_bet_usd": 10,
+  "bootstrap": {
+    "resamples": 5000,
+    "seed": 2026112011
+  },
+  "models": {
+    "ten": {
+      "sha256": "57feb03eb3af6d823e9d1c5bc14c221b0a8967ea5949406e2f6615f0ebff6d8c",
+      "kind": "tabular",
+      "archive": "models/tabular-corrected-10m.bin.gz",
+      "source_run": 44601763525
+    },
+    "twenty": {
+      "sha256": "5b5a8ccd905c53b327cb7b8f53828d2699e51c40c8ae3ae2dd8f73cbb54d22a7",
+      "kind": "tabular",
+      "archive": "models/tabular-corrected-20m.bin.gz",
+      "source_run": 44603187298
+    },
+    "phh": {
+      "sha256": "dd032a79192bf48a98e42b536b77588c5f59ec731da1fafa75d495a727b0d327",
+      "kind": "phh",
+      "archive": "models/pluribus-imitation.bin.gz",
+      "source_run": 44541033820
+    }
+  },
+  "exclude_streams": [
+    {
+      "seed": 2026111901,
+      "start": 0,
+      "count": 5000000,
+      "reason": "tabular first5M"
+    },
+    {
+      "seed": 2026111902,
+      "start": 0,
+      "count": 5000000,
+      "reason": "tabular resumed5M with local index reset"
+    },
+    {
+      "seed": 2026111903,
+      "start": 0,
+      "count": 10000000,
+      "reason": "tabular resumed10M with local index reset"
+    },
+    {
+      "seed": 944104,
+      "start": 0,
+      "count": 120000,
+      "reason": "conservative known prior evaluation exclusion"
+    },
+    {
+      "seed": 990071,
+      "start": 0,
+      "count": 120000,
+      "reason": "conservative known prior evaluation exclusion"
+    },
+    {
+      "seed": 990073,
+      "start": 0,
+      "count": 120000,
+      "reason": "conservative known prior evaluation exclusion"
+    },
+    {
+      "seed": 990079,
+      "start": 0,
+      "count": 120000,
+      "reason": "conservative known prior evaluation exclusion"
+    },
+    {
+      "seed": 990081,
+      "start": 0,
+      "count": 120000,
+      "reason": "conservative known prior evaluation exclusion"
+    },
+    {
+      "seed": 990083,
+      "start": 0,
+      "count": 120000,
+      "reason": "conservative known prior evaluation exclusion"
+    },
+    {
+      "seed": 2026112099,
+      "start": 0,
+      "count": 24,
+      "reason": "reserved smoke stream"
+    }
+  ],
+  "conditions": [
+    {
+      "id": "100bb_rake5",
+      "stack_bb": 100,
+      "rake_bps": 500,
+      "rake_cap_bb": 3
+    },
+    {
+      "id": "50bb_rake5",
+      "stack_bb": 50,
+      "rake_bps": 500,
+      "rake_cap_bb": 3
+    },
+    {
+      "id": "100bb_norake",
+      "stack_bb": 100,
+      "rake_bps": 0,
+      "rake_cap_bb": 0
+    }
+  ],
+  "opponents": [
+    "equity_multiway",
+    "tight_aggressive",
+    "loose_aggressive"
+  ],
+  "phh_condition": "100bb_rake5",
+  "provenance_note": "Disjointness refers to hash-bound known tabular training and listed evaluation streams only. PHH historical exposure is not fully known. Rows sharing session blocks are paired, not independent samples; these opponents have no validated human strength."
+}
