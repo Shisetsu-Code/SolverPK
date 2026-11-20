@@ -1,0 +1,94 @@
+name: Board-aware frozen bankroll benchmark
+on:
+  push:
+    branches: [main, 'evaluate/board-aware-bankroll-20261120']
+    paths:
+      - 'src/**'
+      - 'tests/risk_benchmark.rs'
+      - 'scripts/board_benchmark*.py'
+      - 'audit/2026-11-20/board-aware/protocol.json'
+      - '.github/workflows/board-aware-benchmark.yml'
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run the predeclared full experiment after validation
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test all Rust and statistical code
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p validation
+          git rev-parse HEAD > validation/source-commit.txt
+          cargo test --all-targets --no-fail-fast 2>&1 | tee validation/rust-tests.log
+          python scripts/board_benchmark_tests.py -v 2>&1 | tee validation/python-tests.log
+          cargo test --release audit_stress -- --ignored --nocapture 2>&1 | tee validation/accounting-stress.log
+          cargo test --release exhaustive_five_card -- --ignored --nocapture 2>&1 | tee validation/exhaustive-evaluator.log
+          cargo build --release
+          cp target/release/solverpk validation/solverpk
+          sha256sum validation/solverpk > validation/binary.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: board-benchmark-validation
+          path: validation/**
+          retention-days: 90
+          if-no-files-found: error
+  benchmark:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: board-benchmark-validation
+          path: validation
+      - name: Restore pinned frozen reference models
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p references/ten references/twenty references/phh
+          gh run download 44601763525 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-10m --dir references/ten
+          gh run download 44603187298 --repo Shisetsu-Code/SolverPK --name sixmax-tabular-corrected-20m --dir references/twenty
+          gh run download 44541033820 --repo Shisetsu-Code/SolverPK --name pluribus-full-import-training --dir references/phh
+          chmod +x validation/solverpk
+          sha256sum -c validation/binary.sha256
+      - name: Smoke-test the fixed protocol with a separate seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/board_benchmark.py --binary validation/solverpk --ten references/ten/tabular-corrected-10m.bin --twenty references/twenty/tabular-corrected-20m.bin --phh references/phh/pluribus-imitation.bin --output smoke --smoke
+      - name: Run the complete predeclared experiment
+        if: inputs.full == true || (github.ref == 'refs/heads/evaluate/board-aware-bankroll-20261120' && contains(github.event.head_commit.message, '[run-benchmark]'))
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/board_benchmark.py --binary validation/solverpk --ten references/ten/tabular-corrected-10m.bin --twenty references/twenty/tabular-corrected-20m.bin --phh references/phh/pluribus-imitation.bin --output results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: board-aware-benchmark-results
+          path: |
+            smoke/**
+            results/**
+          retention-days: 90
+          if-no-files-found: error
