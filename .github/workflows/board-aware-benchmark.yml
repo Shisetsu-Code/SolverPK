@@ -1,4 +1,6 @@
 name: Board-aware frozen bankroll benchmark
+# After the smoke gate passes, [run-benchmark] on the evaluation branch executes
+# the fixed 64-session protocol; pushes to main only repeat validation and smoke.
 on:
   push:
     branches: [main, 'evaluate/board-aware-bankroll-20261120']
