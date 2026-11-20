@@ -1,0 +1,2202 @@
+{
+  "cases": [
+    {
+      "candidate": "ten",
+      "condition": "100bb_rake5",
+      "elapsed_seconds": 1.6549109779999966,
+      "id": "ten-equity_multiway-100bb_rake5",
+      "opponent": "equity_multiway",
+      "stdout_sha256": "058b646c3d9a9c062fd13e1ebbfa6a43d412aeb295a999e78f9117a0e9f34397",
+      "summary": {
+        "bb100": -498.66284162578836,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -615.0917177056357,
+            -409.848073254072
+          ],
+          "mean_profit_usd": [
+            -45.170052734375005,
+            -43.76421728515625
+          ],
+          "scheduled_usd100": [
+            -2.25850263671875,
+            -2.1882108642578126
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -61.50917177056357,
+            -40.984807325407196
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.1525,
+          "0.1": 1.672,
+          "0.25": 3.3425000000000002,
+          "0.5": 5.233750000000001,
+          "0.75": 8.0709375,
+          "0.9": 9.365,
+          "1": 9.985
+        },
+        "hands_played": 5708,
+        "hands_requested": 128000,
+        "hero_allin_actions": 956,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.46,
+          "0.1": 42.189,
+          "0.25": 46.585,
+          "0.5": 50.3125,
+          "0.75": 61.525,
+          "0.9": 66.09400000000001,
+          "1": 94.65375
+        },
+        "mean_profit_usd": -44.4744921875,
+        "profit_units": -569273500,
+        "profit_usd": -2846.3675,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 651.42,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.223724609375,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -49.866284162578836,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "100bb_rake5",
+      "elapsed_seconds": 1.7446258430000015,
+      "id": "twenty-equity_multiway-100bb_rake5",
+      "opponent": "equity_multiway",
+      "stdout_sha256": "63f83639340fabe255f5f74e30f4f05520edf668126d4fe4c74a05fa4ae38854",
+      "summary": {
+        "bb100": -449.40081150570467,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -555.0308803746697,
+            -370.76855753226334
+          ],
+          "mean_profit_usd": [
+            -44.31964892578125,
+            -43.074003417968754
+          ],
+          "scheduled_usd100": [
+            -2.2159824462890625,
+            -2.1537001708984373
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -55.50308803746697,
+            -37.076855753226326
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.01,
+          "0.1": 2.782,
+          "0.25": 4.48875,
+          "0.5": 6.6975,
+          "0.75": 8.41,
+          "0.9": 9.52375,
+          "1": 9.955
+        },
+        "hands_played": 6223,
+        "hands_requested": 128000,
+        "hero_allin_actions": 876,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.045,
+          "0.1": 41.85725,
+          "0.25": 43.195625,
+          "0.5": 47.11,
+          "0.75": 61.00125,
+          "0.9": 72.00125,
+          "1": 99.0975
+        },
+        "mean_profit_usd": -43.69720703125,
+        "profit_units": -559324250,
+        "profit_usd": -2796.62125,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 694.6,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.1848603515625,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -44.940081150570464,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "100bb_rake5",
+      "elapsed_seconds": 0.6075277389999982,
+      "id": "ten-tight_aggressive-100bb_rake5",
+      "opponent": "tight_aggressive",
+      "stdout_sha256": "f2f6f3207738f1dd7a31c9df1ebed954f14567e8b8a95be5d3f0920c2cdeeb20",
+      "summary": {
+        "bb100": -175.788502126861,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -211.75740584568922,
+            -147.97298230644665
+          ],
+          "mean_profit_usd": [
+            -44.48761396679687,
+            -43.311107919921874
+          ],
+          "scheduled_usd100": [
+            -2.2243806983398438,
+            -2.1655553959960936
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -21.175740584568924,
+            -14.797298230644666
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.79,
+          "0.1": 2.8325000000000005,
+          "0.25": 4.21375,
+          "0.5": 6.182085,
+          "0.75": 8.010625,
+          "0.9": 9.23975,
+          "1": 9.9775
+        },
+        "hands_played": 15986,
+        "hands_requested": 128000,
+        "hero_allin_actions": 1566,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.415,
+          "0.1": 43.594,
+          "0.25": 45.098125,
+          "0.5": 48.2125,
+          "0.75": 58.294375,
+          "0.9": 72.26712500000001,
+          "1": 111.52
+        },
+        "mean_profit_usd": -43.908671796875,
+        "profit_units": -562030999,
+        "profit_usd": -2810.154995,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 619.26,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.19543358984375,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -17.5788502126861,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "100bb_rake5",
+      "elapsed_seconds": 0.6339547730000064,
+      "id": "twenty-tight_aggressive-100bb_rake5",
+      "opponent": "tight_aggressive",
+      "stdout_sha256": "ea8d28ca75f20a59c70ecc00a7ca04943f2ed87d51ce1e676fe289e4c621419a",
+      "summary": {
+        "bb100": -145.02840851482077,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -178.93438954393673,
+            -119.77664540813304
+          ],
+          "mean_profit_usd": [
+            -44.47261539648438,
+            -43.149446451171876
+          ],
+          "scheduled_usd100": [
+            -2.2236307698242186,
+            -2.157472322558594
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -17.893438954393673,
+            -11.977664540813302
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.6,
+          "0.1": 1.9480000000000002,
+          "0.25": 4.09875,
+          "0.5": 6.8462499999999995,
+          "0.75": 8.308125,
+          "0.9": 9.367875,
+          "1": 9.68
+        },
+        "hands_played": 19331,
+        "hands_requested": 128000,
+        "hero_allin_actions": 1569,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.4025,
+          "0.1": 42.07975,
+          "0.25": 44.198125,
+          "0.5": 48.815625,
+          "0.75": 64.16,
+          "0.9": 77.13300000000001,
+          "1": 115.585
+        },
+        "mean_profit_usd": -43.805377578125,
+        "profit_units": -560708833,
+        "profit_usd": -2803.544165,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 706.885,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.19026887890625,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -14.502840851482075,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "100bb_rake5",
+      "elapsed_seconds": 0.6383058699999964,
+      "id": "ten-loose_aggressive-100bb_rake5",
+      "opponent": "loose_aggressive",
+      "stdout_sha256": "17dd7bec0b118ed59941c2d0a26565682583cb37f906cd92782451f9841c37a3",
+      "summary": {
+        "bb100": -85.19351662922176,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -137.0995697507183,
+            -48.626408582429356
+          ],
+          "mean_profit_usd": [
+            -44.259189804687495,
+            -25.443030242187508
+          ],
+          "scheduled_usd100": [
+            -2.212959490234375,
+            -1.2721515121093754
+          ],
+          "stop_fraction": [
+            0.890625,
+            1.0
+          ],
+          "usd100": [
+            -13.70995697507183,
+            -4.862640858242936
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.0725,
+          "0.1": 1.837625,
+          "0.25": 3.60875,
+          "0.5": 6.046250000000001,
+          "0.75": 8.820936249999999,
+          "0.9": 9.8535,
+          "1": 246.861665
+        },
+        "hands_played": 27151,
+        "hands_requested": 128000,
+        "hero_allin_actions": 2849,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.61,
+          "0.1": 43.265,
+          "0.25": 48.110625,
+          "0.5": 69.13624999999999,
+          "0.75": 106.765,
+          "0.9": 149.3655,
+          "1": 298.245
+        },
+        "mean_profit_usd": -36.14201828125,
+        "profit_units": -462617834,
+        "profit_usd": -2313.08917,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 4276.5775,
+        "reached_horizon": 3,
+        "scheduled_usd100": -1.8071009140625,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 3,
+          "insufficient_buyin": 61
+        },
+        "stop_fraction": 0.953125,
+        "stop_fraction_wilson95": [
+          0.8710034625990631,
+          0.983930983213707
+        ],
+        "unable_to_continue": 61,
+        "usd100": -8.519351662922176,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "100bb_rake5",
+      "elapsed_seconds": 0.6422092050000003,
+      "id": "twenty-loose_aggressive-100bb_rake5",
+      "opponent": "loose_aggressive",
+      "stdout_sha256": "2eeff7eae7dcc535bb199e6ea915ca3da8d4a18223dbf5d2f4aa13dca6f5b842",
+      "summary": {
+        "bb100": -72.94982893281725,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -124.95747231701696,
+            -36.857692228842325
+          ],
+          "mean_profit_usd": [
+            -41.856385365234374,
+            -20.83329424609376
+          ],
+          "scheduled_usd100": [
+            -2.092819268261719,
+            -1.041664712304688
+          ],
+          "stop_fraction": [
+            0.84375,
+            0.984375
+          ],
+          "usd100": [
+            -12.495747231701698,
+            -3.685769222884233
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.73,
+          "0.1": 2.504,
+          "0.25": 3.6234375,
+          "0.5": 6.44875,
+          "0.75": 8.478125,
+          "0.9": 9.955,
+          "1": 273.626665
+        },
+        "hands_played": 28936,
+        "hands_requested": 128000,
+        "hero_allin_actions": 2468,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.0275,
+          "0.1": 42.37975,
+          "0.25": 47.332499999999996,
+          "0.5": 74.12,
+          "0.75": 99.123125,
+          "0.9": 135.57250000000002,
+          "1": 179.18
+        },
+        "mean_profit_usd": -32.98244140625,
+        "profit_units": -422175250,
+        "profit_usd": -2110.87625,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 4396.3125,
+        "reached_horizon": 5,
+        "scheduled_usd100": -1.6491220703125,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 5,
+          "insufficient_buyin": 59
+        },
+        "stop_fraction": 0.921875,
+        "stop_fraction_wilson95": [
+          0.8298046264583709,
+          0.9661688230914496
+        ],
+        "unable_to_continue": 59,
+        "usd100": -7.294982893281725,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "100bb_rake5",
+      "elapsed_seconds": 0.7519453039999959,
+      "id": "ten-phh-100bb_rake5",
+      "opponent": "phh",
+      "stdout_sha256": "fc92adc952e29d6fb624589a812db03341fb84749696d60b1d5c571c6c06aba0",
+      "summary": {
+        "bb100": 135.1712721332294,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            122.17595244623568,
+            147.83918588210523
+          ],
+          "mean_profit_usd": [
+            233.70212711523436,
+            290.89506649218754
+          ],
+          "scheduled_usd100": [
+            11.685106355761718,
+            14.544753324609376
+          ],
+          "stop_fraction": [
+            0.0,
+            0.078125
+          ],
+          "usd100": [
+            12.217595244623569,
+            14.783918588210524
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.8175,
+          "0.1": 162.09525000000002,
+          "0.25": 245.4384375,
+          "0.5": 336.92375,
+          "0.75": 402.515625,
+          "0.9": 447.74462500000004,
+          "1": 519.5825
+        },
+        "hands_played": 124417,
+        "hands_requested": 128000,
+        "hero_allin_actions": 9791,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 26.7775,
+          "0.1": 33.388,
+          "0.25": 37.8975,
+          "0.5": 46.84375,
+          "0.75": 64.16843750000001,
+          "0.9": 75.7635,
+          "1": 91.0875
+        },
+        "mean_profit_usd": 262.775065078125,
+        "profit_units": 3363520833,
+        "profit_usd": 16817.604165,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 8194.965,
+        "reached_horizon": 62,
+        "scheduled_usd100": 13.13875325390625,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 62,
+          "insufficient_buyin": 2
+        },
+        "stop_fraction": 0.03125,
+        "stop_fraction_wilson95": [
+          0.008612138346171874,
+          0.10697291770958313
+        ],
+        "unable_to_continue": 2,
+        "usd100": 13.517127213322938,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "100bb_rake5",
+      "elapsed_seconds": 0.7597001639999945,
+      "id": "twenty-phh-100bb_rake5",
+      "opponent": "phh",
+      "stdout_sha256": "508d45160b69480d27c19a8dbf30b929d732b4a80fdbdb110b0a3a0fb76eabc7",
+      "summary": {
+        "bb100": 106.53295568081957,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            96.96250716234795,
+            116.11534139501575
+          ],
+          "mean_profit_usd": [
+            189.71460563085938,
+            230.76990152929685
+          ],
+          "scheduled_usd100": [
+            9.485730281542969,
+            11.538495076464843
+          ],
+          "stop_fraction": [
+            0.0,
+            0.046875
+          ],
+          "usd100": [
+            9.696250716234795,
+            11.611534139501575
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 8.4425,
+          "0.1": 143.642,
+          "0.25": 222.71010375,
+          "0.5": 272.79375,
+          "0.75": 305.5125,
+          "0.9": 363.08412500000003,
+          "1": 463.605
+        },
+        "hands_played": 126311,
+        "hands_requested": 128000,
+        "hero_allin_actions": 7694,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 23.62,
+          "0.1": 30.45225,
+          "0.25": 36.0734375,
+          "0.5": 42.69625,
+          "0.75": 54.1321875,
+          "0.9": 65.25375,
+          "1": 91.7925
+        },
+        "mean_profit_usd": 210.254440078125,
+        "profit_units": 2691256833,
+        "profit_usd": 13456.284165,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 7840.6,
+        "reached_horizon": 63,
+        "scheduled_usd100": 10.51272200390625,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 63,
+          "insufficient_buyin": 1
+        },
+        "stop_fraction": 0.015625,
+        "stop_fraction_wilson95": [
+          0.002763541923337505,
+          0.08334101600094265
+        ],
+        "unable_to_continue": 1,
+        "usd100": 10.653295568081957,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "50bb_rake5",
+      "elapsed_seconds": 2.790725130999995,
+      "id": "ten-equity_multiway-50bb_rake5",
+      "opponent": "equity_multiway",
+      "stdout_sha256": "558848e029ab65449509bf86bfc6cb9922b6ee95b5e45a58fccba59cdb2380a2",
+      "summary": {
+        "bb100": -250.8815071368598,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -286.86834825643234,
+            -220.12449528427
+          ],
+          "mean_profit_usd": [
+            -47.037677734375,
+            -46.3500107421875
+          ],
+          "scheduled_usd100": [
+            -2.3518838867187504,
+            -2.317500537109375
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -28.686834825643235,
+            -22.012449528427002
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.1725,
+          "0.1": 1.268,
+          "0.25": 2.0525,
+          "0.5": 3.7512499999999998,
+          "0.75": 4.57125,
+          "0.9": 4.782,
+          "1": 4.99
+        },
+        "hands_played": 11910,
+        "hands_requested": 128000,
+        "hero_allin_actions": 2033,
+        "hero_max_hand_exposure_usd": 5.0,
+        "hero_max_single_action_usd": 5.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 45.0525,
+          "0.1": 45.66075,
+          "0.25": 46.83125,
+          "0.5": 48.973749999999995,
+          "0.75": 55.59125,
+          "0.9": 58.9105,
+          "1": 71.04125
+        },
+        "mean_profit_usd": -46.68748046875,
+        "profit_units": -597599750,
+        "profit_usd": -2987.99875,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 1371.2925,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.3343740234375,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -25.088150713685977,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "50bb_rake5",
+      "elapsed_seconds": 3.0557605389999978,
+      "id": "twenty-equity_multiway-50bb_rake5",
+      "opponent": "equity_multiway",
+      "stdout_sha256": "53111b0d40a3e40e907579654ad580f94c38df77d498536f6ca396eb2452541a",
+      "summary": {
+        "bb100": -226.25319188884717,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -258.670347346299,
+            -198.76091134397376
+          ],
+          "mean_profit_usd": [
+            -47.4328125,
+            -46.72290087890625
+          ],
+          "scheduled_usd100": [
+            -2.3716406250000004,
+            -2.3361450439453124
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -25.867034734629904,
+            -19.876091134397377
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.2825,
+          "0.1": 0.65225,
+          "0.25": 1.8109374999999999,
+          "0.5": 2.9800000000000004,
+          "0.75": 4.115,
+          "0.9": 4.8105,
+          "1": 4.9975
+        },
+        "hands_played": 13315,
+        "hands_requested": 128000,
+        "hero_allin_actions": 1899,
+        "hero_max_hand_exposure_usd": 5.0,
+        "hero_max_single_action_usd": 5.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 45.0025,
+          "0.1": 46.08975,
+          "0.25": 47.777499999999996,
+          "0.5": 50.199375,
+          "0.75": 55.760625000000005,
+          "0.9": 61.49650000000001,
+          "1": 73.61875
+        },
+        "mean_profit_usd": -47.07126953125,
+        "profit_units": -602512250,
+        "profit_usd": -3012.56125,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 1482.1,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.3535634765625,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -22.625319188884717,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "50bb_rake5",
+      "elapsed_seconds": 0.6327737920000018,
+      "id": "ten-tight_aggressive-50bb_rake5",
+      "opponent": "tight_aggressive",
+      "stdout_sha256": "e359610d3a0f31bf1f9d37e4ca18bb62dc9b7ac8bcb1acf6571ff3ac9f5a89b3",
+      "summary": {
+        "bb100": -87.04569206413757,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -101.41420721734248,
+            -75.05365905227869
+          ],
+          "mean_profit_usd": [
+            -47.16483772460938,
+            -46.479579373046874
+          ],
+          "scheduled_usd100": [
+            -2.3582418862304686,
+            -2.323978968652344
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -10.141420721734248,
+            -7.505365905227868
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.2675,
+          "0.1": 0.8312500000000002,
+          "0.25": 2.2325,
+          "0.5": 3.4158350000000004,
+          "0.75": 4.523125,
+          "0.9": 4.84925,
+          "1": 4.98375
+        },
+        "hands_played": 34426,
+        "hands_requested": 128000,
+        "hero_allin_actions": 3440,
+        "hero_max_hand_exposure_usd": 5.0,
+        "hero_max_single_action_usd": 5.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 45.0675,
+          "0.1": 46.159749999999995,
+          "0.25": 47.13177,
+          "0.5": 49.70125,
+          "0.75": 56.24,
+          "0.9": 64.08550000000001,
+          "1": 83.2075
+        },
+        "mean_profit_usd": -46.822421796875,
+        "profit_units": -599326999,
+        "profit_usd": -2996.634995,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 1315.7325,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.34112108984375,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -8.704569206413757,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "50bb_rake5",
+      "elapsed_seconds": 0.6485900959999995,
+      "id": "twenty-tight_aggressive-50bb_rake5",
+      "opponent": "tight_aggressive",
+      "stdout_sha256": "b49f3f0dd47eefedd0cfd158996c2d41ade09e4b9096d1b554118345ec6ecad3",
+      "summary": {
+        "bb100": -67.60970533111204,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -80.70845724173074,
+            -57.31792642725191
+          ],
+          "mean_profit_usd": [
+            -46.751478953125,
+            -44.15516523632813
+          ],
+          "scheduled_usd100": [
+            -2.33757394765625,
+            -2.2077582618164064
+          ],
+          "stop_fraction": [
+            0.921875,
+            1.0
+          ],
+          "usd100": [
+            -8.070845724173074,
+            -5.73179264272519
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.67125,
+          "0.1": 1.5890000000000002,
+          "0.25": 2.625625,
+          "0.5": 3.66375,
+          "0.75": 4.414375,
+          "0.9": 4.864,
+          "1": 34.27
+        },
+        "hands_played": 43218,
+        "hands_requested": 128000,
+        "hero_allin_actions": 3681,
+        "hero_max_hand_exposure_usd": 5.0,
+        "hero_max_single_action_usd": 5.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 45.3975,
+          "0.1": 46.18475,
+          "0.25": 47.154375,
+          "0.5": 49.82625,
+          "0.75": 58.6290625,
+          "0.9": 64.80225,
+          "1": 79.2425
+        },
+        "mean_profit_usd": -45.655566328125,
+        "profit_units": -584391249,
+        "profit_usd": -2921.956245,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 1557.135,
+        "reached_horizon": 2,
+        "scheduled_usd100": -2.28277831640625,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 2,
+          "insufficient_buyin": 62
+        },
+        "stop_fraction": 0.96875,
+        "stop_fraction_wilson95": [
+          0.8930270822904169,
+          0.9913878616538281
+        ],
+        "unable_to_continue": 62,
+        "usd100": -6.7609705331112036,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "50bb_rake5",
+      "elapsed_seconds": 0.6663720259999977,
+      "id": "ten-loose_aggressive-50bb_rake5",
+      "opponent": "loose_aggressive",
+      "stdout_sha256": "2ea6344c54ec53b7cf8ee9b10b28c2d6cf42d397f3d2b849b0922d61fa10402e",
+      "summary": {
+        "bb100": -62.96815520647617,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -85.26818931412319,
+            -46.152586221518696
+          ],
+          "mean_profit_usd": [
+            -45.53396888671875,
+            -34.79838589648438
+          ],
+          "scheduled_usd100": [
+            -2.2766984443359375,
+            -1.7399192948242195
+          ],
+          "stop_fraction": [
+            0.84375,
+            0.984375
+          ],
+          "usd100": [
+            -8.52681893141232,
+            -4.6152586221518686
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.0825,
+          "0.1": 1.185125,
+          "0.25": 2.1781249999999996,
+          "0.5": 3.83375,
+          "0.75": 4.503125000000001,
+          "0.9": 4.9565,
+          "1": 107.855
+        },
+        "hands_played": 41506,
+        "hands_requested": 128000,
+        "hero_allin_actions": 4579,
+        "hero_max_hand_exposure_usd": 5.0,
+        "hero_max_single_action_usd": 5.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 45.0225,
+          "0.1": 46.875,
+          "0.25": 49.780625,
+          "0.5": 63.981874999999995,
+          "0.75": 81.470625,
+          "0.9": 97.30950000000003,
+          "1": 130.67
+        },
+        "mean_profit_usd": -40.83681640625,
+        "profit_units": -522711250,
+        "profit_usd": -2613.55625,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 6552.935,
+        "reached_horizon": 5,
+        "scheduled_usd100": -2.0418408203125,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 5,
+          "insufficient_buyin": 59
+        },
+        "stop_fraction": 0.921875,
+        "stop_fraction_wilson95": [
+          0.8298046264583709,
+          0.9661688230914496
+        ],
+        "unable_to_continue": 59,
+        "usd100": -6.296815520647617,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "50bb_rake5",
+      "elapsed_seconds": 0.6828697300000002,
+      "id": "twenty-loose_aggressive-50bb_rake5",
+      "opponent": "loose_aggressive",
+      "stdout_sha256": "8242f12273f9dbb3259ab8fcce9316d7a93daf976a2cb6676534132f5577d46e",
+      "summary": {
+        "bb100": -47.50656069248072,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -66.40132626483323,
+            -32.622935781029454
+          ],
+          "mean_profit_usd": [
+            -43.389022701171875,
+            -29.471536019531257
+          ],
+          "scheduled_usd100": [
+            -2.1694511350585937,
+            -1.473576800976563
+          ],
+          "stop_fraction": [
+            0.796875,
+            0.953125
+          ],
+          "usd100": [
+            -6.640132626483323,
+            -3.2622935781029456
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.12,
+          "0.1": 1.4132500000000001,
+          "0.25": 2.2840612499999997,
+          "0.5": 3.9625,
+          "0.75": 4.7371875,
+          "0.9": 35.03450050000001,
+          "1": 138.09
+        },
+        "hands_played": 49792,
+        "hands_requested": 128000,
+        "hero_allin_actions": 4671,
+        "hero_max_hand_exposure_usd": 5.0,
+        "hero_max_single_action_usd": 5.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 45.09,
+          "0.1": 47.4285,
+          "0.25": 52.126875,
+          "0.5": 63.92125,
+          "0.75": 76.641875,
+          "0.9": 89.8930005,
+          "1": 123.555
+        },
+        "mean_profit_usd": -36.96010421875,
+        "profit_units": -473089334,
+        "profit_usd": -2365.44667,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 7669.4625,
+        "reached_horizon": 8,
+        "scheduled_usd100": -1.8480052109375,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 8,
+          "insufficient_buyin": 56
+        },
+        "stop_fraction": 0.875,
+        "stop_fraction_wilson95": [
+          0.7722543817887005,
+          0.9352775733666955
+        ],
+        "unable_to_continue": 56,
+        "usd100": -4.750656069248072,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "100bb_norake",
+      "elapsed_seconds": 1.7515099279999973,
+      "id": "ten-equity_multiway-100bb_norake",
+      "opponent": "equity_multiway",
+      "stdout_sha256": "b4137d2e926382f45ad36f552a20036cc8589c4e4cedba6f07f41c9af56005ec",
+      "summary": {
+        "bb100": -465.1012145748988,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -574.5084702127001,
+            -384.23379339254984
+          ],
+          "mean_profit_usd": [
+            -45.604335937500004,
+            -44.120693359375
+          ],
+          "scheduled_usd100": [
+            -2.280216796875,
+            -2.20603466796875
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -57.450847021270015,
+            -38.423379339254986
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.0,
+          "0.1": 0.9600000000000002,
+          "0.25": 2.225,
+          "0.5": 5.3125,
+          "0.75": 7.7125,
+          "0.9": 9.120000000000001,
+          "1": 9.75
+        },
+        "hands_played": 6175,
+        "hands_requested": 128000,
+        "hero_allin_actions": 1036,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.85,
+          "0.1": 43.449999999999996,
+          "0.25": 47.050000000000004,
+          "0.5": 50.55,
+          "0.75": 62.075,
+          "0.9": 70.155,
+          "1": 100.625
+        },
+        "mean_profit_usd": -44.875,
+        "profit_units": -574400000,
+        "profit_usd": -2872.0,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 0.0,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.24375,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 63,
+          "stop_loss": 1
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -46.51012145748988,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "100bb_norake",
+      "elapsed_seconds": 1.802496547000004,
+      "id": "twenty-equity_multiway-100bb_norake",
+      "opponent": "equity_multiway",
+      "stdout_sha256": "1ad09452c993fb773a771a2be35d50e065eb4d9a9d270f9c8daec4ef5411d817",
+      "summary": {
+        "bb100": -435.99111519607845,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -539.1488876085521,
+            -358.91171967257907
+          ],
+          "mean_profit_usd": [
+            -45.215322265625,
+            -43.752714843750006
+          ],
+          "scheduled_usd100": [
+            -2.26076611328125,
+            -2.1876357421874997
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -53.914888760855206,
+            -35.89117196725791
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.15,
+          "0.1": 1.215,
+          "0.25": 3.125,
+          "0.5": 5.9,
+          "0.75": 8.0125,
+          "0.9": 9.42,
+          "1": 9.95
+        },
+        "hands_played": 6528,
+        "hands_requested": 128000,
+        "hero_allin_actions": 917,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.4,
+          "0.1": 42.015,
+          "0.25": 44.425,
+          "0.5": 49.8,
+          "0.75": 62.3625,
+          "0.9": 75.19000000000001,
+          "1": 105.45
+        },
+        "mean_profit_usd": -44.47109375,
+        "profit_units": -569230000,
+        "profit_usd": -2846.15,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 0.0,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.2235546875,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -43.599111519607845,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "100bb_norake",
+      "elapsed_seconds": 0.608660528999998,
+      "id": "ten-tight_aggressive-100bb_norake",
+      "opponent": "tight_aggressive",
+      "stdout_sha256": "c5a8bd0ea07826ce1ea3b07333650299521c0a9d0434f9b1da334388ee38dc6d",
+      "summary": {
+        "bb100": -168.35804865701863,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -203.80138440373028,
+            -141.2038553174223
+          ],
+          "mean_profit_usd": [
+            -44.766686017578124,
+            -43.58097
+          ],
+          "scheduled_usd100": [
+            -2.2383343008789063,
+            -2.1790485
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -20.38013844037303,
+            -14.120385531742228
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.525,
+          "0.1": 2.5250000000000004,
+          "0.25": 4.10625,
+          "0.5": 5.9125,
+          "0.75": 7.9125,
+          "0.9": 9.07,
+          "1": 9.85
+        },
+        "hands_played": 16791,
+        "hands_requested": 128000,
+        "hero_allin_actions": 1640,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.825,
+          "0.1": 42.4275,
+          "0.25": 44.431250000000006,
+          "0.5": 48.875,
+          "0.75": 59.6125,
+          "0.9": 78.67750000000001,
+          "1": 114.1
+        },
+        "mean_profit_usd": -44.170312421875,
+        "profit_units": -565379999,
+        "profit_usd": -2826.899995,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 0.0,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.20851562109375,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -16.835804865701864,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "100bb_norake",
+      "elapsed_seconds": 0.6171251800000022,
+      "id": "twenty-tight_aggressive-100bb_norake",
+      "opponent": "tight_aggressive",
+      "stdout_sha256": "6ceb42587fa01d26949061e03a15f5c722b095674cbddd3cff162b652b849778",
+      "summary": {
+        "bb100": -139.07060876184863,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -171.58033689127902,
+            -114.81667183918505
+          ],
+          "mean_profit_usd": [
+            -44.92058591210938,
+            -43.584905572265626
+          ],
+          "scheduled_usd100": [
+            -2.2460292956054686,
+            -2.179245278613281
+          ],
+          "stop_fraction": [
+            1.0,
+            1.0
+          ],
+          "usd100": [
+            -17.1580336891279,
+            -11.481667183918507
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.525,
+          "0.1": 1.7925000000000002,
+          "0.25": 3.71875,
+          "0.5": 6.0625,
+          "0.75": 8.025,
+          "0.9": 8.9275,
+          "1": 9.95
+        },
+        "hands_played": 20361,
+        "hands_requested": 128000,
+        "hero_allin_actions": 1650,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 41.2,
+          "0.1": 42.78,
+          "0.25": 44.097916250000004,
+          "0.5": 48.724999999999994,
+          "0.75": 64.66875,
+          "0.9": 83.35500000000002,
+          "1": 121.6
+        },
+        "mean_profit_usd": -44.244010390625,
+        "profit_units": -566323333,
+        "profit_usd": -2831.616665,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 0.0,
+        "reached_horizon": 0,
+        "scheduled_usd100": -2.21220051953125,
+        "sessions": 64,
+        "stop_counts": {
+          "insufficient_buyin": 64
+        },
+        "stop_fraction": 1.0,
+        "stop_fraction_wilson95": [
+          0.9433759402071946,
+          1.0
+        ],
+        "unable_to_continue": 64,
+        "usd100": -13.907060876184863,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "ten",
+      "condition": "100bb_norake",
+      "elapsed_seconds": 0.6529994799999983,
+      "id": "ten-loose_aggressive-100bb_norake",
+      "opponent": "loose_aggressive",
+      "stdout_sha256": "04d21bf1fc70cdc5149e8760b6cd0ddd79ac5ef98cadd8d97100af1a0912f0b9",
+      "summary": {
+        "bb100": -59.93411366377045,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -108.40428678762979,
+            -26.598834959191667
+          ],
+          "mean_profit_usd": [
+            -40.99278327734375,
+            -16.59725588671879
+          ],
+          "scheduled_usd100": [
+            -2.049639163867188,
+            -0.8298627943359396
+          ],
+          "stop_fraction": [
+            0.828125,
+            0.96875
+          ],
+          "usd100": [
+            -10.84042867876298,
+            -2.659883495919167
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.0,
+          "0.1": 1.5358345,
+          "0.25": 3.025,
+          "0.5": 6.4,
+          "0.75": 8.7,
+          "0.9": 9.9408345,
+          "1": 277.316665
+        },
+        "hands_played": 32341,
+        "hands_requested": 128000,
+        "hero_allin_actions": 3414,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.35,
+          "0.1": 43.65,
+          "0.25": 49.7,
+          "0.5": 71.85,
+          "0.75": 118.625,
+          "0.9": 164.48000000000002,
+          "1": 313.45
+        },
+        "mean_profit_usd": -30.28639328125,
+        "profit_units": -387665834,
+        "profit_usd": -1938.32917,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 0.0,
+        "reached_horizon": 6,
+        "scheduled_usd100": -1.5143196640625,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 6,
+          "insufficient_buyin": 57,
+          "stop_loss": 1
+        },
+        "stop_fraction": 0.90625,
+        "stop_fraction_wilson95": [
+          0.810171204003544,
+          0.9563217474148016
+        ],
+        "unable_to_continue": 58,
+        "usd100": -5.993411366377044,
+        "zero_hand_sessions": 0
+      }
+    },
+    {
+      "candidate": "twenty",
+      "condition": "100bb_norake",
+      "elapsed_seconds": 0.6480108510000022,
+      "id": "twenty-loose_aggressive-100bb_norake",
+      "opponent": "loose_aggressive",
+      "stdout_sha256": "8631d45d2985db84b728c00f48767a62dd7109dce2840e9618a23135fa065113",
+      "summary": {
+        "bb100": -57.35144023588115,
+        "bootstrap_resamples": 5000,
+        "bootstrap_seed": 2026112011,
+        "bootstrap_undefined": {
+          "bb100": 0,
+          "mean_profit_usd": 0,
+          "scheduled_usd100": 0,
+          "stop_fraction": 0,
+          "usd100": 0
+        },
+        "ci95": {
+          "bb100": [
+            -109.06483279315673,
+            -21.70488177115399
+          ],
+          "mean_profit_usd": [
+            -38.813486277343756,
+            -13.381084037109401
+          ],
+          "scheduled_usd100": [
+            -1.9406743138671876,
+            -0.66905420185547
+          ],
+          "stop_fraction": [
+            0.8125,
+            0.953125
+          ],
+          "usd100": [
+            -10.906483279315673,
+            -2.170488177115399
+          ]
+        },
+        "ci_method": "whole_session_percentile_bootstrap_approximate_unadjusted",
+        "final_balance_usd_quantiles": {
+          "0": 0.2,
+          "0.1": 1.9575000000000005,
+          "0.25": 4.96875,
+          "0.5": 7.05,
+          "0.75": 9.2,
+          "0.9": 45.263750000000144,
+          "1": 300.666665
+        },
+        "hands_played": 30863,
+        "hands_requested": 128000,
+        "hero_allin_actions": 2639,
+        "hero_max_hand_exposure_usd": 10.0,
+        "hero_max_single_action_usd": 10.0,
+        "max_drawdown_usd_quantiles": {
+          "0": 40.1,
+          "0.1": 44.24,
+          "0.25": 49.6375,
+          "0.5": 73.9083325,
+          "0.75": 102.0625,
+          "0.9": 136.3925,
+          "1": 174.525
+        },
+        "mean_profit_usd": -27.6568359375,
+        "profit_units": -354007500,
+        "profit_usd": -1770.0375,
+        "rake_scope": "whole_table_six_players_not_hero",
+        "rake_table_usd": 0.0,
+        "reached_horizon": 7,
+        "scheduled_usd100": -1.382841796875,
+        "sessions": 64,
+        "stop_counts": {
+          "hands_limit": 7,
+          "insufficient_buyin": 57
+        },
+        "stop_fraction": 0.890625,
+        "stop_fraction_wilson95": [
+          0.7910135867310387,
+          0.945998866555832
+        ],
+        "unable_to_continue": 57,
+        "usd100": -5.7351440235881155,
+        "zero_hand_sessions": 0
+      }
+    }
+  ],
+  "ci_scope": "per_condition_unadjusted_approximate_no_automatic_model_promotion",
+  "full_results": "results.json.gz",
+  "independent_sessions_per_condition": 64,
+  "interpretation": "net return under stated bankroll stopping rule, not unlimited-bankroll EV or human-game returns",
+  "manifest": "manifest.json",
+  "manifest_sha256": "f05712c4cd276ef69cf22dd3f6cde3b01987ea38c7896a4be6eb2482c0734631",
+  "mode": "full",
+  "model_selection": "none",
+  "paired_comparisons": [
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          9.259521657250549,
+          96.91513250987279
+        ],
+        "delta_mean_profit_usd": [
+          -0.08559960937500238,
+          1.6401401367187458
+        ],
+        "delta_scheduled_usd100": [
+          -0.004279980468750299,
+          0.08200700683593765
+        ],
+        "delta_stop_fraction": [
+          0.0,
+          0.0
+        ],
+        "delta_usd100": [
+          0.9259521657250505,
+          9.69151325098728
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "100bb_rake5",
+      "delta_bb100": 49.26203012008369,
+      "delta_mean_profit_usd": 0.7772851562499952,
+      "delta_scheduled_usd100": 0.038864257812500025,
+      "delta_stop_fraction": 0.0,
+      "delta_usd100": 4.926203012008372,
+      "opponent": "equity_multiway",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          4.022779836666558,
+          61.61504926462234
+        ],
+        "delta_mean_profit_usd": [
+          -0.7061158007812531,
+          0.9167948437499976
+        ],
+        "delta_scheduled_usd100": [
+          -0.03530579003906223,
+          0.045839742187499886
+        ],
+        "delta_stop_fraction": [
+          0.0,
+          0.0
+        ],
+        "delta_usd100": [
+          0.40227798366665585,
+          6.161504926462234
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "100bb_rake5",
+      "delta_bb100": 30.760093612040237,
+      "delta_mean_profit_usd": 0.10329421875000122,
+      "delta_scheduled_usd100": 0.005164710937499706,
+      "delta_stop_fraction": 0.0,
+      "delta_usd100": 3.076009361204024,
+      "opponent": "tight_aggressive",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          -32.936158187394405,
+          53.486498512198374
+        ],
+        "delta_mean_profit_usd": [
+          -7.822342695312495,
+          13.22772816601562
+        ],
+        "delta_scheduled_usd100": [
+          -0.39111713476562493,
+          0.6613864083007809
+        ],
+        "delta_stop_fraction": [
+          -0.09375,
+          0.03125
+        ],
+        "delta_usd100": [
+          -3.2936158187394393,
+          5.348649851219839
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "100bb_rake5",
+      "delta_bb100": 12.243687696404507,
+      "delta_mean_profit_usd": 3.159576875000006,
+      "delta_scheduled_usd100": 0.15797884375000004,
+      "delta_stop_fraction": -0.03125,
+      "delta_usd100": 1.224368769640451,
+      "opponent": "loose_aggressive",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          -35.39128479750684,
+          -21.956262346157615
+        ],
+        "delta_mean_profit_usd": [
+          -70.32317529296876,
+          -33.05154882812503
+        ],
+        "delta_scheduled_usd100": [
+          -3.516158764648437,
+          -1.6525774414062517
+        ],
+        "delta_stop_fraction": [
+          -0.078125,
+          0.03125
+        ],
+        "delta_usd100": [
+          -3.5391284797506852,
+          -2.195626234615763
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "100bb_rake5",
+      "delta_bb100": -28.638316452409825,
+      "delta_mean_profit_usd": -52.520625000000024,
+      "delta_scheduled_usd100": -2.6260312500000005,
+      "delta_stop_fraction": -0.015625,
+      "delta_usd100": -2.8638316452409818,
+      "opponent": "phh",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          9.545715523166159,
+          40.92226481110062
+        ],
+        "delta_mean_profit_usd": [
+          -0.8750380859374999,
+          0.09344335937500015
+        ],
+        "delta_scheduled_usd100": [
+          -0.04375190429687474,
+          0.004672167968750092
+        ],
+        "delta_stop_fraction": [
+          0.0,
+          0.0
+        ],
+        "delta_usd100": [
+          0.9545715523166179,
+          4.092226481110066
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "50bb_rake5",
+      "delta_bb100": 24.628315248012626,
+      "delta_mean_profit_usd": -0.3837890625,
+      "delta_scheduled_usd100": -0.01918945312500009,
+      "delta_stop_fraction": 0.0,
+      "delta_usd100": 2.4628315248012598,
+      "opponent": "equity_multiway",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          9.883316557610065,
+          28.860833855552343
+        ],
+        "delta_mean_profit_usd": [
+          -0.0063627929687498815,
+          2.7118437500000034
+        ],
+        "delta_scheduled_usd100": [
+          -0.00031813964843776496,
+          0.13559218750000002
+        ],
+        "delta_stop_fraction": [
+          -0.078125,
+          0.0
+        ],
+        "delta_usd100": [
+          0.9883316557610062,
+          2.8860833855552346
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "50bb_rake5",
+      "delta_bb100": 19.43598673302553,
+      "delta_mean_profit_usd": 1.1668554687500006,
+      "delta_scheduled_usd100": 0.05834277343749994,
+      "delta_stop_fraction": -0.03125,
+      "delta_usd100": 1.943598673302553,
+      "opponent": "tight_aggressive",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          8.056957543206856,
+          25.070845925842097
+        ],
+        "delta_mean_profit_usd": [
+          1.1715660019531258,
+          7.106000462890623
+        ],
+        "delta_scheduled_usd100": [
+          0.0585783000976563,
+          0.35530002314453096
+        ],
+        "delta_stop_fraction": [
+          -0.109375,
+          0.0
+        ],
+        "delta_usd100": [
+          0.8056957543206853,
+          2.5070845925842096
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "50bb_rake5",
+      "delta_bb100": 15.46159451399545,
+      "delta_mean_profit_usd": 3.8767121875000043,
+      "delta_scheduled_usd100": 0.19383560937499977,
+      "delta_stop_fraction": -0.046875,
+      "delta_usd100": 1.5461594513995447,
+      "opponent": "loose_aggressive",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          -12.044570375804708,
+          73.55794586774991
+        ],
+        "delta_mean_profit_usd": [
+          -0.6711328124999972,
+          1.4441992187500021
+        ],
+        "delta_scheduled_usd100": [
+          -0.03355664062499969,
+          0.07220996093750001
+        ],
+        "delta_stop_fraction": [
+          0.0,
+          0.0
+        ],
+        "delta_usd100": [
+          -1.2044570375804722,
+          7.355794586774993
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "100bb_norake",
+      "delta_bb100": 29.110099378820337,
+      "delta_mean_profit_usd": 0.4039062499999986,
+      "delta_scheduled_usd100": 0.02019531249999984,
+      "delta_stop_fraction": 0.0,
+      "delta_usd100": 2.911009937882035,
+      "opponent": "equity_multiway",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          4.039040760967149,
+          58.475847540538346
+        ],
+        "delta_mean_profit_usd": [
+          -0.8909766171874997,
+          0.7634211718750002
+        ],
+        "delta_scheduled_usd100": [
+          -0.044548830859374895,
+          0.038171058593749925
+        ],
+        "delta_stop_fraction": [
+          0.0,
+          0.0
+        ],
+        "delta_usd100": [
+          0.40390407609671286,
+          5.847584754053835
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "100bb_norake",
+      "delta_bb100": 29.287439895169996,
+      "delta_mean_profit_usd": -0.07369796874999679,
+      "delta_scheduled_usd100": -0.0036848984375001947,
+      "delta_stop_fraction": 0.0,
+      "delta_usd100": 2.9287439895170007,
+      "opponent": "tight_aggressive",
+      "paired_sessions": 64
+    },
+    {
+      "bootstrap_resamples": 5000,
+      "bootstrap_seed": 2026112011,
+      "bootstrap_undefined": {
+        "delta_bb100": 0,
+        "delta_mean_profit_usd": 0,
+        "delta_scheduled_usd100": 0,
+        "delta_stop_fraction": 0,
+        "delta_usd100": 0
+      },
+      "ci95": {
+        "delta_bb100": [
+          -40.446425513473976,
+          40.82401075789693
+        ],
+        "delta_mean_profit_usd": [
+          -10.335087812500001,
+          14.945257136718746
+        ],
+        "delta_scheduled_usd100": [
+          -0.516754390625,
+          0.7472628568359373
+        ],
+        "delta_stop_fraction": [
+          -0.09375,
+          0.0625
+        ],
+        "delta_usd100": [
+          -4.044642551347397,
+          4.082401075789693
+        ]
+      },
+      "ci_method": "paired_whole_session_percentile_bootstrap_approximate_unadjusted",
+      "comparison": "twenty_minus_ten",
+      "condition": "100bb_norake",
+      "delta_bb100": 2.582673427889297,
+      "delta_mean_profit_usd": 2.629557343750001,
+      "delta_scheduled_usd100": 0.1314778671875001,
+      "delta_stop_fraction": -0.015625,
+      "delta_usd100": 0.2582673427889288,
+      "opponent": "loose_aggressive",
+      "paired_sessions": 64
+    }
+  ],
+  "protocol_sha256": "b4cb572275c4368a25507909745632c75bdcca667414d3f0992590a1a9072471",
+  "rake_scope": "table rake includes all six seats; it is not subtracted again from net profit",
+  "rows_sharing_session_blocks_are_paired_not_independent": true,
+  "status": "complete",
+  "total_played_hands": 661289,
+  "total_requested_hands": 2560000,
+  "verification": {
+    "binary_sha256_after": "945b0e1f1d0af08ecff85fa83e633d5ae5137bc77c0017c7b6b9714542208c19",
+    "binary_sha256_before": "945b0e1f1d0af08ecff85fa83e633d5ae5137bc77c0017c7b6b9714542208c19",
+    "models_after": {
+      "phh": {
+        "kind": "phh",
+        "path": "/home/runner/work/SolverPK/SolverPK/references/phh/pluribus-imitation.bin",
+        "sha256": "dd032a79192bf48a98e42b536b77588c5f59ec731da1fafa75d495a727b0d327"
+      },
+      "ten": {
+        "kind": "tabular",
+        "path": "/home/runner/work/SolverPK/SolverPK/references/ten/tabular-corrected-10m.bin",
+        "sha256": "57feb03eb3af6d823e9d1c5bc14c221b0a8967ea5949406e2f6615f0ebff6d8c"
+      },
+      "twenty": {
+        "kind": "tabular",
+        "path": "/home/runner/work/SolverPK/SolverPK/references/twenty/tabular-corrected-20m.bin",
+        "sha256": "5b5a8ccd905c53b327cb7b8f53828d2699e51c40c8ae3ae2dd8f73cbb54d22a7"
+      }
+    },
+    "models_before": {
+      "phh": {
+        "kind": "phh",
+        "path": "/home/runner/work/SolverPK/SolverPK/references/phh/pluribus-imitation.bin",
+        "sha256": "dd032a79192bf48a98e42b536b77588c5f59ec731da1fafa75d495a727b0d327"
+      },
+      "ten": {
+        "kind": "tabular",
+        "path": "/home/runner/work/SolverPK/SolverPK/references/ten/tabular-corrected-10m.bin",
+        "sha256": "57feb03eb3af6d823e9d1c5bc14c221b0a8967ea5949406e2f6615f0ebff6d8c"
+      },
+      "twenty": {
+        "kind": "tabular",
+        "path": "/home/runner/work/SolverPK/SolverPK/references/twenty/tabular-corrected-20m.bin",
+        "sha256": "5b5a8ccd905c53b327cb7b8f53828d2699e51c40c8ae3ae2dd8f73cbb54d22a7"
+      }
+    },
+    "protocol_sha256_after": "b4cb572275c4368a25507909745632c75bdcca667414d3f0992590a1a9072471",
+    "protocol_sha256_before": "b4cb572275c4368a25507909745632c75bdcca667414d3f0992590a1a9072471",
+    "unchanged": true
+  }
+}

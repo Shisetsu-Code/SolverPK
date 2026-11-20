@@ -1,0 +1,115 @@
+{
+  "artifacts": [
+    {
+      "archive_download_url": "https://api.github.com/repos/Shisetsu-Code/SolverPK/actions/artifacts/14616360806/zip",
+      "created_at": "2026-11-20T09:09:09Z",
+      "digest": "sha256:0e0883eeebd6d13522858121a85556882354323033da10dd8b7f81cb44245ac8",
+      "expired": false,
+      "expires_at": "2027-02-18T09:07:32Z",
+      "id": 14616360806,
+      "name": "board-aware-benchmark-results",
+      "size_in_bytes": 291887,
+      "updated_at": "2026-11-20T09:09:09Z",
+      "url": "https://api.github.com/repos/Shisetsu-Code/SolverPK/actions/artifacts/14616360806",
+      "workflow_run": {
+        "head_branch": "evaluate/board-aware-bankroll-20261120",
+        "head_repository_id": 1463955590,
+        "head_sha": "85d7fd05f46d1841a1bd2fb41351785c4ad4ef8f",
+        "id": 44708043940,
+        "repository_id": 1463955590
+      }
+    },
+    {
+      "archive_download_url": "https://api.github.com/repos/Shisetsu-Code/SolverPK/actions/artifacts/14614849390/zip",
+      "created_at": "2026-11-20T09:08:18Z",
+      "digest": "sha256:7b3424e8ae88e109517bc15d101f2830b47a4a28b98a70def1a362241000da4c",
+      "expired": false,
+      "expires_at": "2027-02-18T09:07:32Z",
+      "id": 14614849390,
+      "name": "board-benchmark-validation",
+      "size_in_bytes": 401636,
+      "updated_at": "2026-11-20T09:08:18Z",
+      "url": "https://api.github.com/repos/Shisetsu-Code/SolverPK/actions/artifacts/14614849390",
+      "workflow_run": {
+        "head_branch": "evaluate/board-aware-bankroll-20261120",
+        "head_repository_id": 1463955590,
+        "head_sha": "85d7fd05f46d1841a1bd2fb41351785c4ad4ef8f",
+        "id": 44708043940,
+        "repository_id": 1463955590
+      }
+    }
+  ],
+  "binary_sha256": "945b0e1f1d0af08ecff85fa83e633d5ae5137bc77c0017c7b6b9714542208c19",
+  "full_experiment": {
+    "cases": 20,
+    "frozen_models_unchanged": true,
+    "hands_played": 661289,
+    "hands_requested_maximum": 2560000,
+    "independent_session_blocks": 64,
+    "model_selection": "none",
+    "session_records": 1280
+  },
+  "full_run": {
+    "conclusion": "success",
+    "id": 44708043940,
+    "jobs": [
+      {
+        "conclusion": "success",
+        "id": 136192435401,
+        "name": "validate"
+      },
+      {
+        "conclusion": "success",
+        "id": 136192813299,
+        "name": "benchmark"
+      }
+    ],
+    "status": "completed",
+    "url": "https://github.com/Shisetsu-Code/SolverPK/actions/runs/44708043940"
+  },
+  "green_smoke_run": {
+    "cases": 20,
+    "hands": 480,
+    "id": 44707518790,
+    "sessions": 40,
+    "source_commit": "954c1a70ea04b90181a6e4d4fe74b53cdfcf104c"
+  },
+  "red_run": {
+    "expected_failing_cli_tests": 8,
+    "expected_failing_equity_tests": 7,
+    "id": 44706186593,
+    "source_commit": "c4f76e5eb38233b794a4d43e9af536ca56da0164"
+  },
+  "results_json_sha256": "6fc925dcf9e70d572cdade665e716b3e8a8eff4e134f6153b0cec26baafe6f59",
+  "reviews": {
+    "full_result_recalculation": "all 1280 sessions, 20 rates and 10 paired point estimates independently recalculated",
+    "rust_policy_and_risk": "independent static review approved; adapter equivalence, public information boundary, bankroll and stream checks",
+    "statistical_protocol": "independent review approved; 21 tests, paired ratios, frozen hashes and no survivorship filtering"
+  },
+  "scope": "Frozen tabular seat0 policies, diagnostic simulated opponents, bankroll stopping. No training and no estimate of real-money or human-game returns.",
+  "source_commit": "85d7fd05f46d1841a1bd2fb41351785c4ad4ef8f",
+  "source_files_sha256": {
+    ".github/workflows/board-aware-benchmark.yml": "9573c9d1b36044c15d1c15b0a292da38182712f541d2019113cb718dbbe2bce1",
+    "scripts/board_benchmark.py": "5e720f78065d8f292b324d4cd9fc9afe3d2e189a878983f592c684d354ed3f7c",
+    "scripts/board_benchmark_tests.py": "d9bd992dbeac14f14a8372f866d24b37ee33c83386dfdcf0576135002c6e8ac2",
+    "src/main.rs": "d69970053ed2c61298257ca20d834e6bb67f5af86f97e4ef800f8a730bf6e68e",
+    "src/sixmax.rs": "6582572a6bd7de04083108132bd84f5065cb9364c42d9768dc01a1ccb47f882e",
+    "src/sixmax_bankroll.rs": "ee9f35135c031a642d266d7d8ea7d7ea2ef24231345b2b80fc4f59a76578763f",
+    "src/sixmax_equity.rs": "1206abe1c6c5b3d5cea9ffaae030e99a57ff917fcb2982d22f19c62440e73158",
+    "src/sixmax_league.rs": "b65ed43ba3bb3281cc7e4313e3a06e3bedc611f58048bd305cb3e773e5223912",
+    "src/sixmax_risk_benchmark.rs": "e616b6a0dc0253d2b498b691553d0ee19a202bde05cdf330cdca0c603f093e99",
+    "tests/risk_benchmark.rs": "9b0c5753c621c3e9a1ef9bf2b3a022b8392f9a147d2d05c49783ad29878fccb1"
+  },
+  "source_tracked_worktree_dirty": false,
+  "tests": {
+    "accounting_stress_hands": 100000,
+    "exhaustive_five_card_hands": 2598960,
+    "explicit_release_tests_passed": 2,
+    "ordinary_rust_failed": 0,
+    "ordinary_rust_ignored": 4,
+    "ordinary_rust_passed": 177,
+    "python_failed": 0,
+    "python_passed": 21
+  },
+  "workflow": "board-aware-benchmark.yml"
+}

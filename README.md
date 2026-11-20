@@ -2,13 +2,16 @@
 
 Simuladores y agentes de investigación para **Texas Hold'em** en Rust, sin dependencias externas en el núcleo actual. Incluye Heads-Up tabular/Monte Carlo, arena no-limit 6-max, ingestión PHH y una **política neuronal V2**. También conserva el modelo histórico V1 entrenado con **100 millones de manos sintéticas adicionales de self-play**.
 
-**Estado actual (2026-11-19):** V2 conserva la identidad de las cartas visibles, usa recompensa monetaria lineal y actualiza la política una vez por mano. La [validación de V2](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44594831850) pasó **140 pruebas**: 121 unitarias, 17 de CLI y dos auditorías amplias en release. El piloto de tres semillas, con 100.000 manos de entrenamiento cada una, **no produjo un campeón**: mejoró contra el rival uniforme y empeoró en promedio contra los otros siete rivales. No se lanzó otro entrenamiento de 100M. [NEURAL_V2.md](NEURAL_V2.md) reúne cambios, protocolo, resultados y evidencia; [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) conserva la auditoría económica anterior.
+**Estado actual (2026-11-20):** la evaluación congelada de los tabulares corregidos de 10M y 20M, con caja USD 50 y máximo USD 10 por mano, completó **661.289 manos en 20 combinaciones**. Ambos pierden frente a los tres rivales que usan las cartas comunitarias, incluso sin rake; las ganancias elevadas persisten solo frente al imitador PHH histórico. A 100 BB con rake del 5%, el 20M obtiene **−449,40 BB/100 (−USD 44,94/100)** contra equity multiway y **+106,53 BB/100 (+USD 10,65/100)** contra PHH. No se seleccionó campeón ni se entrenaron pesos nuevos. [BOARD_AWARE_BENCHMARK.md](BOARD_AWARE_BENCHMARK.md) contiene resultados, límites, evidencia y próximos cambios.
+
+V2 conserva la identidad de las cartas visibles, usa recompensa monetaria lineal y actualiza la política una vez por mano. Su piloto anterior de tres semillas con 100.000 manos cada una **no produjo un campeón**. Los dos tabulares evaluados ahora conservan una representación mucho más limitada y recompensa de entrenamiento recortada; no deben confundirse con V2. [NEURAL_V2.md](NEURAL_V2.md) documenta esa arquitectura y su piloto.
 
 **Documentación principal:**
 
 La [auditoría externa posterior](EXTERNAL_ENGINE_AUDIT.md) verifica el motor 6-max con PokerKit/Treys: 6.000 manos completas, 38.806 casos de cartas, 158 pruebas Rust y nueve métodos Python. Incluye las correcciones más recientes de stop loss, telemetría y subidas con stacks desiguales.
 
 - [EXTERNAL_ENGINE_AUDIT.md](EXTERNAL_ENGINE_AUDIT.md): comparación reproducible con PokerKit y Treys; correcciones de riesgo, telemetría y subidas con stacks desiguales.
+- [BOARD_AWARE_BENCHMARK.md](BOARD_AWARE_BENCHMARK.md): evaluación 10M/20M con rivales sensibles al board, caja finita, cifras netas por 100 manos y evidencia íntegra.
 - [BANKROLL_RISK.md](BANKROLL_RISK.md): caja USD 50, máximo USD 10 por mano y stop loss; resultados históricos de sesiones y límites del experimento.
 - [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md): revisión actual de reglas, rake, ganancias, pruebas independientes y reevaluación del checkpoint 100M.
 - [NEURAL_V2.md](NEURAL_V2.md): correcciones V2, validación y piloto con controles iniciales y tres semillas de entrenamiento.
@@ -107,6 +110,6 @@ El Heads-Up usa política **tabular de 640 buckets y 3 acciones**, con Monte Car
 
 El motor conserva cuatro tamaños abstractos de raise. Su liquidación pasó 100.000 manos contra otra implementación y el evaluador pasó las 2.598.960 manos de cinco cartas; esto no certifica todas las variantes NLHE. V2 sigue siendo una política pequeña, sin historial completo, critic neuronal ni rangos de 1.326 combinaciones. La liga amplía la evaluación, pero sus rivales no demuestran calidad competitiva ni permiten medir explotabilidad.
 
-**Próxima prioridad:** investigar la degradación observada en el piloto, comparar modificaciones con controles y varias semillas, y exigir robustez frente a los distintos rivales antes de ampliar el entrenamiento o elegir un campeón. Ver [NEURAL_V2.md](NEURAL_V2.md) y [ROADMAP.md](ROADMAP.md).
+**Próxima prioridad:** evaluar V2 con el nuevo protocolo, corregir o reemplazar la representación tabular de la mano y comparar pilotos contra una población diversa. Exigir mejoras en rivales reservados, varias inicializaciones y resultado por sesión antes de ampliar el entrenamiento o elegir un campeón. Ver [BOARD_AWARE_BENCHMARK.md](BOARD_AWARE_BENCHMARK.md) y [ROADMAP.md](ROADMAP.md).
 
 Uso previsto: simulación y evaluación de estrategias fuera de línea. Licencia MIT.

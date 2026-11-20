@@ -232,6 +232,7 @@ fn main() {
         println!("solverpk --sixmax-neural-eval --hands 6000 --checkpoint sixmax-neural.bin --tabular sixmax.bin --rake-bps 500 --rake-cap-bb 3");
         println!("solverpk --sixmax-eval --hands 60000 --checkpoint sixmax.bin --rake-bps 0");
         println!("solverpk --sixmax-bankroll-eval --checkpoint sixmax.bin --hands 120000 --opponent phh --phh-model imitation.bin --bankroll-usd 50 --max-bet-usd 10 --stop-loss-usd 50 --rake-bps 500 --rake-cap-bb 3");
+        println!("solverpk --sixmax-risk-benchmark --candidate-kind tabular --checkpoint sixmax.bin --opponent equity_multiway --sessions 64 --hands 2000 --seed 2026112007 --stack-bb 100 --equity-samples 96 --bankroll-usd 50 --max-bet-usd 10 --stop-loss-usd 50 --rake-bps 500 --rake-cap-bb 3");
         println!("solverpk --sixmax-duel --left scratch.bin --right warmstart.bin --hands 120000 --rake-bps 0");
         println!("Sixmax requires explicit --rake-bps (500 = 5%, 0 = none); positive rake requires --rake-cap-bb. Default no-flop-no-drop; --rake-preflop overrides it.");
         println!("Sixmax bb/100 is net after rake. The 5%/3BB example is a configurable scenario, not a specific poker room tariff.");
@@ -265,6 +266,10 @@ fn main() {
     }
     if args.iter().any(|a| a=="--sixmax-duel") {
         if let Err(e)=sixmax::duel(&args) {eprintln!("6max duel error: {e}"); std::process::exit(2);}
+        return;
+    }
+    if args.iter().any(|a| a=="--sixmax-risk-benchmark") {
+        if let Err(e)=sixmax::risk_benchmark(&args) {eprintln!("Risk benchmark error: {e}");std::process::exit(2);}
         return;
     }
     if args.iter().any(|a| a=="--sixmax-bankroll-eval") {

@@ -61,6 +61,13 @@ mod observation;
 mod league;
 pub use league::neural_league;
 
+#[path = "sixmax_equity.rs"]
+mod equity;
+
+#[path = "sixmax_risk_benchmark.rs"]
+mod risk_benchmark;
+pub use risk_benchmark::risk_benchmark;
+
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 enum Action {Fold,Call,Raise(i64)} // Raise to street-total
 #[derive(Clone)]

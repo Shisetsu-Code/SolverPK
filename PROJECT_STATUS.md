@@ -1,4 +1,6 @@
-# SolverPK — estado técnico y traspaso (2026-11-19)
+# SolverPK — estado técnico y traspaso (2026-11-20)
+
+> **Última evaluación: tabulares 10M/20M con caja finita y rivales sensibles al board.** [BOARD_AWARE_BENCHMARK.md](BOARD_AWARE_BENCHMARK.md) documenta 20 casos, 1.280 sesiones conservadas y 661.289 manos reales. Ambos pierden en las 18 combinaciones con equity/TAG/LAG y ganan solo contra el control PHH. Las tasas son netas por 100 manos efectivamente jugadas; no acreditan rentabilidad humana. Se congelaron los pesos y no se promovió campeón.
 
 > **Estado vigente: Neural V2.** [NEURAL_V2.md](NEURAL_V2.md) documenta el encoder de 128 entradas, aprendizaje monetario sin recortes, actualización congelada por mano, checkpoints reproducibles y liga. SPKNN001 se conserva solo para evaluación.
 
@@ -9,6 +11,10 @@
 > **Fuente de verdad para continuar el desarrollo.** Leer este archivo antes de modificar la arquitectura, los checkpoints o los benchmarks. El plan priorizado está en [ROADMAP.md](ROADMAP.md).
 
 ## 1. Resumen ejecutivo
+
+La evaluación más reciente incorpora `--sixmax-risk-benchmark` para políticas tabulares o neuronales, un rival de equity multiway con información pública, entradas reales de USD 5/10 y estadísticas por sesiones completas. El protocolo fija caja USD 50, stop loss USD 50, cap USD 10 por mano y BB USD 0,10. El 20M registra **−44,94 USD/100 contra equity**, **−14,50 contra TAG**, **−7,29 contra LAG** y **+10,65 contra PHH** a 100 BB con rake del 5%, cap de 3 BB. Contra equity, ambos modelos dejan de poder financiar otra entrada en las 64 sesiones; el 20M pierde en promedio USD 43,70 por sesión. El tabular solo ve categorías gruesas de cartas propias y textura del board; no representa la mano formada ni equity, y su recompensa de entrenamiento sigue recortada.
+
+La [ejecución 44708043940](https://github.com/Shisetsu-Code/SolverPK/actions/runs/44708043940) pasó 177 pruebas Rust ordinarias, 21 Python, estrés de 100.000 manos y enumeración exhaustiva de 2.598.960 manos de cinco cartas. Código/protocolo y resultados recibieron revisión independiente. Los checkpoints originales comprimidos, registros de las 1.280 sesiones, manifiesto, logs, intervalos y hashes se conservan en [audit/2026-11-20/board-aware](audit/2026-11-20/board-aware). Las condiciones comparten 64 bloques de sesión; no son 1.280 réplicas independientes.
 
 SolverPK es un proyecto de investigación de póker Texas Hold'em en **Rust sin crates externos**, con cuatro componentes distintos que no deben confundirse:
 

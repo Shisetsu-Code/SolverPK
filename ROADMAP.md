@@ -1,8 +1,19 @@
 # SolverPK — plan de mejoras priorizado después del entrenamiento neuronal 100M
 
+## Prioridad actual tras la comparación con rivales sensibles al board — 2026-11-20
+
+La [evaluación congelada de 10M/20M](BOARD_AWARE_BENCHMARK.md) conserva caja USD 50, stop loss USD 50 y máximo USD 10 por mano. Ambos tabulares pierden frente a equity/TAG/LAG en todas las condiciones, incluso sin rake, y ganan solo frente al imitador PHH. El rival nuevo no usa cartas ajenas ni futuras. La comparación externa de reglas ya cubre 6.000 manos con PokerKit y 38.806 casos de cartas con PokerKit/Treys; su alcance está en [EXTERNAL_ENGINE_AUDIT.md](EXTERNAL_ENGINE_AUDIT.md).
+
+1. **Representación y objetivo de aprendizaje.** Medir V2 con el protocolo nuevo y comparar un tabular que represente la mano formada/proyectos/equity con el actual. El tabular sigue usando categorías gruesas y recorta ganancias de entrenamiento por encima de +100 BB; V2 ya conserva cartas exactas y retorno lineal. Aceptación: ablaciones con igual presupuesto, pesos congelados y ganancias netas por 100 manos y por sesión en semillas reservadas.
+2. **Población de entrenamiento y validación independiente.** Pilotos con varias inicializaciones y adversarios diversos, separados de los adversarios finales. Aceptación: mejora consistente fuera del conjunto usado para decidir cambios; no promover por derrotar solo a PHH ni por mejorar una tasa mientras todas las sesiones se detienen.
+3. **Diagnóstico de decisiones.** Desglosar pérdidas por calle, posición, mano formada, tamaño de bote y calls/raises all-in; conservar ejemplos de decisiones. Aceptación: cada cambio apunta a un patrón medido y se valida sin retocar resultados ni imponer techos artificiales de BB/100.
+4. **Fuerza de los rivales.** Añadir rangos condicionados por acciones y políticas externas competitivas. El rival de equity actual usa rangos uniformes; no equivale a GTO ni acredita una mesa humana. Mantener la conformidad del motor como gate separado de la calidad estratégica.
+
+La evaluación añadió presupuesto por entrada efectiva de USD 5/10, bloqueos de repartos conocidos, bootstrap pareado por sesión y evidencia completa. No se entrenó un nuevo checkpoint ni se eligió campeón. Se mantiene la prioridad de corregir y validar antes de escalar a otro entrenamiento masivo.
+
 ## Actualización de prioridades tras la auditoría económica
 
-Ver [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) para evidencia y resultados. Ya se corrigieron y probaron el reparto, rake configurable, resubidas cortas acumuladas, tamaños del bote, intervalos 6-max y validaciones de PHH/checkpoints. La referencia independiente de liquidación cubre 100.000 manos; el evaluador cubre exhaustivamente las manos de cinco cartas. Esto es un avance de P0.1; la conformidad completa contra otro motor sigue pendiente.
+Ver [AUDIT_SIXMAX.md](AUDIT_SIXMAX.md) para evidencia y resultados. Ya se corrigieron y probaron el reparto, rake configurable, resubidas cortas acumuladas, tamaños del bote, intervalos 6-max y validaciones de PHH/checkpoints. La referencia independiente de liquidación cubre 100.000 manos; el evaluador cubre exhaustivamente las manos de cinco cartas. La comparación externa posterior añade el corpus descrito arriba; no certifica todas las variantes NLHE.
 
 **Correcciones V2 implementadas:** identidad exacta de cartas, recompensa lineal neta, actualización congelada por mano, liga con cinco heurísticas y checkpoints opcionales, registro de repartos, resume exacto y guardado atómico. Ver [NEURAL_V2.md](NEURAL_V2.md) para pruebas y resultados.
 
@@ -41,6 +52,8 @@ La red actual aprende y gana contra el bot tabular en la simulación, pero todav
 
 ### P0.1 Auditoría independiente del motor (primera prioridad)
 
+**Avance posterior:** comparación reproducible con PokerKit/Treys y correcciones de stop loss, telemetría y subidas con rivales cubiertos completadas. Reglas cubiertas, tolerancias y diferencias deliberadas se documentan en [EXTERNAL_ENGINE_AUDIT.md](EXTERNAL_ENGINE_AUDIT.md). La propuesta siguiente conserva la ampliación estructural del corpus.
+
 **Problema:** `src/sixmax.rs` ya maneja ciegas, acciones, raises, all-ins, botes secundarios y splits, pero su exactitud se comprobó principalmente con tests internos. Dos errores que se compensan pueden preservar fichas y producir estrategias incorrectas.
 
 **Cambios:**
@@ -52,6 +65,8 @@ La red actual aprende y gana contra el bot tabular en la simulación, pero todav
 **Aceptación:** 100 % de casos conformes sin diferencias no explicadas; ≥100.000 partidas aleatorias con invariantes; tests de regresión para cada bug y comparación cruzada de resultados terminales. Bloquear entrenamiento si falla.
 
 ### P0.2 Liga de evaluación verdaderamente fuera de entrenamiento
+
+**Avance 2026-11-20:** protocolo congelado 10M/20M con equity/TAG/LAG y PHH como control, tres condiciones stack/rake, 64 sesiones pareadas por caso y caja finita. Resultados íntegros y límites de inferencia en [BOARD_AWARE_BENCHMARK.md](BOARD_AWARE_BENCHMARK.md). La fuerza competitiva de estos rivales y la variabilidad entre inicializaciones siguen pendientes.
 
 **Avance V2:** liga implementada con cinco perfiles, múltiples checkpoints neuronales y tabular/PHH; índices de reparto contrastados con segmentos conocidos, CIs por clusters y peor rival observado. Falta el criterio completo de ≥5 inicializaciones, mayor volumen por emparejamiento, procedencia histórica completa y referencias competitivas.
 
